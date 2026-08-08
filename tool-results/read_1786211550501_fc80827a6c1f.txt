@@ -1,0 +1,833 @@
+     1→'use client'
+     2→
+     3→import { useState, useEffect, useRef, useCallback } from 'react'
+     4→import { motion, AnimatePresence } from 'framer-motion'
+     5→import {
+     6→  Swords,
+     7→  Plus,
+     8→  ArrowLeft,
+     9→  Send,
+    10→  Clock,
+    11→  Loader2,
+    12→  Trophy,
+    13→  MessageSquare,
+    14→  Briefcase,
+    15→  Building2,
+    16→} from 'lucide-react'
+    17→import { Card, CardContent } from '@/components/ui/card'
+    18→import { Button } from '@/components/ui/button'
+    19→import { Badge } from '@/components/ui/badge'
+    20→import { Textarea } from '@/components/ui/textarea'
+    21→import { ScrollArea } from '@/components/ui/scroll-area'
+    22→import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+    23→import { Input } from '@/components/ui/input'
+    24→import ReactMarkdown from 'react-markdown'
+    25→
+    26→// ─── Types ───────────────────────────────────────────────────────────────────
+    27→
+    28→type SessionType = 'behavioral' | 'technical' | 'role-specific'
+    29→
+    30→interface InterviewMessage {
+    31→  id: string
+    32→  role: 'user' | 'ai'
+    33→  content: string
+    34→  score?: number
+    35→  createdAt: string
+    36→}
+    37→
+    38→interface InterviewScore {
+    39→  category: string
+    40→  score: number
+    41→  maxScore: number
+    42→  feedback?: string
+    43→}
+    44→
+    45→interface InterviewSession {
+    46→  id: string
+    47→  type: SessionType
+    48→  status: 'active' | 'completed'
+    49→  role?: string
+    50→  company?: string
+    51→  score?: number
+    52→  createdAt: string
+    53→  updatedAt: string
+    54→  messages?: InterviewMessage[]
+    55→  scores?: InterviewScore[]
+    56→}
+    57→
+    58→// ─── Constants ───────────────────────────────────────────────────────────────
+    59→
+    60→const SESSION_TYPES: { value: SessionType; label: string }[] = [
+    61→  { value: 'behavioral', label: 'Behavioral' },
+    62→  { value: 'technical', label: 'Technical' },
+    63→  { value: 'role-specific', label: 'Role-Specific' },
+    64→]
+    65→
+    66→const TYPE_COLORS: Record<SessionType, string> = {
+    67→  behavioral: 'border-cyan-400/30 text-cyan-400',
+    68→  technical: 'bg-hydra-purple/20 border-purple-400/30 text-purple-400',
+    69→  'role-specific': 'border-emerald-400/30 text-emerald-400',
+    70→}
+    71→
+    72→const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
+    73→  active: { label: 'Active', className: 'bg-hydra-yellow/10 text-hydra-yellow border-hydra-yellow/20' },
+    74→  completed: { label: 'Completed', className: 'bg-hydra-green/10 text-hydra-green border-hydra-green/20' },
+    75→}
+    76→
+    77→const SCORE_CATEGORIES = ['Communication', 'Technical Depth', 'Structure', 'Relevance']
+    78→
+    79→const container = {
+    80→  hidden: { opacity: 0 },
+    81→  show: { opacity: 1, transition: { staggerChildren: 0.06 } },
+    82→}
+    83→const item = {
+    84→  hidden: { opacity: 0, y: 12 },
+    85→  show: { opacity: 1, y: 0 },
+    86→}
+    87→
+    88→// ─── Helpers ─────────────────────────────────────────────────────────────────
+    89→
+    90→function formatDuration(seconds: number): string {
+    91→  const m = String(Math.floor(seconds / 60)).padStart(2, '0')
+    92→  const s = String(seconds % 60).padStart(2, '0')
+    93→  return `${m}:${s}`
+    94→}
+    95→
+    96→function formatDate(dateStr: string): string {
+    97→  const d = new Date(dateStr)
+    98→  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+    99→}
+   100→
+   101→// ─── Component ───────────────────────────────────────────────────────────────
+   102→
+   103→export default function InterviewDrills() {
+   104→  const [activeSessionId, setActiveSessionId] = useState<string | null>(null)
+   105→
+   106→  return (
+   107→    <AnimatePresence mode="wait">
+   108→      {activeSessionId ? (
+   109→        <motion.div
+   110→          key="session"
+   111→          initial={{ opacity: 0, x: 20 }}
+   112→          animate={{ opacity: 1, x: 0 }}
+   113→          exit={{ opacity: 0, x: -20 }}
+   114→          transition={{ duration: 0.2 }}
+   115→        >
+   116→          <ActiveSession sessionId={activeSessionId} onBack={() => setActiveSessionId(null)} />
+   117→        </motion.div>
+   118→      ) : (
+   119→        <motion.div
+   120→          key="list"
+   121→          initial={{ opacity: 0, x: -20 }}
+   122→          animate={{ opacity: 1, x: 0 }}
+   123→          exit={{ opacity: 0, x: 20 }}
+   124→          transition={{ duration: 0.2 }}
+   125→        >
+   126→          <SessionList onSelect={setActiveSessionId} />
+   127→        </motion.div>
+   128→      )}
+   129→    </AnimatePresence>
+   130→  )
+   131→}
+   132→
+   133→// ─── Session List View ──────────────────────────────────────────────────────
+   134→
+   135→function SessionList({ onSelect }: { onSelect: (id: string) => void }) {
+   136→  const [sessions, setSessions] = useState<InterviewSession[]>([])
+   137→  const [typeFilter, setTypeFilter] = useState<SessionType | 'all'>('all')
+   138→  const [loading, setLoading] = useState(true)
+   139→  const [creating, setCreating] = useState(false)
+   140→  const [showNewDialog, setShowNewDialog] = useState(false)
+   141→  const [newRole, setNewRole] = useState('')
+   142→  const [newCompany, setNewCompany] = useState('')
+   143→  const [newType, setNewType] = useState<SessionType>('behavioral')
+   144→
+   145→  const fetchSessions = useCallback(async () => {
+   146→    try {
+   147→      const res = await fetch('/api/interviews')
+   148→      if (res.ok) {
+   149→        const data = await res.json()
+   150→        setSessions(data)
+   151→      }
+   152→    } catch {
+   153→      // graceful fallback — show empty list
+   154→    } finally {
+   155→      setLoading(false)
+   156→    }
+   157→  }, [])
+   158→
+   159→  useEffect(() => {
+   160→    fetchSessions()
+   161→  }, [fetchSessions])
+   162→
+   163→  const handleCreate = async () => {
+   164→    setCreating(true)
+   165→    try {
+   166→      const res = await fetch('/api/interviews', {
+   167→        method: 'POST',
+   168→        headers: { 'Content-Type': 'application/json' },
+   169→        body: JSON.stringify({ type: newType, role: newRole || undefined, company: newCompany || undefined }),
+   170→      })
+   171→      if (res.ok) {
+   172→        const session = await res.json()
+   173→        setShowNewDialog(false)
+   174→        setNewRole('')
+   175→        setNewCompany('')
+   176→        setNewType('behavioral')
+   177→        onSelect(session.id)
+   178→      }
+   179→    } catch {
+   180→      // handle error
+   181→    } finally {
+   182→      setCreating(false)
+   183→    }
+   184→  }
+   185→
+   186→  const filtered = typeFilter === 'all'
+   187→    ? sessions
+   188→    : sessions.filter((s) => s.type === typeFilter)
+   189→
+   190→  return (
+   191→    <motion.div variants={container} initial="hidden" animate="show" className="space-y-6">
+   192→      {/* Header */}
+   193→      <motion.div variants={item} className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+   194→        <div className="flex items-center gap-3">
+   195→          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-hydra-purple/10 border border-hydra-purple/20">
+   196→            <Swords className="h-5 w-5 text-hydra-purple" />
+   197→          </div>
+   198→          <h1 className="text-2xl font-bold tracking-tight">Interview Drills</h1>
+   199→        </div>
+   200→        <Button
+   201→          onClick={() => setShowNewDialog(true)}
+   202→          className="bg-hydra-purple hover:bg-hydra-purple/90 text-white gap-2"
+   203→        >
+   204→          <Plus className="h-4 w-4" />
+   205→          New Session
+   206→        </Button>
+   207→      </motion.div>
+   208→
+   209→      {/* New Session Dialog */}
+   210→      <AnimatePresence>
+   211→        {showNewDialog && (
+   212→          <motion.div
+   213→            initial={{ opacity: 0, height: 0 }}
+   214→            animate={{ opacity: 1, height: 'auto' }}
+   215→            exit={{ opacity: 0, height: 0 }}
+   216→            transition={{ duration: 0.2 }}
+   217→            className="overflow-hidden"
+   218→          >
+   219→            <Card className="bg-hydra-surface-2 border-hydra-border">
+   220→              <CardContent className="p-5 space-y-4">
+   221→                <h3 className="text-sm font-semibold text-hydra-purple uppercase tracking-wider">New Interview Session</h3>
+   222→                <div className="flex flex-wrap gap-2">
+   223→                  {SESSION_TYPES.map((t) => (
+   224→                    <button
+   225→                      key={t.value}
+   226→                      onClick={() => setNewType(t.value)}
+   227→                      className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-all ${
+   228→                        newType === t.value
+   229→                          ? 'bg-hydra-purple/20 border-hydra-purple/40 text-hydra-purple'
+   230→                          : 'bg-hydra-surface border-hydra-border text-hydra-muted hover:text-foreground'
+   231→                      }`}
+   232→                    >
+   233→                      {t.label}
+   234→                    </button>
+   235→                  ))}
+   236→                </div>
+   237→                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+   238→                  <Input
+   239→                    placeholder="Target Role (e.g. Senior PM)"
+   240→                    value={newRole}
+   241→                    onChange={(e) => setNewRole(e.target.value)}
+   242→                    className="bg-hydra-surface border-hydra-border"
+   243→                  />
+   244→                  <Input
+   245→                    placeholder="Company (e.g. CyberDyne Systems)"
+   246→                    value={newCompany}
+   247→                    onChange={(e) => setNewCompany(e.target.value)}
+   248→                    className="bg-hydra-surface border-hydra-border"
+   249→                  />
+   250→                </div>
+   251→                <div className="flex gap-2 justify-end">
+   252→                  <Button
+   253→                    variant="ghost"
+   254→                    onClick={() => { setShowNewDialog(false); setNewRole(''); setNewCompany('') }}
+   255→                    className="text-hydra-muted hover:text-foreground"
+   256→                  >
+   257→                    Cancel
+   258→                  </Button>
+   259→                  <Button
+   260→                    onClick={handleCreate}
+   261→                    disabled={creating}
+   262→                    className="bg-hydra-purple hover:bg-hydra-purple/90 text-white gap-2"
+   263→                  >
+   264→                    {creating && <Loader2 className="h-4 w-4 animate-spin" />}
+   265→                    Start Session
+   266→                  </Button>
+   267→                </div>
+   268→              </CardContent>
+   269→            </Card>
+   270→          </motion.div>
+   271→        )}
+   272→      </AnimatePresence>
+   273→
+   274→      {/* Type Filter Pills */}
+   275→      <motion.div variants={item} className="flex gap-2 flex-wrap">
+   276→        <button
+   277→          onClick={() => setTypeFilter('all')}
+   278→          className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-all ${
+   279→            typeFilter === 'all'
+   280→              ? 'bg-hydra-purple/20 border-hydra-purple/40 text-hydra-purple'
+   281→              : 'bg-hydra-surface border-hydra-border text-hydra-muted hover:text-foreground'
+   282→          }`}
+   283→        >
+   284→          All
+   285→        </button>
+   286→        {SESSION_TYPES.map((t) => (
+   287→          <button
+   288→            key={t.value}
+   289→            onClick={() => setTypeFilter(t.value)}
+   290→            className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-all ${
+   291→              typeFilter === t.value
+   292→                ? 'bg-hydra-purple/20 border-hydra-purple/40 text-hydra-purple'
+   293→                : 'bg-hydra-surface border-hydra-border text-hydra-muted hover:text-foreground'
+   294→            }`}
+   295→          >
+   296→            {t.label}
+   297→          </button>
+   298→        ))}
+   299→      </motion.div>
+   300→
+   301→      {/* Sessions List */}
+   302→      {loading ? (
+   303→        <div className="flex items-center justify-center py-20">
+   304→          <Loader2 className="h-6 w-6 animate-spin text-hydra-purple" />
+   305→        </div>
+   306→      ) : filtered.length === 0 ? (
+   307→        <motion.div variants={item} className="flex flex-col items-center justify-center py-20 text-center">
+   308→          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-hydra-purple/10 mb-4">
+   309→            <Swords className="h-8 w-8 text-hydra-purple/50" />
+   310→          </div>
+   311→          <p className="text-hydra-muted text-sm">No interview sessions yet.</p>
+   312→          <p className="text-hydra-muted/60 text-xs mt-1">Start a new session to practice with an AI interviewer.</p>
+   313→        </motion.div>
+   314→      ) : (
+   315→        <motion.div variants={container} className="grid gap-3">
+   316→          {filtered.map((session) => (
+   317→            <motion.div key={session.id} variants={item}>
+   318→              <Card
+   319→                className="card-hover bg-hydra-surface-2 cursor-pointer"
+   320→                onClick={() => onSelect(session.id)}
+   321→              >
+   322→                <CardContent className="p-4">
+   323→                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+   324→                    <div className="flex items-start gap-3 min-w-0">
+   325→                      <div className="flex flex-col items-start gap-1.5 min-w-0">
+   326→                        <div className="flex flex-wrap items-center gap-2">
+   327→                          <Badge
+   328→                            variant="outline"
+   329→                            className={`text-xs ${TYPE_COLORS[session.type as SessionType] || ''}`}
+   330→                          >
+   331→                            {session.type}
+   332→                          </Badge>
+   333→                          <Badge
+   334→                            variant="outline"
+   335→                            className={`text-xs ${STATUS_CONFIG[session.status]?.className || ''}`}
+   336→                          >
+   337→                            {STATUS_CONFIG[session.status]?.label || session.status}
+   338→                          </Badge>
+   339→                        </div>
+   340→                        <div className="flex items-center gap-4 text-sm">
+   341→                          {session.role && (
+   342→                            <span className="flex items-center gap-1.5 text-foreground/90">
+   343→                              <Briefcase className="h-3.5 w-3.5 text-hydra-muted" />
+   344→                              {session.role}
+   345→                            </span>
+   346→                          )}
+   347→                          {session.company && (
+   348→                            <span className="flex items-center gap-1.5 text-foreground/90">
+   349→                              <Building2 className="h-3.5 w-3.5 text-hydra-muted" />
+   350→                              {session.company}
+   351→                            </span>
+   352→                          )}
+   353→                        </div>
+   354→                      </div>
+   355→                    </div>
+   356→                    <div className="flex items-center gap-4 sm:text-right">
+   357→                      {session.score != null && (
+   358→                        <div className="flex items-center gap-1.5">
+   359→                          <Trophy className="h-4 w-4 text-hydra-yellow" />
+   360→                          <span className="text-sm font-semibold text-hydra-yellow">{session.score}/40</span>
+   361→                        </div>
+   362→                      )}
+   363→                      <span className="text-xs text-hydra-muted flex items-center gap-1">
+   364→                        <Clock className="h-3 w-3" />
+   365→                        {formatDate(session.createdAt)}
+   366→                      </span>
+   367→                    </div>
+   368→                  </div>
+   369→                </CardContent>
+   370→              </Card>
+   371→            </motion.div>
+   372→          ))}
+   373→        </motion.div>
+   374→      )}
+   375→    </motion.div>
+   376→  )
+   377→}
+   378→
+   379→// ─── Active Session View ────────────────────────────────────────────────────
+   380→
+   381→function ActiveSession({ sessionId, onBack }: { sessionId: string; onBack: () => void }) {
+   382→  const [session, setSession] = useState<InterviewSession | null>(null)
+   383→  const [messages, setMessages] = useState<InterviewMessage[]>([])
+   384→  const [scores, setScores] = useState<InterviewScore[]>([])
+   385→  const [input, setInput] = useState('')
+   386→  const [sending, setSending] = useState(false)
+   387→  const [elapsed, setElapsed] = useState(0)
+   388→  const [ended, setEnded] = useState(false)
+   389→  const [liveScore, setLiveScore] = useState(0)
+   390→  const [ending, setEnding] = useState(false)
+   391→
+   392→  const messagesEndRef = useRef<HTMLDivElement>(null)
+   393→  const textareaRef = useRef<HTMLTextAreaElement>(null)
+   394→  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+   395→
+   396→  // Fetch session data
+   397→  useEffect(() => {
+   398→    async function load() {
+   399→      try {
+   400→        const res = await fetch(`/api/interviews/${sessionId}`)
+   401→        if (res.ok) {
+   402→          const data = await res.json()
+   403→          setSession(data)
+   404→          setMessages(data.messages || [])
+   405→          setScores(data.scores || [])
+   406→          if (data.status === 'completed') {
+   407→            setEnded(true)
+   408→            if (data.scores?.length) {
+   409→              const total = data.scores.reduce((sum: number, s: InterviewScore) => sum + s.score, 0)
+   410→              setLiveScore(total)
+   411→            }
+   412→          }
+   413→        }
+   414→      } catch {
+   415→        // handle error
+   416→      }
+   417→    }
+   418→    load()
+   419→  }, [sessionId])
+   420→
+   421→  // Timer
+   422→  useEffect(() => {
+   423→    if (ended) {
+   424→      if (timerRef.current) clearInterval(timerRef.current)
+   425→      return
+   426→    }
+   427→    timerRef.current = setInterval(() => {
+   428→      setElapsed((prev) => prev + 1)
+   429→    }, 1000)
+   430→    return () => {
+   431→      if (timerRef.current) clearInterval(timerRef.current)
+   432→    }
+   433→  }, [ended])
+   434→
+   435→  // Auto-scroll
+   436→  useEffect(() => {
+   437→    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+   438→  }, [messages])
+   439→
+   440→  const handleSend = async () => {
+   441→    const trimmed = input.trim()
+   442→    if (!trimmed || sending || ended) return
+   443→
+   444→    const userMsg: InterviewMessage = {
+   445→      id: `local-${Date.now()}`,
+   446→      role: 'user',
+   447→      content: trimmed,
+   448→      createdAt: new Date().toISOString(),
+   449→    }
+   450→    const updatedMessages = [...messages, userMsg]
+   451→    setMessages(updatedMessages)
+   452→    setInput('')
+   453→    setSending(true)
+   454→
+   455→    // Reset textarea height
+   456→    if (textareaRef.current) {
+   457→      textareaRef.current.style.height = 'auto'
+   458→    }
+   459→
+   460→    try {
+   461→      const history = updatedMessages.map((m) => ({ role: m.role, content: m.content }))
+   462→      const res = await fetch(`/api/interviews/${sessionId}/chat?XTransformPort=3000`, {
+   463→        method: 'POST',
+   464→        headers: { 'Content-Type': 'application/json' },
+   465→        body: JSON.stringify({ message: trimmed, history }),
+   466→      })
+   467→
+   468→      if (res.ok) {
+   469→        const data = await res.json()
+   470→        const aiMsg: InterviewMessage = {
+   471→          id: data.id || `ai-${Date.now()}`,
+   472→          role: 'ai',
+   473→          content: data.content || data.message || '',
+   474→          score: data.score,
+   475→          createdAt: new Date().toISOString(),
+   476→        }
+   477→        setMessages((prev) => [...prev, aiMsg])
+   478→
+   479→        // Update live score from accumulated user message scores
+   480→        if (data.score != null) {
+   481→          setLiveScore((prev) => prev + data.score)
+   482→        }
+   483→        if (data.accumulatedScore != null) {
+   484→          setLiveScore(data.accumulatedScore)
+   485→        }
+   486→      }
+   487→    } catch {
+   488→      // handle error silently
+   489→    } finally {
+   490→      setSending(false)
+   491→    }
+   492→  }
+   493→
+   494→  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+   495→    if (e.key === 'Enter' && !e.shiftKey) {
+   496→      e.preventDefault()
+   497→      handleSend()
+   498→    }
+   499→  }
+   500→
+   501→  const handleEndSession = async () => {
+   502→    setEnding(true)
+   503→    try {
+   504→      const res = await fetch(`/api/interviews/${sessionId}?XTransformPort=3000`, {
+   505→        method: 'PUT',
+   506→        headers: { 'Content-Type': 'application/json' },
+   507→        body: JSON.stringify({ status: 'completed' }),
+   508→      })
+   509→      if (res.ok) {
+   510→        const data = await res.json()
+   511→        setSession(data)
+   512→        setScores(data.scores || [])
+   513→        setEnded(true)
+   514→        if (data.scores?.length) {
+   515→          const total = data.scores.reduce((sum: number, s: InterviewScore) => sum + s.score, 0)
+   516→          setLiveScore(total)
+   517→        }
+   518→      }
+   519→    } catch {
+   520→      // handle error
+   521→    } finally {
+   522→      setEnding(false)
+   523→    }
+   524→  }
+   525→
+   526→  const avgScore = ended && scores.length > 0
+   527→    ? Math.round(scores.reduce((sum, s) => sum + s.score, 0) / scores.length * 10) / 10
+   528→    : liveScore
+   529→
+   530→  return (
+   531→    <div className="flex flex-col h-full gap-4">
+   532→      {/* Top Bar */}
+   533→      <div className="flex items-center justify-between gap-4">
+   534→        <div className="flex items-center gap-3 min-w-0">
+   535→          <Button
+   536→            variant="ghost"
+   537→            size="icon"
+   538→            onClick={onBack}
+   539→            className="shrink-0 text-hydra-muted hover:text-foreground"
+   540→          >
+   541→            <ArrowLeft className="h-4 w-4" />
+   542→          </Button>
+   543→          <div className="min-w-0">
+   544→            <div className="flex items-center gap-2 flex-wrap">
+   545→              <h2 className="text-lg font-semibold truncate">
+   546→                {session?.role || 'Interview Session'}
+   547→              </h2>
+   548→              {session?.company && (
+   549→                <span className="text-sm text-hydra-muted">@ {session.company}</span>
+   550→              )}
+   551→            </div>
+   552→            <div className="flex items-center gap-2 mt-0.5">
+   553→              <Badge
+   554→                variant="outline"
+   555→                className={`text-xs ${TYPE_COLORS[session?.type as SessionType] || ''}`}
+   556→              >
+   557→                {session?.type || 'behavioral'}
+   558→              </Badge>
+   559→              <span className="text-xs text-hydra-muted flex items-center gap-1">
+   560→                <Clock className="h-3 w-3" />
+   561→                {formatDuration(elapsed)}
+   562→              </span>
+   563→            </div>
+   564→          </div>
+   565→        </div>
+   566→        {!ended && (
+   567→          <Button
+   568→            variant="outline"
+   569→            onClick={handleEndSession}
+   570→            disabled={ending || messages.length === 0}
+   571→            className="border-hydra-red/30 text-hydra-red hover:bg-hydra-red/10 hover:text-hydra-red shrink-0 gap-2"
+   572→          >
+   573→            {ending && <Loader2 className="h-4 w-4 animate-spin" />}
+   574→            End Session
+   575→          </Button>
+   576→        )}
+   577→      </div>
+   578→
+   579→      {/* Main Content Area */}
+   580→      <div className="flex flex-1 gap-4 min-h-0">
+   581→        {/* Chat Panel */}
+   582→        <div className="flex-1 flex flex-col min-w-0">
+   583→          {/* Messages */}
+   584→          <ScrollArea className="flex-1 rounded-lg border border-hydra-border bg-hydra-surface custom-scrollbar">
+   585→            <div className="p-4 space-y-4">
+   586→              {messages.length === 0 && (
+   587→                <div className="flex flex-col items-center justify-center py-16 text-center">
+   588→                  <div className="flex h-14 w-14 items-center justify-center rounded-full bg-hydra-purple/10 mb-4">
+   589→                    <MessageSquare className="h-7 w-7 text-hydra-purple/50" />
+   590→                  </div>
+   591→                  <p className="text-hydra-muted text-sm font-medium">Session Ready</p>
+   592→                  <p className="text-hydra-muted/60 text-xs mt-1 max-w-xs">
+   593→                    Type your answer to begin. The AI interviewer will ask the first question when you respond.
+   594→                  </p>
+   595→                </div>
+   596→              )}
+   597→              <AnimatePresence initial={false}>
+   598→                {messages.map((msg, i) => (
+   599→                  <motion.div
+   600→                    key={msg.id || i}
+   601→                    initial={{ opacity: 0, y: 10 }}
+   602→                    animate={{ opacity: 1, y: 0 }}
+   603→                    transition={{ duration: 0.2 }}
+   604→                    className={`flex gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}
+   605→                  >
+   606→                    {/* Avatar */}
+   607→                    {msg.role === 'ai' ? (
+   608→                      <Avatar className="h-8 w-8 shrink-0 mt-1">
+   609→                        <AvatarFallback className="bg-hydra-purple/20 text-hydra-purple border border-hydra-purple/30">
+   610→                          <Swords className="h-4 w-4" />
+   611→                        </AvatarFallback>
+   612→                      </Avatar>
+   613→                    ) : (
+   614→                      <Avatar className="h-8 w-8 shrink-0 mt-1">
+   615→                        <AvatarFallback className="bg-hydra-cyan/10 text-hydra-cyan border border-hydra-cyan/20 text-xs font-bold">
+   616→                          U
+   617→                        </AvatarFallback>
+   618→                      </Avatar>
+   619→                    )}
+   620→
+   621→                    {/* Bubble */}
+   622→                    <div
+   623→                      className={`max-w-[80%] sm:max-w-[70%] rounded-xl px-4 py-3 text-sm leading-relaxed ${
+   624→                        msg.role === 'user'
+   625→                          ? 'bg-hydra-purple/20 border border-hydra-purple/20'
+   626→                          : 'bg-hydra-surface-2 border border-hydra-border'
+   627→                      }`}
+   628→                    >
+   629→                      {msg.role === 'ai' ? (
+   630→                        <div className="prose prose-invert prose-sm max-w-none [&_p]:text-foreground/90 [&_p:mb-2] [&_p:last:mb-0] [&_strong]:text-hydra-purple [&_h1]:text-hydra-purple [&_h2]:text-hydra-purple [&_h3]:text-hydra-purple [&_ul]:text-foreground/90 [&_ol]:text-foreground/90 [&_li]:text-foreground/90 [&_code]:text-hydra-cyan [&_pre]:bg-hydra-surface [&_blockquote]:border-hydra-purple/30">
+   631→                          <ReactMarkdown>{msg.content}</ReactMarkdown>
+   632→                        </div>
+   633→                      ) : (
+   634→                        <p className="text-foreground/90 whitespace-pre-wrap break-words">{msg.content}</p>
+   635→                      )}
+   636→                    </div>
+   637→                  </motion.div>
+   638→                ))}
+   639→              </AnimatePresence>
+   640→
+   641→              {/* Typing indicator */}
+   642→              {sending && (
+   643→                <motion.div
+   644→                  initial={{ opacity: 0, y: 10 }}
+   645→                  animate={{ opacity: 1, y: 0 }}
+   646→                  className="flex gap-3"
+   647→                >
+   648→                  <Avatar className="h-8 w-8 shrink-0 mt-1">
+   649→                    <AvatarFallback className="bg-hydra-purple/20 text-hydra-purple border border-hydra-purple/30">
+   650→                      <Swords className="h-4 w-4" />
+   651→                    </AvatarFallback>
+   652→                  </Avatar>
+   653→                  <div className="bg-hydra-surface-2 border border-hydra-border rounded-xl px-4 py-3">
+   654→                    <div className="flex gap-1.5 items-center">
+   655→                      <span className="h-2 w-2 rounded-full bg-hydra-purple/50 animate-bounce" style={{ animationDelay: '0ms' }} />
+   656→                      <span className="h-2 w-2 rounded-full bg-hydra-purple/50 animate-bounce" style={{ animationDelay: '150ms' }} />
+   657→                      <span className="h-2 w-2 rounded-full bg-hydra-purple/50 animate-bounce" style={{ animationDelay: '300ms' }} />
+   658→                    </div>
+   659→                  </div>
+   660→                </motion.div>
+   661→              )}
+   662→              <div ref={messagesEndRef} />
+   663→            </div>
+   664→          </ScrollArea>
+   665→
+   666→          {/* Input Area */}
+   667→          {!ended && (
+   668→            <div className="mt-3 flex gap-2 items-end">
+   669→              <Textarea
+   670→                ref={textareaRef}
+   671→                value={input}
+   672→                onChange={(e) => setInput(e.target.value)}
+   673→                onKeyDown={handleKeyDown}
+   674→                placeholder="Type your answer... (Enter to send, Shift+Enter for newline)"
+   675→                disabled={sending}
+   676→                className="min-h-[44px] max-h-32 resize-none bg-hydra-surface-2 border-hydra-border text-sm custom-scrollbar"
+   677→                rows={1}
+   678→                onInput={(e) => {
+   679→                  const target = e.target as HTMLTextAreaElement
+   680→                  target.style.height = 'auto'
+   681→                  target.style.height = `${Math.min(target.scrollHeight, 128)}px`
+   682→                }}
+   683→              />
+   684→              <Button
+   685→                onClick={handleSend}
+   686→                disabled={!input.trim() || sending}
+   687→                className="bg-hydra-purple hover:bg-hydra-purple/90 text-white shrink-0 h-11 w-11 p-0"
+   688→              >
+   689→                {sending ? (
+   690→                  <Loader2 className="h-4 w-4 animate-spin" />
+   691→                ) : (
+   692→                  <Send className="h-4 w-4" />
+   693→                )}
+   694→              </Button>
+   695→            </div>
+   696→          )}
+   697→        </div>
+   698→
+   699→        {/* Score Panel */}
+   700→        <div className="hidden lg:flex w-64 xl:w-72 shrink-0 flex-col gap-4">
+   701→          {/* Live Score */}
+   702→          <Card className="bg-hydra-surface-2 border-hydra-border">
+   703→            <CardContent className="p-4 text-center">
+   704→              <p className="text-xs font-semibold text-hydra-muted uppercase tracking-wider mb-2">Session Score</p>
+   705→              <div className="text-4xl font-bold text-hydra-purple glow-text-purple">
+   706→                {avgScore}
+   707→              </div>
+   708→              <p className="text-xs text-hydra-muted mt-1">out of 40</p>
+   709→            </CardContent>
+   710→          </Card>
+   711→
+   712→          {/* Timer */}
+   713→          <Card className="bg-hydra-surface-2 border-hydra-border">
+   714→            <CardContent className="p-4 text-center">
+   715→              <p className="text-xs font-semibold text-hydra-muted uppercase tracking-wider mb-2 flex items-center justify-center gap-1.5">
+   716→                <Clock className="h-3.5 w-3.5" />
+   717→                Duration
+   718→              </p>
+   719→              <div className="text-2xl font-mono font-bold text-hydra-cyan">
+   720→                {formatDuration(elapsed)}
+   721→              </div>
+   722→            </CardContent>
+   723→          </Card>
+   724→
+   725→          {/* Score Breakdown (shown when ended) */}
+   726→          <AnimatePresence>
+   727→            {ended && scores.length > 0 && (
+   728→              <motion.div
+   729→                initial={{ opacity: 0, y: 10 }}
+   730→                animate={{ opacity: 1, y: 0 }}
+   731→                exit={{ opacity: 0 }}
+   732→                transition={{ duration: 0.3 }}
+   733→              >
+   734→                <Card className="bg-hydra-surface-2 border-hydra-border">
+   735→                  <CardContent className="p-4 space-y-3">
+   736→                    <p className="text-xs font-semibold text-hydra-muted uppercase tracking-wider flex items-center gap-1.5">
+   737→                      <Trophy className="h-3.5 w-3.5 text-hydra-yellow" />
+   738→                      Score Breakdown
+   739→                    </p>
+   740→                    {SCORE_CATEGORIES.map((cat) => {
+   741→                      const scoreEntry = scores.find((s) => s.category.toLowerCase() === cat.toLowerCase())
+   742→                      const val = scoreEntry?.score ?? 0
+   743→                      const pct = (val / 10) * 100
+   744→                      return (
+   745→                        <div key={cat} className="space-y-1.5">
+   746→                          <div className="flex items-center justify-between text-xs">
+   747→                            <span className="text-foreground/80">{cat}</span>
+   748→                            <span className="font-semibold text-hydra-purple">{val}/10</span>
+   749→                          </div>
+   750→                          <div className="h-1.5 rounded-full bg-hydra-surface overflow-hidden">
+   751→                            <motion.div
+   752→n                              initial={{ width: 0 }}
+   753→                              animate={{ width: `${pct}%` }}
+   754→                              transition={{ duration: 0.6, delay: 0.1, ease: 'easeOut' }}
+   755→                              className={`h-full rounded-full ${
+   756→                                pct >= 70 ? 'bg-hydra-green' : pct >= 40 ? 'bg-hydra-yellow' : 'bg-hydra-red'
+   757→                              }`}
+   758→                            />
+   759→                          </div>
+   760→                          {scoreEntry?.feedback && (
+   761→                            <p className="text-[10px] text-hydra-muted leading-relaxed">
+   762→                              {scoreEntry.feedback}
+   763→                            </p>
+   764→                          )}
+   765→                        </div>
+   766→                      )
+   767→                    })}
+   768→                  </CardContent>
+   769→                </Card>
+   770→              </motion.div>
+   771→            )}
+   772→          </AnimatePresence>
+   773→
+   774→          {/* Session Info */}
+   775→          <Card className="bg-hydra-surface-2 border-hydra-border mt-auto">
+   776→            <CardContent className="p-4 space-y-2">
+   777→              <p className="text-xs font-semibold text-hydra-muted uppercase tracking-wider">Details</p>
+   778→              <div className="space-y-1.5 text-xs">
+   779→                <div className="flex justify-between">
+   780→                  <span className="text-hydra-muted">Type</span>
+   781→                  <span className="capitalize text-foreground/80">{session?.type}</span>
+   782→                </div>
+   783→                <div className="flex justify-between">
+   784→                  <span className="text-hydra-muted">Messages</span>
+   785→                  <span className="text-foreground/80">{messages.length}</span>
+   786→                </div>
+   787→                <div className="flex justify-between">
+   788→                  <span className="text-hydra-muted">Status</span>
+   789→                  <Badge
+   790→                    variant="outline"
+   791→                    className={`text-[10px] px-1.5 py-0 ${STATUS_CONFIG[session?.status || 'active']?.className || ''}`}
+   792→                  >
+   793→                    {STATUS_CONFIG[session?.status || 'active']?.label || session?.status}
+   794→                  </Badge>
+   795→                </div>
+   796→              </div>
+   797→            </CardContent>
+   798→          </Card>
+   799→        </div>
+   800→      </div>
+   801→
+   802→      {/* Mobile Score Bar (shown below chat on mobile) */}
+   803→      <div className="lg:hidden flex items-center justify-between gap-4 rounded-lg border border-hydra-border bg-hydra-surface-2 px-4 py-3">
+   804→        <div className="flex items-center gap-3">
+   805→          <div>
+   806→            <p className="text-[10px] text-hydra-muted uppercase tracking-wider">Score</p>
+   807→            <p className="text-lg font-bold text-hydra-purple">{avgScore}<span className="text-xs text-hydra-muted font-normal">/40</span></p>
+   808→          </div>
+   809→          <div className="h-8 w-px bg-hydra-border" />
+   810→          <div>
+   811→            <p className="text-[10px] text-hydra-muted uppercase tracking-wider flex items-center gap-1">
+   812→              <Clock className="h-2.5 w-2.5" /> Time
+   813→            </p>
+   814→            <p className="text-lg font-mono font-bold text-hydra-cyan">{formatDuration(elapsed)}</p>
+   815→          </div>
+   816→        </div>
+   817→        {!ended && (
+   818→          <Button
+   819→            variant="outline"
+   820→            size="sm"
+   821→            onClick={handleEndSession}
+   822→            disabled={ending || messages.length === 0}
+   823→            className="border-hydra-red/30 text-hydra-red hover:bg-hydra-red/10 hover:text-hydra-red gap-1.5 text-xs"
+   824→          >
+   825→            {ending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Swords className="h-3 w-3" />}
+   826→            End
+   827→          </Button>
+   828→        )}
+   829→      </div>
+   830→    </div>
+   831→  )
+   832→}
+   833→

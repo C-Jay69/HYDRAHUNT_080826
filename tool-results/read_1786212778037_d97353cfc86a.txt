@@ -1,0 +1,338 @@
+     1→## HydraHunt Build Log
+     2→
+     3→### Task 5 — Landing Page Component
+     4→- **File**: `src/components/landing/landing-page.tsx`
+     5→- Created the full landing page as a single `'use client'` component.
+     6→- **Nav Bar**: Sticky header with gradient HydraHunt logo, Features/Pricing scroll links, Login/Signup buttons (mobile hamburger menu included).
+     7→- **Hero Section**: Animated gradient headline (`gradient-text` class), subtext, two CTAs (`Enter the Hunt` → signup, `See Plans` → pricing), and a terminal-style hero graphic with scanlines, progress bars, status indicators, and animated fill bars.
+     8→- **Features Section**: 6 cards (Resume Forge, AI Payload Forge, Interview Drills, Kill List Tracker, Strike Analysis, Career Map) in responsive 3×2 grid using `card-hover` class for glow effects. Each card has icon, title, description.
+     9→- **Social Proof**: 3 stat counters (10,000+ Hunters, 50,000+ Payloads Generated, 92% Interview Success Rate) with IntersectionObserver-based count-up animation.
+    10→- **Pricing Teaser**: Brief section with `Choose Your Weapon` heading and CTA button.
+    11→- **Footer**: Sticky to bottom with `mt-auto`, logo, Features/Pricing/Contact links, copyright.
+    12→- Uses Framer Motion for scroll-triggered animations, Tailwind hydra theme colors, lucide-react icons, and `useAppStore` for navigation.
+    13→- Lint passed with zero errors.
+    14→
+    15→### Task 6 — App Shell, Sidebar, Header, Dashboard
+    16→- **Files**:
+    17→  - `src/components/app/app-shell.tsx`
+    18→  - `src/components/app/sidebar.tsx`
+    19→  - `src/components/app/header.tsx`
+    20→  - `src/components/app/dashboard.tsx`
+    21→
+    22→#### `sidebar.tsx`
+    23→- Collapsible left navigation sidebar (`'use client'`).
+    24→- 11 nav items (Dashboard, Kill List, Resume Forge, Payload Forge, Interview Drills, Strike Analysis, Version Vault, Mission Log, Career Map, Settings, Billing) each with lucide icon, calls `setView()`, active state highlighted with `bg-hydra-purple/10 text-hydra-purple`.
+    25→- Bottom section: user avatar circle (first letter of name/email), email, LogOut button calling `logout()`.
+    26→- Background `bg-sidebar (#080511)`, border-r `border-hydra-border`. Toggle button (ChevronLeft) rotates 180° when collapsed.
+    27→- Width: `w-64` expanded, `w-16` collapsed (icons only). Mobile: closes after navigation.
+    28→
+    29→#### `header.tsx`
+    30→- Sticky top header bar (`'use client'`, h-14, `bg-hydra-surface/80 backdrop-blur-sm`, `border-b border-hydra-border`).
+    31→- Maps current view string to readable title (e.g. `'dashboard'` → `'Command Center'`).
+    32→- Search input (hidden on mobile, 64w on desktop), notification bell with pulsing purple dot.
+    33→
+    34→#### `app-shell.tsx`
+    35→- Main logged-in layout wrapper (`'use client'`).
+    36→- Flex row: Sidebar (left, fixed width, full height) + main content area (flex-1, overflow-auto, `bg-grid`).
+    37→- On mobile (<md): sidebar is fixed/overlay with backdrop, toggled via hamburger Menu button. On desktop (md+): sidebar always visible with built-in collapse toggle.
+    38→- Main area: Header at top, children rendered below in padded scrollable container.
+    39→
+    40→#### `dashboard.tsx`
+    41→- Command center dashboard (`'use client'`).
+    42→- Fetches `/api/job-targets` and `/api/resumes` (graceful fallback to demo data).
+    43→- 4 metric cards in responsive grid (2-col mobile, 4-col desktop): Total Targets (12), Active Payloads (8), Resume Score (87%), Interview Prep (3) — each with colored icon, value, label.
+    44→- Recent Activity card: 5 mock timestamped entries (e.g. 'Created resume — Senior PM', 'Generated payload for Acme Corp').
+    45→- Quick Actions card: 4 outline buttons (New Resume, Generate Payload, Start Interview, Add Target) each calling `setView` to the appropriate view.
+    46→- All cards use `card-hover` class. Staggered framer-motion entrance animations (`container`/`item` variants).
+    47→- Lint passed with zero errors.
+    48→
+    49→### Task 7 — Kill List (Kanban Job Tracker)
+    50→- **Files**:
+    51→  - `src/components/features/kill-list.tsx`
+    52→  - `src/app/api/job-targets/route.ts`
+    53→  - `src/app/api/job-targets/[id]/route.ts`
+    54→
+    55→#### `kill-list.tsx`
+    56→- `'use client'` Kanban-style job tracker with full drag-and-drop using `@dnd-kit/core`, `@dnd-kit/sortable`, and `@dnd-kit/utilities`.
+    57→- **6 Columns**: Intel Gathered (cyan), Target Acquired (purple), Payload Sent (green), Interview (yellow), Offer (emerald), Eliminated (red) — each with colored top border via `border-t-*` classes.
+    58→- **Metric Summary Cards** at top: Total Targets, In Pipeline, Interviews, Offers — computed from local state.
+    59→- **Search/Filter Bar**: Text search (company, role, location) with clear button + priority dropdown filter (all/low/medium/high/critical).
+    60→- **Add Target Dialog**: Opens via purple "Add Target" button. Form fields: company, role, salary range, location, priority (select), job URL, notes. Submits POST `/api/job-targets`.
+    61→- **Draggable Cards**: Each card shows company name (bold), role with Briefcase icon, salary (green dot), location with MapPin icon, job URL link, priority badge (low=gray, medium=yellow, high=orange, critical=red), and grip handle. Uses `useSortable` from `@dnd-kit/sortable`.
+    62→- **Cross-Column Drag**: `DndContext` with `closestCorners` collision detection. `onDragOver` moves cards between columns in local state. `onDragEnd` persists status change via PUT `/api/job-targets/[id]`.
+    63→- **Drag Overlay**: Custom `DragOverlay` renders a floating card preview with ring glow while dragging.
+    64→- **Framer Motion**: `container`/`item` staggered entrance animations for sections. `AnimatePresence` with `popLayout` mode for card enter/exit transitions in columns. `layout` prop for smooth reordering.
+    65→- **API Routes**:
+    66→  - `GET /api/job-targets` — Returns all job targets from Prisma, ordered by `createdAt` desc.
+    67→  - `POST /api/job-targets` — Creates new job target with demo user, defaults to `intel` status.
+    68→  - `PUT /api/job-targets/[id]` — Updates target fields (status, company, role, salary, location, priority, jobUrl, notes).
+    69→  - `DELETE /api/job-targets/[id]` — Deletes target.
+    70→- **Responsive**: Horizontal scroll on mobile for columns, `max-w-md` on search, 2-col metric grid on mobile → 4-col on desktop. Touch-friendly 44px targets.
+    71→- **Theming**: Columns use `bg-hydra-surface`, cards use `bg-hydra-surface-2` with `card-hover` class. Custom scrollbar via `custom-scrollbar`. Empty column states shown.
+    72→- **Exports**: Default export. Imports `useAppStore` (available but used minimally).
+    73→- Lint passed with zero errors.
+    74→
+    75→### Task 8 — Resume Forge (Resume List + Editor + Live Preview)
+    76→- **Files**:
+    77→  - `src/components/features/resume-forge.tsx`
+    78→  - `src/app/api/resumes/route.ts`
+    79→  - `src/app/api/resumes/[id]/route.ts`
+    80→
+    81→#### `resume-forge.tsx`
+    82→- `'use client'` component with TWO views: **List View** and **Editor View**, switching based on `selectedResumeId` from `useAppStore`.
+    83→
+    84→**List View** (`selectedResumeId` is null):
+    85→- Fetches resumes via `useQuery` on `GET /api/resumes`.
+    86→- Grid of resume cards (responsive 1/2/3 columns). Each card shows: title (with FileText icon), last updated date (Clock icon), ATS score badge (color-coded: green ≥70, purple ≥40, red <40), 'Default' badge (Star icon, cyan border) if `isDefault`.
+    87→- Hover effects via `card-hover` class, "Open →" text fades in.
+    88→- "New Resume" button (purple) opens a `Dialog` with title input. POST `/api/resumes` on submit, then auto-navigates to editor.
+    89→- Empty state with FileText icon and prompt text.
+    90→- Framer Motion staggered entrance animations.
+    91→
+    92→**Editor View** (`selectedResumeId` is set):
+    93→- Split into `EditorView` (fetch wrapper) and `EditorContent` (editable state). `EditorView` uses `useQuery` to fetch `GET /api/resumes/[id]`, renders `EditorContent` with `key={resume.updatedAt}` so it remounts with fresh props after saves — avoids the `setState-in-effect` lint rule.
+    94→- **Top Bar**: Back button (ArrowLeft, calls `setSelectedResume(null)`), editable title `Input`, ATS score meter (`Progress` component with color-coded percentage label), Save button (manual save).
+    95→- **Split Pane** (`react-resizable-panels`): Left = Editor (55%, min 35%), Right = Live Preview (45%, min 25%). Custom resize handle with purple hover.
+    96→
+    97→**Editor Panel** (left):
+    98→- Sections rendered in `DndContext` with `@dnd-kit/sortable` for drag reordering. Each section is a `SortableSectionCard` with grip handle at bottom.
+    99→- Each section is collapsible via `Collapsible`/`CollapsibleTrigger` (ChevronDown/ChevronRight icons). Section icon mapped by type (User, Briefcase, GraduationCap, Wrench, FolderKanban).
+   100→- **5 Section Types**:
+   101→  - **Summary**: Textarea, free-form text.
+   102→  - **Experience**: List of entries (company, role, startDate, endDate, bullets textarea — one per line). Add/Remove per entry.
+   103→  - **Education**: List of entries (school, degree, field, year). Add/Remove per entry.
+   104→  - **Skills**: Comma-separated tags with input + `+` button. Displayed as clickable `Badge` chips (click to remove).
+   105→  - **Projects**: List of entries (name, description, techStack, link). Add/Remove per entry.
+   106→- `AnimatePresence` with `layout` prop for smooth section reordering.
+   107→
+   108→**Live Preview** (right):
+   109→- Styled dark resume card (`bg-[#0d0a16]` with border and shadow) that mirrors editor content in real-time.
+   110→- Sections rendered with purple accent lines, proper typography hierarchy (h1 title, h2 section headers with uppercase tracking, body text).
+   111→- Experience bullets rendered with `▹` prefix. Skills shown as chip badges. Projects show name, description, and tech stack.
+   112→- Empty state text when no content.
+   113→
+   114→**Autosave**: Debounced 2 seconds after any change. Uses `useEffect` with `firstLoad` ref guard to skip the initial mount. Manual Save button also available.
+   115→
+   116→**ATS Score**: Computed client-side heuristic (summary length, experience count, education count, skills count, project count, bullet count). Max 100.
+   117→
+   118→#### API Routes
+   119→- `GET /api/resumes` — Returns all resumes with sections ordered by `sortOrder`, ordered by `updatedAt` desc.
+   120→- `POST /api/resumes` — Creates resume with title, auto-creates 5 default sections (summary, experience, education, skills, projects) with empty content and sequential `sortOrder`. Returns resume with sections.
+   121→- `GET /api/resumes/[id]` — Returns single resume with sections ordered by `sortOrder`.
+   122→- `PUT /api/resumes/[id]` — Updates title, summary, atsScore. If `sections` array provided, deletes existing sections and recreates them (upsert pattern for demo). Returns updated resume with sections.
+   123→- `DELETE /api/resumes/[id]` — Deletes resume.
+   124→
+   125→#### Bug Fix
+   126→- Moved `@import url(...)` for Google Fonts to top of `globals.css` (before `@import "tailwindcss"`) to fix CSS parse error where `@import` must precede all rules.
+   127→
+   128→- **Theming**: Full cyberpunk Hydra theme (`bg-hydra-surface-2`, `border-hydra-border`, `text-hydra-purple`, `text-hydra-cyan`, `text-hydra-muted`). Custom scrollbar via `custom-scrollbar`.
+   129→- **Responsive**: Grid cards adapt (1→2→3 columns), editor split pane is horizontal, touch-friendly 44px targets.
+   130→- **Imports**: shadcn Card, Input, Textarea, Button, Badge, Dialog, Progress, Collapsible, ResizablePanel*. lucide-react icons. framer-motion. @dnd-kit/core + sortable + utilities. @tanstack/react-query. `useAppStore` from `@/store/app-store`.
+   131→- Lint passed with zero errors.
+   132→
+   133→### Task 9a — AI Payload Forge (Application Material Generator)
+   134→- **Files**:
+   135→  - `src/components/features/payload-forge.tsx`
+   136→  - `src/app/api/ai/generate-payload/route.ts`
+   137→
+   138→#### `payload-forge.tsx`
+   139→- `'use client'` component — the AI Payload Forge for generating tailored application materials.
+   140→- **Layout**: Two-column on desktop (`lg:grid-cols-2`), stacked on mobile. Left = input form, Right = output panel.
+   141→- **Left Side (Input)**: Card with `Target Configuration` header (Target icon in cyan).
+   142→  - **Job Description**: Large `Textarea` (min-h-180px, max-h-320px, `custom-scrollbar`), required field with red asterisk.
+   143→  - **Company Name**: `Input` with cyberpunk placeholder ('CyberDyne Systems').
+   144→  - **Target Resume**: `Select` dropdown populated by fetching `GET /api/resumes`. Auto-selects default resume. Shows FileText icon, title, 'Default' badge (cyan) if applicable, and ATS score per item.
+   145→  - **Tone Select**: Dropdown with 4 options (Confident, Professional, Casual, Aggressive).
+   146→  - **Generate Payload Button**: Full-width, `bg-hydra-purple`, Zap icon. Disabled when job description empty, no resume selected, or generating.
+   147→  - **Loading State**: Animated `Loader2` spinner + 'Deploying payload...' text with `pulse-glow` class.
+   148→- **Right Side (Output)**: Card with 'Generated Payload' header and per-tab copy button (top-right corner).
+   149→  - **Empty State**: Centered Target icon (purple/50, circular purple bg), 'Generate a payload to see results' + helper text.
+   150→  - **Tabs**: 5 tabs — Summary (Sparkles icon), Cover Letter (FileText), Outreach Email (Mail), LinkedIn (Linkedin icon), Talking Points (MessageSquare). Tab icons hidden on mobile (text only), shown on sm+.
+   151→  - Each tab shows: streaming content via `ReactMarkdown` (styled with prose overrides for purple/cyan headers, purple bold), or 'Waiting in queue...' with spinner (when generating but not yet streaming to this tab), or 'No content generated' (after completion if empty).
+   152→  - **Streaming Cursor**: Animated purple bar (`animate-pulse`) appended after content while streaming.
+   153→  - **Tab Indicators**: Pulsing purple dot on the currently-streaming tab; green ✓ badge on completed tabs.
+   154→- **Streaming**: POSTs to `/api/ai/generate-payload` with `{ resumeId, jobDescription, company, tone }`. Reads response as `ReadableStream` via `getReader()`. Parses line-by-line for `---TAB:<name>` delimiters to route content to the correct tab. Auto-switches active tab to follow the stream. Supports abort via `AbortController`.
+   155→- **CopyButton**: Ghost button that copies current tab's text to clipboard, shows green Check icon for 2s on success.
+   156→- **Framer Motion**: `container`/`item` staggered entrance animations.
+   157→- **Imports**: useAppStore, motion (framer-motion), lucide-react icons (Zap, Target, Copy, Check, FileText, Mail, Linkedin, MessageSquare, Sparkles, Loader2), shadcn Card/Input/Textarea/Button/Badge/Tabs*/Select*/Label, ReactMarkdown.
+   158→- Default export.
+   159→
+   160→#### `route.ts` (API)
+   161→- `POST /api/ai/generate-payload` — Accepts `{ resumeId, jobDescription, company, tone }`.
+   162→- Fetches resume with sections from Prisma. Formats resume sections (summary as text, experience/education/projects as key-value lines, skills as list).
+   163→- Builds a detailed system prompt instructing the AI to generate 5 sections separated by `---TAB:<key>` delimiters (summary, coverLetter, outreachEmail, linkedin, talkingPoints).
+   164→- Uses `z-ai-web-dev-sdk` (`ZAI.create()` → `zai.chat.completions.create()` with `stream: true`).
+   165→- Converts the AI async iterable stream to a `ReadableStream` and pipes back to the client as `text/plain` with no-cache headers.
+   166→- Error handling: 400 for missing fields, 404 for resume not found, 500 for generation failures.
+   167→- Lint passed with zero errors.
+   168→
+   169→### Task 9b — Interview Drills (AI Interview Practice)
+   170→- **File**: `src/components/features/interview-drills.tsx`
+   171→
+   172→#### `interview-drills.tsx`
+   173→- `'use client'` component with TWO views: **Session List** and **Active Session**, toggled via local `activeSessionId` state.
+   174→- **Framer Motion**: `AnimatePresence` with `mode="wait"` for crossfade transitions between list and session views. Staggered `container`/`item` entrance animations for list items.
+   175→
+   176→**Session List View** (`activeSessionId` is null):
+   177→- Header with Swords icon (purple-tinted container) and "Interview Drills" title.
+   178→- **Session Type Filter**: Row of pill buttons — All, Behavioral, Technical, Role-Specific. Active pill gets `bg-hydra-purple/20` styling.
+   179→- **New Session**: Inline expandable card (no dialog) with animated `height` transition via `AnimatePresence`. Fields: type selector pills, role Input, company Input, Cancel/Start Session buttons. Submits `POST /api/interviews` with `{ type, role, company }`, then navigates to active session.
+   180→- **Sessions List**: Fetches `GET /api/interviews` on mount. Cards show: type badge (color-coded per type — cyan/purple/emerald borders), status badge (yellow for active, green for completed), role with Briefcase icon, company with Building2 icon, score with Trophy icon (if completed), date with Clock icon. Click opens session. Empty state with centered Swords icon.
+   181→- **Responsive**: Stack on mobile, side-by-side on sm+.
+   182→
+   183→**Active Session View** (`activeSessionId` is set):
+   184→- **Top Bar**: Back button (ArrowLeft), session role + company, type badge, live timer (`formatDuration` helper: `MM:SS`), End Session button (red-themed, disabled when no messages or ending).
+   185→- **Chat Panel** (flex-1, fills available space):
+   186→  - `ScrollArea` with `custom-scrollbar` class.
+   187→  - Empty state: MessageSquare icon with "Session Ready" prompt.
+   188→  - Messages alternate: **User** (right-aligned, `bg-hydra-purple/20`, cyan avatar with "U"), **AI** (left-aligned, `bg-hydra-surface-2`, Swords icon in purple avatar).
+   189→  - AI messages rendered with `ReactMarkdown` and styled prose (purple headings, cyan code, dark pre blocks).
+   190→  - User messages use `whitespace-pre-wrap` for plain text.
+   191→  - Each message has a motion entrance animation.
+   192→  - Typing indicator: three bouncing purple dots when AI is generating.
+   193→  - Auto-scrolls to bottom on new messages via `messagesEndRef`.
+   194→- **Input Area**: `Textarea` (auto-resizing via `onInput` height adjustment, max 128px) + Send button. Enter sends, Shift+Enter inserts newline. Disabled while sending.
+   195→- **Chat API**: Sends `POST /api/interviews/[sessionId]/chat` with `{ message, history }`. Updates `liveScore` from response `score` or `accumulatedScore` fields.
+   196→- **Score Panel** (right sidebar, `hidden lg:flex`, 256-288px):
+   197→  - **Session Score**: Large numeric display with `glow-text-purple` class, "/40" label.
+   198→  - **Timer**: Monospace cyan display.
+   199→  - **Score Breakdown** (appears when session ends): 4 categories — Communication, Technical Depth, Structure, Relevance — each with animated progress bar (green ≥70%, yellow ≥40%, red <40%), score label (`X/10`), and optional feedback text. Progress bars animate from 0% via Framer Motion.
+   200→  - **Session Info**: Type, message count, status badge.
+   201→- **Mobile Score Bar** (`lg:hidden`): Compact bottom bar showing Score, Time, and End button.
+   202→- **End Session**: Calls `PUT /api/interviews/[sessionId]` with `{ status: 'completed' }`. Populates score breakdown from response `scores` array. Stops timer.
+   203→
+   204→**Imports**: shadcn Card, Button, Badge, Textarea, ScrollArea, Avatar, AvatarFallback, Input. lucide-react (Swords, Plus, ArrowLeft, Send, Clock, Loader2, Trophy, MessageSquare, Briefcase, Building2). framer-motion (motion, AnimatePresence). ReactMarkdown.
+   205→- Default export.
+   206→- Lint passed with zero errors.
+   207→
+   208→### Task 9c — Strike Analysis (AI Resume Analysis)
+   209→- **Files**:
+   210→  - `src/components/features/strike-analysis.tsx`
+   211→  - `src/app/api/analyses/route.ts`
+   212→  - `src/app/api/analyses/[id]/route.ts`
+   213→  - `src/app/api/ai/analyze-resume/route.ts`
+   214→
+   215→#### `strike-analysis.tsx`
+   216→- `'use client'` component with TWO views: **List View** and **Detail View**, switching based on `selectedAnalysisId` from `useAppStore`.
+   217→- **Framer Motion**: `AnimatePresence` for crossfade between views. Staggered `container`/`item` entrance animations for list cards. `detailContainer`/`detailItem` variants with stagger for analysis sections.
+   218→
+   219→**List View** (`selectedAnalysisId` is null):
+   220→- **Header**: Target icon in purple-tinted container, "Strike Analysis" title with subtitle, purple "New Analysis" button (Plus icon).
+   221→- **New Analysis Dialog**: Opens via `Dialog`/`DialogTrigger`. Two fields: Resume Select (populated from `GET /api/resumes`, shows FileText icon, title, Default badge) and Target Role Input (placeholder "e.g. Senior Product Manager"). Submit button calls `POST /api/ai/analyze-resume` with `{ resumeId, targetRole }`. Loading state shows Loader2 spinner.
+   222→- **Analysis Cards**: Responsive 1/2/3 column grid. Each card shows: resume title (FileText icon), status badge (purple spinner for processing, green for completed, red for failed), target role (Crosshair icon), ATS score Badge (color-coded: green ≥80, yellow 60-79, red <60), date (Clock icon), chevron arrow for completed. Uses `card-hover` class. Clicking completed analysis calls `setSelectedAnalysis(id)`.
+   223→- **Polling**: When any analysis has `status: 'processing'`, polls `GET /api/analyses` every 4 seconds.
+   224→- **Loading State**: 3 skeleton pulse cards.
+   225→- **Empty State**: Centered Target icon (purple/50), "No Analyses Yet" text.
+   226→
+   227→**Detail View** (`selectedAnalysisId` is set):
+   228→- **Back Button**: ArrowLeft, returns to list via `setSelectedAnalysis(null)`.
+   229→- **Header**: Resume title + target role + date.
+   230→- **ATS Score Circular Gauge**: SVG-based circular progress indicator (radius 70, strokeWidth 8) with animated `strokeDashoffset` via Framer Motion. Background track in `rgba(177,84,248,0.1)`. Progress arc colored by score (green/yellow/red). Centered large score number (text-5xl) with "out of 100" label. Wrapped in a card with matching border color and box-shadow glow. Label text: "Excellent Match" / "Good Potential" / "Needs Improvement".
+   231→- **Processing State** (`status === 'processing'`): Full processing animation — rotating Loader2 in circular SVG, 4 sequential progress steps (Extracting text → Analyzing content → Running ATS simulation → Generating recommendations) with step icons (FileText, Brain, Search, Sparkles), active/done/pending styling, per-step spinners, and a gradient progress bar (purple→cyan) with percentage.
+   232→- **Failed State**: Red X icon, "Analysis Failed" message, back button.
+   233→- **6 Analysis Sections** in a 2-column grid (md), all animated in with staggered `detailItem` variants:
+   234→  1. **STRENGTHS** (green-tinted card, green border): Check icon header, list with green Check icons per item, individual item fade-in animations.
+   235→  2. **WEAKNESSES** (red-tinted card, red border): X icon header, list with red X icons per item.
+   236→  3. **MISSING KEYWORDS** (yellow-tinted card, yellow border): AlertTriangle icon header, flex-wrap Badge chips with yellow outline styling, scale-in animations.
+   237→  4. **REWRITTEN BULLETS** (purple-tinted card, purple border): Sparkles icon header, scrollable list (max-h-72, `custom-scrollbar`) of before/after blocks — original in red-tinted box with line-through, rewritten in green-tinted box with Check icon. Numbered per bullet.
+   238→  5. **ROLE FIT ASSESSMENT** (cyan-tinted card, cyan border, full-width `md:col-span-2`): Crosshair icon header, `whitespace-pre-wrap` paragraph text.
+   239→  6. **ACTION CHECKLIST** (surface-2 card, full-width `md:col-span-2`): ListChecks icon in purple, items with custom checkbox styling (square border with inner dot, purple theme).
+   240→
+   241→**Imports**: shadcn Card/CardContent/CardHeader/CardTitle, Button, Badge, Dialog/DialogContent/DialogHeader/DialogTitle/DialogTrigger, Select/SelectContent/SelectItem/SelectTrigger/SelectValue, Input, Label. lucide-react (Target, Plus, ArrowLeft, Check, X, AlertTriangle, Shield, FileText, Crosshair, ListChecks, Loader2, Clock, Sparkles, ChevronRight, Brain, Search, Zap). framer-motion (motion, AnimatePresence). `useAppStore` from `@/store/app-store`.
+   242→- Default export.
+   243→- Lint passed with zero errors.
+   244→
+   245→#### API Routes
+   246→- `GET /api/analyses` — Returns all analyses ordered by `createdAt` desc, including resume title via relation. JSON-string fields (strengths, weaknesses, missingKeywords, rewrittenBullets, actionChecklist) are parsed to arrays.
+   247→- `POST /api/analyses` — Creates a new analysis in `processing` status with `demo-user`. Validates resumeId exists (404 if not). Returns created analysis (201).
+   248→- `GET /api/analyses/[id]` — Returns single analysis with parsed JSON fields and resume title. 404 if not found.
+   249→- `POST /api/ai/analyze-resume` — Accepts `{ resumeId, targetRole }`. Creates analysis record (processing), fetches resume with sections from Prisma, formats resume content, builds detailed JSON-response system prompt for ATS analysis. Uses `z-ai-web-dev-sdk` (`ZAI.create()` → `zai.chat.completions.create()`, non-streaming, `deepseek-chat`, temperature 0.4). Parses AI JSON response (with regex extraction for code fences). Validates and sanitizes all fields. Updates analysis to `completed` with parsed results, or `failed` if parsing errors occur. Returns formatted analysis with all parsed fields.
+   250→- Lint passed with zero errors.
+   251→
+   252→### Task 10 — Version Vault, Mission Log, Career Map, Pricing, Settings, Billing
+   253→- **Files**:
+   254→  - `src/components/features/version-vault.tsx`
+   255→  - `src/components/features/mission-log.tsx`
+   256→  - `src/components/features/career-map.tsx`
+   257→  - `src/components/features/pricing-page.tsx`
+   258→  - `src/components/features/settings-page.tsx`
+   259→  - `src/components/features/billing-page.tsx`
+   260→
+   261→#### `version-vault.tsx`
+   262→- `'use client'` component — Version history timeline for resumes.
+   263→- Fetches `GET /api/versions` with graceful fallback to 5 demo versions spanning 7 days.
+   264→- **Timeline Layout**: Vertical timeline with a left-side connecting line and circular dots per version. Latest version gets a glowing purple dot, older versions get dim border dots.
+   265→- **Version Cards**: Each card shows label, notes, date/time (relative format), and diff indicators — green `+New` badges, yellow `↑Changed` badges, red `-Deleted` badges.
+   266→- **Restore Button**: Ghost button per card that calls `PUT /api/versions/[id]/restore` with spinner animation.
+   267→- **Save Version Dialog**: Input fields for label and notes. POSTs to `/api/versions`, refreshes list.
+   268→- **Empty State**: Centered Shield icon with prompt text.
+   269→- **Imports**: Shield, Clock, Plus, ArrowUpRight, Minus, RotateCcw, FileText from lucide-react. Card, Button, Badge, Input, Label, Dialog* from shadcn. motion from framer-motion.
+   270→- Default export. Lint passed with zero errors.
+   271→
+   272→#### `mission-log.tsx`
+   273→- `'use client'` component — Global activity feed with vertical timeline.
+   274→- Fetches `GET /api/activity-log` with graceful fallback to 10 demo entries across all categories.
+   275→- **Category Icons**: resume=FileText (purple), payload=Zap (yellow), application=Crosshair (cyan), interview=Swords (orange), analysis=Target (green), billing=CreditCard (red).
+   276→- **Filter Tabs**: Row of pill buttons — All, Resume, Payload, Application, Interview, Analysis.
+   277→- **Timeline Layout**: Vertical ScrollArea with left-side colored dots and connecting line. Each entry is a card with icon, action text, relative timestamp, category badge, and expandable details (AnimatePresence height animation).
+   278→- **Empty State**: Centered ScrollText icon with prompt text.
+   279→- Default export. Lint passed with zero errors.
+   280→
+   281→#### `career-map.tsx`
+   282→- `'use client'` component — Career roadmap visualization as a vertical node-based skill tree (no external graph library).
+   283→- Built with plain divs and CSS borders for connecting lines. Fetches `GET /api/career-map` with fallback to 9 demo nodes.
+   284→- **Node Types**: current_role (purple glow), target_role (cyan glow), skill (yellow), certification (purple), milestone (green).
+   285→- **Status Cycling**: Click status badge to cycle pending→in_progress→completed. In-progress has animated ping pulse.
+   286→- **Tree Structure**: Parent-child grouping with expandable nodes and connecting lines via depth-based padding.
+   287→- **Add Node Dialog**: Type selector, label, description, parent select. POSTs to `/api/career-map`.
+   288→- **Legend**: Color-coded legend for node types and statuses.
+   289→- Default export. Lint passed with zero errors.
+   290→
+   291→#### `pricing-page.tsx`
+   292→- `'use client'` component — 3 plan cards (Free/Hunter/Beastmaster) in responsive grid + Mission Pack card.
+   293→- BEASTMASTER highlighted with purple glow and "RECOMMENDED" badge. Each card has features with Check/X icons and "Get Started" button.
+   294→- **MISSION PACK '$12 one-time'**: Separate card with yellow accent, 10 AI gens + 1 analysis, 30-day expiry.
+   295→- Default export. Lint passed with zero errors.
+   296→
+   297→#### `settings-page.tsx`
+   298→- `'use client'` component — User settings with 3 sections: Profile (name, email read-only, headline, bio, location, website, linkedin, github, phone), Target (role, salary, location, experience level select), Preferences (notifications toggle, dark mode always-on toggle).
+   299→- Fetches `GET /api/auth/me` with demo fallback. Save button PUTs to `/api/auth/me`.
+   300→- Default export. Lint passed with zero errors.
+   301→
+   302→#### `billing-page.tsx`
+   303→- `'use client'` component — Current plan card with badge, 4 usage stats with Progress bars (AI gens, analyses, interviews, storage), payment history table with 6 mock records and status badges.
+   304→- All use cyberpunk theme colors and staggered framer-motion animations.
+   305→
+   306→### Task 11 — Login Page, Signup Page, Contact Page
+   307→
+   308→#### `src/components/landing/login-page.tsx`
+   309→- `'use client'` component — Cyberpunk-themed login page.
+   310→- Centered card with `glow-purple` effect on `bg-grid` background.
+   311→- HydraHunt gradient-text logo at top with "Authenticate to access the command center" subtext.
+   312→- Email input (with Mail icon), Password input (with Lock icon + Eye/EyeOff show/hide toggle).
+   313→- 'Sign In' button (`bg-hydra-purple`) with Loader2 spinner while loading.
+   314→- 'Sign in with Google' div styled as outline button with inline Google SVG icon (shows "Coming Soon" toast on click).
+   315→- "Don't have an account? Sign up" link calls `setView('signup')`.
+   316→- "← Back to Home" link calls `setView('landing')`.
+   317→- On submit: POSTs `/api/auth/login` with `{ email, password }`. On success calls `setAuthenticated(true, { id, email, name, plan })`. On failure shows destructive toast via `useToast`.
+   318→- Framer Motion `fadeUp` staggered animations. All default exports. Lint: zero errors.
+   319→
+   320→#### `src/components/landing/signup-page.tsx`
+   321→- `'use client'` component — Cyberpunk-themed signup page.
+   322→- Centered card with `glow-purple` effect. Same layout pattern as login.
+   323→- 4 inputs: Name (User icon), Email (Mail icon), Password (Lock icon + toggle), Confirm Password (Lock icon + toggle).
+   324→- Client-side validation: password match check and minimum 6 characters, showing destructive toast on mismatch.
+   325→- 'Create Account' button (`bg-hydra-purple`). "Already have an account? Sign in" link calls `setView('login')`.
+   326→- On submit: POSTs `/api/auth/signup` with `{ name, email, password }`. On success auto-calls `setAuthenticated` with returned user data. On failure shows destructive toast.
+   327→- Framer Motion animations. Default export. Lint: zero errors.
+   328→
+   329→#### `src/components/features/contact-page.tsx`
+   330→- `'use client'` component — Cyberpunk-themed contact page.
+   331→- Centered layout, max-w-4xl. 'Contact Command' header with Radio icons flanking gradient-text heading.
+   332→- Form in 2/3-width Card: Name + Email (side-by-side on sm+), Subject Select (General/Bug Report/Feature Request/Billing), Message Textarea, Send button with Send icon.
+   333→- Uses `AnimatePresence` to swap between form and success state on submit.
+   334→- Success state: CheckCircle2 icon with scaleIn animation, "Signal Transmitted" message, "Send Another Signal" reset button.
+   335→- Contact info sidebar (1/3 width): Email (support@hydrahunt.ai), Response Time (24–48 Hours), Systems Online status with pulse-glow indicator.
+   336→- "← Back to Home" link. POSTs to `/api/contact`.
+   337→- Imports: Card, Input, Textarea, Button, Label, Select/SelectContent/SelectItem/SelectTrigger/SelectValue, motion/AnimatePresence from framer-motion.
+   338→- Default export. Lint: zero errors.
