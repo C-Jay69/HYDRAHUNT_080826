@@ -5,6 +5,7 @@ import { completeStream } from '@/lib/ai'
 import { buildPayloadPrompt, formatResumeForAI, PAYLOAD_SYSTEM_PROMPT } from '@/lib/prompts'
 import { generatePayloadSchema } from '@/lib/validators'
 import { AI_RATE_LIMIT, rateLimitResponse } from '@/lib/rate-limit'
+import { enforcePlanGate } from '@/lib/plans'
 
 export async function POST(request: NextRequest) {
   try {
@@ -12,6 +13,8 @@ export async function POST(request: NextRequest) {
 
     const limited = rateLimitResponse(`ai:${user.id}`, AI_RATE_LIMIT.limit, AI_RATE_LIMIT.windowMs)
     if (limited) return limited
+
+    await enforcePlanGate(user.id, 'aiGenerations')
 
     const body = await request.json()
     const parsed = generatePayloadSchema.safeParse(body)
