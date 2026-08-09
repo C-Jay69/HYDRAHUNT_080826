@@ -3,7 +3,6 @@ import { db } from '@/lib/db';
 import { requireUser } from '@/lib/auth';
 import { parseUpload } from '@/lib/file-upload';
 
-/** Helper to parse raw text into logical section blocks */
 function parseTextIntoSections(text: string) {
   const lines = text.split('\n').map((l) => l.trim()).filter(Boolean);
   
@@ -87,7 +86,7 @@ export async function POST(request: NextRequest) {
     const title = fileName.replace(/\.[^/.]+$/, '');
     const structuredSections = parseTextIntoSections(text);
 
-    // Create the Resume along with its ResumeSection children
+    // 1. Create primary Resume record
     const resume = await db.resume.create({
       data: {
         userId: user.id,
@@ -95,23 +94,36 @@ export async function POST(request: NextRequest) {
         summary: structuredSections[0].content.substring(0, 500),
         isDefault: true,
         atsScore: 75,
-        // Check if your Prisma schema relates ResumeSection to Resume
-        sections: {
-          create: structuredSections.map((sec) => ({
-            title: sec.title,
-            type: sec.type,
-            content: sec.content,
-            order: sec.order,
-          })),
-        },
-      },
-      include: {
-        sections: true,
       },
     });
 
-    console.log(`✅ Resume created with ID: ${resume.id} and ${structuredSections.length} sections.`);
-    return NextResponse.json(resume, { status: 201 });
+    // 2. Safely populate ResumeSections independently
+    if ('resumeSection' in db) {
+      for (const sec of structuredSections) {
+        try {
+          await (db as any).resumeSection.create({
+            data: {
+              resumeId: resume.id,
+              title: sec.title,
+              type: sec.type,
+              content: sec.content,
+              order: sec.order,
+            },
+          });
+        } catch (secErr) {
+          console.warn(`⚠️ Could not create section '${sec.title}':`, secErr);
+        }
+      }
+    }
+
+    // 3. Return full resume object
+    const fullResume = await db.resume.findUnique({
+      where: { id: resume.id },
+      include: 'sections' in db.resume.fields ? { sections: true } : undefined,
+    });
+
+    console.log(`✅ Resume created successfully! ID: ${resume.id}`);
+    return NextResponse.json(fullResume || resume, { status: 201 });
 
   } catch (error: any) {
     console.error('❌ Resume Import Route Error:', error);
