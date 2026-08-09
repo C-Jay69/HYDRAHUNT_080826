@@ -20,6 +20,7 @@ type AppView =
   | 'settings'
   | 'billing'
   | 'contact'
+  | 'admin'
 
 interface AppState {
   view: AppView
@@ -30,6 +31,7 @@ interface AppState {
     email: string
     name: string | null
     plan: string
+    isAdmin?: boolean
   } | null
   selectedResumeId: string | null
   selectedInterviewSessionId: string | null
@@ -68,11 +70,11 @@ export const useAppStore = create<AppState>()(
           const res = await fetch('/api/auth/me')
           if (res.ok) {
             const data = await res.json()
-            const { id, email, name, plan } = data.user
+            const { id, email, name, plan, isAdmin } = data.user
             set({
               isAuthenticated: true,
               sessionChecked: true,
-              user: { id, email, name, plan },
+              user: { id, email, name, plan, isAdmin: Boolean(isAdmin) },
               view: get().view === 'landing' ? 'dashboard' : get().view,
             })
           } else {

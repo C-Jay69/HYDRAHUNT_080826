@@ -22,6 +22,7 @@ const CareerMap = lazy(() => import('@/components/features/career-map'))
 const SettingsPage = lazy(() => import('@/components/features/settings-page'))
 const BillingPage = lazy(() => import('@/components/features/billing-page'))
 const ContactPage = lazy(() => import('@/components/features/contact-page'))
+const AdminPanel = lazy(() => import('@/components/features/admin-panel'))
 
 function LoadingSpinner() {
   return (
@@ -139,6 +140,8 @@ function AppRouter() {
         return <SettingsPage />
       case 'billing':
         return <BillingPage />
+      case 'admin':
+        return <SafeView><AdminPanel /></SafeView>
       default:
         return <Dashboard />
     }

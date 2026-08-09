@@ -24,6 +24,7 @@ const viewTitles: Record<AppView, string> = {
   settings: 'Settings',
   billing: 'Billing',
   contact: 'Contact',
+  admin: 'Admin Panel',
 }
 
 export default function Header() {

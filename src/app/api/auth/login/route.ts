@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { setSessionCookie, verifyPassword } from '@/lib/auth'
+import { isAdminEmail } from '@/lib/admin'
 import { loginSchema } from '@/lib/validators'
 
 // POST /api/auth/login — verify credentials, issue session cookie
@@ -48,6 +49,7 @@ export async function POST(request: NextRequest) {
         email: user.email,
         name: user.name,
         plan: user.subscriptions[0]?.plan || 'free',
+        isAdmin: isAdminEmail(user.email),
       },
     })
   } catch (error) {

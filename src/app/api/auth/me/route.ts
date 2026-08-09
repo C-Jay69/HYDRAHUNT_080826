@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getCurrentUser } from '@/lib/auth'
+import { isAdminEmail } from '@/lib/admin'
 import { profileUpdateSchema } from '@/lib/validators'
 
 // GET /api/auth/me — return the current authenticated user, or 401
@@ -26,6 +27,7 @@ export async function GET() {
         image: user.image,
         profile,
         plan: activeSubscription?.plan || 'free',
+        isAdmin: isAdminEmail(user.email),
       },
     })
   } catch (error) {

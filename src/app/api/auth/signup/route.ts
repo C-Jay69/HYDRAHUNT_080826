@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { hashPassword, setSessionCookie } from '@/lib/auth'
+import { isAdminEmail } from '@/lib/admin'
 import { signupSchema } from '@/lib/validators'
 
 // POST /api/auth/signup — create account with hashed password, issue session cookie
@@ -16,6 +17,13 @@ export async function POST(request: NextRequest) {
     }
 
     const { name, email, password } = parsed.data
+
+    if (isAdminEmail(email)) {
+      return NextResponse.json(
+        { success: false, error: 'This email is reserved. Contact the platform owner.' },
+        { status: 403 },
+      )
+    }
 
     const existing = await db.user.findUnique({ where: { email } })
     if (existing) {
@@ -50,6 +58,7 @@ export async function POST(request: NextRequest) {
           email: user.email,
           name: user.name,
           plan: user.subscriptions[0]?.plan || 'free',
+          isAdmin: isAdminEmail(user.email),
         },
       },
       { status: 201 },

@@ -68,6 +68,7 @@ export default function SignupPage() {
         email: data.user.email,
         name: data.user.name,
         plan: data.user.plan,
+        isAdmin: Boolean(data.user.isAdmin),
       })
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Something went wrong'

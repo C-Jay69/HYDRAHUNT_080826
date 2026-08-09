@@ -15,6 +15,7 @@ import {
   CreditCard,
   LogOut,
   ChevronLeft,
+  Gauge,
   type LucideIcon,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -42,6 +43,11 @@ const navItems: NavItem[] = [
 export default function Sidebar() {
   const { view, setView, user, logout, sidebarOpen, setSidebarOpen } =
     useAppStore()
+
+  const isAdmin = Boolean(user?.isAdmin)
+  const items = isAdmin
+    ? [...navItems, { label: 'Admin Panel', view: 'admin' as AppView, icon: Gauge }]
+    : navItems
 
   const handleNav = (itemView: AppView) => {
     setView(itemView)
@@ -85,7 +91,7 @@ export default function Sidebar() {
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto px-2 py-3" aria-label="Main navigation">
         <ul className="flex flex-col gap-1">
-          {navItems.map((item) => {
+          {items.map((item) => {
             const Icon = item.icon
             const isActive = view === item.view
             return (

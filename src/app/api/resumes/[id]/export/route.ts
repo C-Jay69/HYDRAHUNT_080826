@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { requireUser } from '@/lib/auth'
+import { isAdminEmail } from '@/lib/admin'
 import { generateDocx, generatePdf, resumeToPlainText } from '@/lib/resume-export'
 import { SUBSCRIPTION_LIMITS } from '@/lib/plans'
 
@@ -33,7 +34,8 @@ export async function GET(
       orderBy: { createdAt: 'desc' },
     })
     const plan = activeSub?.plan || 'free'
-    const canDocx = SUBSCRIPTION_LIMITS[plan]?.exportFormats?.includes('docx') ?? false
+    const isAdmin = isAdminEmail(user.email)
+    const canDocx = isAdmin || (SUBSCRIPTION_LIMITS[plan]?.exportFormats?.includes('docx') ?? false)
 
     const data = {
       title: resume.title,
@@ -74,8 +76,8 @@ export async function GET(
       'Content-Type': 'application/pdf',
       'Content-Disposition': `attachment; filename="${fileName}.pdf"`,
     }
-    // Watermark the free tier
-    if (plan === 'free') {
+    // Watermark the free tier (admins skip it)
+    if (plan === 'free' && !isAdmin) {
       headers['X-HydraHunt-Watermark'] = 'Created with HydraHunt — free plan'
     }
     return new Response(new Uint8Array(buffer), { headers })
