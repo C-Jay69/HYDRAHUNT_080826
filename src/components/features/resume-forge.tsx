@@ -195,7 +195,7 @@ export default function ResumeForge() {
   if (selectedResumeId) {
     return <EditorView resumeId={selectedResumeId} />
   }
-
+  console.log("DEBUG resumes:", resumes);
   return <ListView />
 }
 
@@ -497,7 +497,15 @@ function ListView() {
           animate="show"
           className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"
         >
-          {resumes.map((resume) => (
+          {(Array.isArray(resumes) ? resumes : []).map((resume) => (
+            <motion.div key={resume.id} variants={item}>
+              <Card
+                onClick={() => setSelectedResume(resume.id)}
+                className="bg-hydra-surface-2 border-hydra-border cursor-pointer 
+          card-hover group transition-all duration-200 hover:border-hydra-
+          purple/40"
+              >
+
             <motion.div key={resume.id} variants={item}>
               <Card
                 onClick={() => setSelectedResume(resume.id)}
