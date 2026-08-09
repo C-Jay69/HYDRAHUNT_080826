@@ -19,6 +19,7 @@ import {
   Headphones,
   Crown,
   Loader2,
+  ArrowLeft,
 } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -316,6 +317,19 @@ export default function PricingPage() {
 
   return (
     <div className="space-y-8">
+      {/* Back to dashboard */}
+      <div className="flex items-center justify-between">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => setView(isAuthenticated ? 'dashboard' : 'landing')}
+          className="text-hydra-muted hover:text-white shrink-0"
+        >
+          <ArrowLeft className="w-4 h-4 mr-1" />
+          {isAuthenticated ? 'Back to Dashboard' : 'Back'}
+        </Button>
+      </div>
+
       {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: -10 }}

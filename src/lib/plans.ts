@@ -81,10 +81,18 @@ export function planFromPriceId(priceId: string): Plan | null {
 /**
  * Returns true when the user's current plan has consumed the limit for a
  * given resource category. Used for subscription gating middleware/helpers.
+ * Admins are never limited.
  */
 export async function usageExceeded(userId: string, category: keyof Omit<PlanLimits, 'exportFormats' | 'watermarkPdf' | 'storageMb'>) {
   // Imported lazily to avoid a circular dependency with db.
   const { db } = await import('@/lib/db')
+  const { isAdminEmail } = await import('@/lib/admin')
+
+  const user = await db.user.findUnique({
+    where: { id: userId },
+    select: { email: true },
+  })
+  if (isAdminEmail(user?.email)) return false
 
   const sub = await db.subscription.findFirst({
     where: { userId, status: 'active' },
@@ -130,6 +138,14 @@ export async function enforcePlanGate(
 ) {
   const { NextResponse } = await import('next/server')
   const { db } = await import('@/lib/db')
+  const { isAdminEmail } = await import('@/lib/admin')
+
+  const user = await db.user.findUnique({
+    where: { id: userId },
+    select: { email: true },
+  })
+  // Admins bypass all paywalls.
+  if (isAdminEmail(user?.email)) return 'beastmaster'
 
   const sub = await db.subscription.findFirst({
     where: { userId, status: 'active' },
