@@ -1,15 +1,20 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { requireUser } from '@/lib/auth'
+import { resumeCreateSchema } from '@/lib/validators'
 
-// GET /api/resumes — return all resumes with sections
+// GET /api/resumes — return all resumes for the current user
 export async function GET() {
   try {
+    const user = await requireUser()
     const resumes = await db.resume.findMany({
+      where: { userId: user.id },
       orderBy: { updatedAt: 'desc' },
       include: { sections: { orderBy: { sortOrder: 'asc' } } },
     })
     return NextResponse.json(resumes)
-  } catch {
+  } catch (error) {
+    if (error instanceof NextResponse) return error
     return NextResponse.json([])
   }
 }
@@ -17,20 +22,21 @@ export async function GET() {
 // POST /api/resumes — create a new resume with default sections
 export async function POST(request: Request) {
   try {
+    const user = await requireUser()
     const body = await request.json()
-    const { title } = body
-
-    if (!title || typeof title !== 'string') {
-      return NextResponse.json(
-        { error: 'Title is required' },
-        { status: 400 },
-      )
+    const parsed = resumeCreateSchema.safeParse(body)
+    if (!parsed.success) {
+      return NextResponse.json({ error: 'Title is required' }, { status: 400 })
     }
+
+    // First resume becomes the default
+    const existingCount = await db.resume.count({ where: { userId: user.id } })
 
     const resume = await db.resume.create({
       data: {
-        userId: 'demo-user',
-        title,
+        userId: user.id,
+        title: parsed.data.title,
+        isDefault: existingCount === 0,
         sections: {
           create: [
             { type: 'summary', title: 'Summary', content: JSON.stringify(''), sortOrder: 0 },
@@ -44,11 +50,14 @@ export async function POST(request: Request) {
       include: { sections: { orderBy: { sortOrder: 'asc' } } },
     })
 
+    // Log activity
+    await db.activityLog.create({
+      data: { userId: user.id, action: 'Created resume', category: 'resume', details: resume.title },
+    })
+
     return NextResponse.json(resume, { status: 201 })
-  } catch {
-    return NextResponse.json(
-      { error: 'Failed to create resume' },
-      { status: 500 },
-    )
+  } catch (error) {
+    if (error instanceof NextResponse) return error
+    return NextResponse.json({ error: 'Failed to create resume' }, { status: 500 })
   }
 }
