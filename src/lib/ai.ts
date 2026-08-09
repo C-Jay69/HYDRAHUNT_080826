@@ -47,14 +47,14 @@ function resolveEnvConfig(): { baseUrl: string; apiKey: string } | null {
 
 type ZaiInstance = Awaited<ReturnType<typeof ZAI.create>>
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 let zaiInstance: ZaiInstance | null = null
 
 async function getClient(): Promise<ZaiInstance> {
   if (!zaiInstance) {
     const envConfig = resolveEnvConfig()
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    zaiInstance = envConfig ? new (ZAI as any)(envConfig as any) : await ZAI.create()
+    zaiInstance = envConfig
+      ? (Reflect.construct(ZAI, [envConfig]) as ZaiInstance)
+      : await ZAI.create()
   }
   if (!zaiInstance) throw new Error('AI client is not configured')
   return zaiInstance
@@ -110,14 +110,109 @@ export async function completeStream(opts: AICompletionOptions): Promise<Readabl
   })
 }
 
-/** Helper for parsing JSON that may be wrapped in code fences. */
+/**
+ * Parses JSON that may be wrapped in code fences or truncated mid-object.
+ * First tries a strict parse of the first {...} block. If that fails
+ * (e.g. the LLM cut off output), it falls back to a bracket-balancing
+ * repair that auto-closes open structures.
+ */
 export function extractJson(raw: string): Record<string, unknown> | null {
-  const match = raw.match(/\{[\s\S]*\}/)
-  if (!match) return null
-  try {
-    const parsed = JSON.parse(match[0])
-    return parsed && typeof parsed === 'object' ? (parsed as Record<string, unknown>) : null
-  } catch {
-    return null
+  if (!raw) return null
+  const start = raw.indexOf('{')
+  if (start === -1) return null
+  const candidate = raw.slice(start)
+
+  const tryParse = (s: string): Record<string, unknown> | null => {
+    try {
+      const parsed = JSON.parse(s)
+      return parsed && typeof parsed === 'object' ? (parsed as Record<string, unknown>) : null
+    } catch {
+      return null
+    }
   }
+
+  // 1. Strict: capture the first balanced {...} block (greedy to last }).
+  const match = candidate.match(/\{[\s\S]*\}/)
+  if (match) {
+    const strict = tryParse(match[0])
+    if (strict) return strict
+  }
+
+  // 2. Tolerant: balance brackets/quotes from the start and close any open
+  //    structures so a truncated object still yields usable data.
+  const repaired = closeJson(candidate)
+  const repairedParsed = tryParse(repaired)
+  if (repairedParsed) return repairedParsed
+
+  // 3. Progressive longest-valid-prefix fallback.
+  for (let end = candidate.length - 1; end > 0; end--) {
+    const parsed = tryParse(closeJson(candidate.slice(0, end)))
+    if (parsed) return parsed
+  }
+  return null
+}
+
+/**
+ * Returns `s` with minimal closing tokens (quotes, commas, brackets)
+ * appended so that open structures are closed. Best-effort repair for
+ * JSON the LLM emitted but then truncated mid-token.
+ */
+function closeJson(s: string): string {
+  let out = s.replace(/[\s,]+$/, '')
+  let depth = 0
+  const stack: string[] = []
+  let inString = false
+  let escape = false
+  let prevTokenEndOpen = false // true if last closed token was an unquoted string value
+
+  for (let i = 0; i < out.length; i++) {
+    const ch = out[i]
+    if (escape) {
+      escape = false
+      continue
+    }
+    if (inString) {
+      if (ch === '\\') {
+        escape = true
+        continue
+      }
+      if (ch === '"') {
+        inString = false
+        prevTokenEndOpen = false
+      }
+      continue
+    }
+    if (ch === '"') {
+      inString = true
+      prevTokenEndOpen = false
+      continue
+    }
+    if (ch === '{' || ch === '[') {
+      depth++
+      stack.push(ch === '{' ? '}' : ']')
+      prevTokenEndOpen = false
+      continue
+    }
+    if (ch === '}' || ch === ']') {
+      depth = Math.max(0, depth - 1)
+      if (stack.length) stack.pop()
+      prevTokenEndOpen = false
+      continue
+    }
+    if (ch === ':') {
+      prevTokenEndOpen = false
+      continue
+    }
+  }
+
+  // If we ended inside an unterminated string, close the quote.
+  if (inString) {
+    out += '"'
+    prevTokenEndOpen = false
+  }
+
+  // If we were mid-key/mid-value without a trailing comma, add one before
+  // closing so ["a","b" → ["a","b"] doesn't need it, but {a:1 → {a:1}.
+  out += stack.reverse().join('')
+  return out
 }
