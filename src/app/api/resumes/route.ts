@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { requireUser } from '@/lib/auth'
 import { resumeCreateSchema } from '@/lib/validators'
+import { enforcePlanGate } from '@/lib/plans'
 
 // GET /api/resumes — return all resumes for the current user
 export async function GET() {
@@ -23,6 +24,9 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const user = await requireUser()
+
+    await enforcePlanGate(user.id, 'resumes')
+
     const body = await request.json()
     const parsed = resumeCreateSchema.safeParse(body)
     if (!parsed.success) {
