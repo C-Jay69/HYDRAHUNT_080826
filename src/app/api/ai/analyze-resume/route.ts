@@ -1,20 +1,29 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import ZAI from 'z-ai-web-dev-sdk'
+import { requireUser } from '@/lib/auth'
+import { complete, extractJson } from '@/lib/ai'
+import { RESUME_ANALYSIS_SYSTEM_PROMPT, buildResumeAnalysisUserPrompt, formatResumeForAI } from '@/lib/prompts'
+import { analyzeResumeSchema } from '@/lib/validators'
+import { AI_RATE_LIMIT, rateLimitResponse } from '@/lib/rate-limit'
 
 // POST /api/ai/analyze-resume — create analysis, run AI, update result
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json()
-    const { resumeId, targetRole } = body
+    const user = await requireUser()
 
-    if (!resumeId) {
+    const limited = rateLimitResponse(`ai:${user.id}`, AI_RATE_LIMIT.limit, AI_RATE_LIMIT.windowMs)
+    if (limited) return limited
+
+    const body = await request.json()
+    const parsed = analyzeResumeSchema.safeParse(body)
+    if (!parsed.success) {
       return NextResponse.json({ error: 'resumeId is required' }, { status: 400 })
     }
+    const { resumeId, targetRole } = parsed.data
 
-    // Fetch resume with sections
-    const resume = await db.resume.findUnique({
-      where: { id: resumeId },
+    // Fetch resume with sections (ownership-checked)
+    const resume = await db.resume.findFirst({
+      where: { id: resumeId, userId: user.id },
       include: { sections: { orderBy: { sortOrder: 'asc' } } },
     })
 
@@ -25,92 +34,48 @@ export async function POST(request: NextRequest) {
     // Create analysis record in processing state
     const analysis = await db.resumeAnalysis.create({
       data: {
-        userId: 'demo-user',
+        userId: user.id,
         resumeId,
         targetRole: targetRole || null,
         status: 'processing',
       },
     })
 
-    // Format resume for AI
-    const resumeText = formatResume(resume.title, resume.sections)
-
-    // Build system prompt
-    const systemPrompt = `You are an expert ATS (Applicant Tracking System) resume analyst. You perform deep analysis of resumes against target roles.
-
-You MUST respond with a single valid JSON object (no markdown, no code fences, no extra text) with these exact fields:
-
-{
-  "atsScore": <number 0-100>,
-  "strengths": [<string>, ...] (4-6 items),
-  "weaknesses": [<string>, ...] (3-5 items),
-  "missingKeywords": [<string>, ...] (8-15 relevant keywords),
-  "rewrittenBullets": [{"original": "<original bullet text>", "rewritten": "<improved ATS-optimized version>"}, ...] (3-5 bullets),
-  "roleFitAssessment": "<detailed paragraph assessing fit for the target role>",
-  "actionChecklist": [<string>, ...] (5-8 specific actionable items)
-}
-
-Analysis guidelines:
-- ATS Score: Based on keyword density, section completeness, quantified achievements, format clarity, and relevance to the target role.
-- Strengths: Specific positive aspects of the resume.
-- Weaknesses: Specific areas needing improvement.
-- Missing Keywords: Industry-standard terms, skills, and buzzwords that should be added for the target role.
-- Rewritten Bullets: Pick 3-5 weak bullet points and rewrite them to be more impactful, quantified, and ATS-friendly using action verbs and metrics.
-- Role Fit Assessment: Overall assessment of how well the resume matches the target role, with specific recommendations.
-- Action Checklist: Concrete, prioritized action items to improve the resume.`
-
-    const userPrompt = `Analyze the following resume${targetRole ? ` for the target role: "${targetRole}"` : ' (general analysis)'}.
-
-${resumeText}`
+    const resumeText = formatResumeForAI(resume.title, resume.sections)
 
     // Run AI analysis (non-streaming)
-    const zai = ZAI.create()
-    const completion = await zai.chat.completions.create({
-      model: 'deepseek-chat',
+    const rawContent = await complete({
       messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt },
+        { role: 'system', content: RESUME_ANALYSIS_SYSTEM_PROMPT },
+        { role: 'user', content: buildResumeAnalysisUserPrompt(resumeText, targetRole) },
       ],
       temperature: 0.4,
-      max_tokens: 4000,
+      maxTokens: 4000,
     })
 
-    const rawContent = completion.choices[0]?.message?.content || ''
-
     // Parse the AI response
-    let parsed: Record<string, unknown>
-    try {
-      // Try to extract JSON from possible markdown code blocks
-      const jsonMatch = rawContent.match(/\{[\s\S]*\}/)
-      if (jsonMatch) {
-        parsed = JSON.parse(jsonMatch[0])
-      } else {
-        throw new Error('No JSON found in response')
-      }
-    } catch {
-      // Mark as failed if parsing fails
+    const parsedResponse = extractJson(rawContent)
+
+    if (!parsedResponse) {
       await db.resumeAnalysis.update({
         where: { id: analysis.id },
-        data: {
-          status: 'failed',
-          rawResponse: rawContent,
-        },
+        data: { status: 'failed', rawResponse: rawContent },
       })
       return NextResponse.json({ error: 'Failed to parse AI response' }, { status: 500 })
     }
 
     // Extract and validate fields
-    const atsScore = typeof parsed.atsScore === 'number' ? Math.min(100, Math.max(0, Math.round(parsed.atsScore))) : null
-    const strengths = Array.isArray(parsed.strengths) ? parsed.strengths.filter((s: unknown) => typeof s === 'string') : null
-    const weaknesses = Array.isArray(parsed.weaknesses) ? parsed.weaknesses.filter((w: unknown) => typeof w === 'string') : null
-    const missingKeywords = Array.isArray(parsed.missingKeywords) ? parsed.missingKeywords.filter((k: unknown) => typeof k === 'string') : null
-    const rewrittenBullets = Array.isArray(parsed.rewrittenBullets)
-      ? parsed.rewrittenBullets
+    const atsScore = typeof parsedResponse.atsScore === 'number' ? Math.min(100, Math.max(0, Math.round(parsedResponse.atsScore))) : null
+    const strengths = Array.isArray(parsedResponse.strengths) ? parsedResponse.strengths.filter((s: unknown) => typeof s === 'string') : null
+    const weaknesses = Array.isArray(parsedResponse.weaknesses) ? parsedResponse.weaknesses.filter((w: unknown) => typeof w === 'string') : null
+    const missingKeywords = Array.isArray(parsedResponse.missingKeywords) ? parsedResponse.missingKeywords.filter((k: unknown) => typeof k === 'string') : null
+    const rewrittenBullets = Array.isArray(parsedResponse.rewrittenBullets)
+      ? parsedResponse.rewrittenBullets
           .filter((b: Record<string, unknown>) => typeof b.original === 'string' && typeof b.rewritten === 'string')
           .map((b: Record<string, string>) => ({ original: b.original, rewritten: b.rewritten }))
       : null
-    const roleFitAssessment = typeof parsed.roleFitAssessment === 'string' ? parsed.roleFitAssessment : null
-    const actionChecklist = Array.isArray(parsed.actionChecklist) ? parsed.actionChecklist.filter((a: unknown) => typeof a === 'string') : null
+    const roleFitAssessment = typeof parsedResponse.roleFitAssessment === 'string' ? parsedResponse.roleFitAssessment : null
+    const actionChecklist = Array.isArray(parsedResponse.actionChecklist) ? parsedResponse.actionChecklist.filter((a: unknown) => typeof a === 'string') : null
 
     // Update analysis with results
     const updated = await db.resumeAnalysis.update({
@@ -128,6 +93,15 @@ ${resumeText}`
       },
       include: {
         resume: { select: { title: true } },
+      },
+    })
+
+    await db.activityLog.create({
+      data: {
+        userId: user.id,
+        action: 'Ran resume analysis',
+        category: 'analysis',
+        details: `${updated.resume.title} — ATS Score: ${atsScore ?? 'N/A'}/100`,
       },
     })
 
@@ -149,39 +123,7 @@ ${resumeText}`
     })
   } catch (error) {
     console.error('Resume analysis error:', error)
+    if (error instanceof NextResponse) return error
     return NextResponse.json({ error: 'Failed to analyze resume' }, { status: 500 })
   }
-}
-
-function formatResume(title: string, sections: Array<{ type: string; content: string }>): string {
-  const parts: string[] = [`Resume: ${title}`]
-
-  for (const section of sections) {
-    let content = ''
-    try {
-      const parsed = JSON.parse(section.content)
-      if (typeof parsed === 'string') {
-        content = parsed
-      } else if (Array.isArray(parsed)) {
-        content = parsed
-          .map((entry: Record<string, unknown>) => {
-            const lines: string[] = []
-            for (const [k, v] of Object.entries(entry)) {
-              if (v && k !== 'id') {
-                lines.push(`${k}: ${typeof v === 'string' ? v : JSON.stringify(v)}`)
-              }
-            }
-            return lines.join(' | ')
-          })
-          .join('\n')
-      } else {
-        content = JSON.stringify(parsed)
-      }
-    } catch {
-      content = section.content
-    }
-    parts.push(`\n--- ${section.type.toUpperCase()} ---\n${content}`)
-  }
-
-  return parts.join('\n')
 }
