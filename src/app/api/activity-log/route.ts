@@ -1,14 +1,11 @@
 import { db } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
+import { requireUser } from '@/lib/auth'
+import { activityLogCreateSchema } from '@/lib/validators'
 
 export async function GET() {
   try {
-    // Get first user (demo user)
-    const user = await db.user.findFirst()
-    if (!user) {
-      return NextResponse.json({ success: true, logs: [] })
-    }
-
+    const user = await requireUser()
     const logs = await db.activityLog.findMany({
       where: { userId: user.id },
       orderBy: { createdAt: 'desc' },
@@ -17,6 +14,7 @@ export async function GET() {
 
     return NextResponse.json({ success: true, logs })
   } catch (error) {
+    if (error instanceof NextResponse) return error
     console.error('Get activity logs error:', error)
     return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 })
   }
@@ -24,33 +22,24 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
+    const user = await requireUser()
     const body = await request.json()
-    const { action, category, details } = body
-
-    if (!action || !category) {
+    const parsed = activityLogCreateSchema.safeParse(body)
+    if (!parsed.success) {
       return NextResponse.json(
-        { success: false, error: 'Action and category are required' },
-        { status: 400 }
+        { success: false, error: parsed.error.issues[0]?.message || 'Action and category are required' },
+        { status: 400 },
       )
     }
-
-    // Get first user (demo user)
-    const user = await db.user.findFirst()
-    if (!user) {
-      return NextResponse.json({ success: false, error: 'No user found' }, { status: 404 })
-    }
+    const { action, category, details } = parsed.data
 
     const log = await db.activityLog.create({
-      data: {
-        userId: user.id,
-        action,
-        category,
-        details: details || null,
-      },
+      data: { userId: user.id, action, category, details: details || null },
     })
 
     return NextResponse.json({ success: true, log })
   } catch (error) {
+    if (error instanceof NextResponse) return error
     console.error('Create activity log error:', error)
     return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 })
   }
