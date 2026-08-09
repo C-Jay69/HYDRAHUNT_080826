@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { requireUser } from '@/lib/auth'
 
 // GET /api/analyses/[id] — return a single analysis with parsed JSON fields
 export async function GET(
@@ -7,9 +8,10 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    const user = await requireUser()
     const { id } = await params
-    const analysis = await db.resumeAnalysis.findUnique({
-      where: { id },
+    const analysis = await db.resumeAnalysis.findFirst({
+      where: { id, userId: user.id },
       include: {
         resume: {
           select: { title: true },
@@ -39,7 +41,8 @@ export async function GET(
     }
 
     return NextResponse.json(formatted)
-  } catch {
+  } catch (error) {
+    if (error instanceof NextResponse) return error
     return NextResponse.json({ error: 'Failed to fetch analysis' }, { status: 500 })
   }
 }
