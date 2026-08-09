@@ -1,40 +1,27 @@
 import { db } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
+import { requireUser } from '@/lib/auth'
+import { careerNodeCreateSchema } from '@/lib/validators'
 
 export async function GET() {
   try {
-    // Get first user (demo user)
-    const user = await db.user.findFirst()
-    if (!user) {
-      return NextResponse.json({ success: true, map: null })
-    }
+    const user = await requireUser()
 
-    // Get first career map or create default
     let careerMap = await db.careerMap.findFirst({
       where: { userId: user.id },
-      include: {
-        nodes: {
-          orderBy: { orderIndex: 'asc' },
-        },
-      },
+      include: { nodes: { orderBy: { orderIndex: 'asc' } } },
     })
 
     if (!careerMap) {
       careerMap = await db.careerMap.create({
-        data: {
-          userId: user.id,
-          title: 'My Career Map',
-        },
-        include: {
-          nodes: {
-            orderBy: { orderIndex: 'asc' },
-          },
-        },
+        data: { userId: user.id, title: 'My Career Map' },
+        include: { nodes: { orderBy: { orderIndex: 'asc' } } },
       })
     }
 
     return NextResponse.json({ success: true, map: careerMap })
   } catch (error) {
+    if (error instanceof NextResponse) return error
     console.error('Get career map error:', error)
     return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 })
   }
@@ -42,34 +29,22 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
+    const user = await requireUser()
     const body = await request.json()
-    const { type, label, description, status } = body
-
-    if (!type || !label) {
+    const parsed = careerNodeCreateSchema.safeParse(body)
+    if (!parsed.success) {
       return NextResponse.json(
-        { success: false, error: 'Type and label are required' },
-        { status: 400 }
+        { success: false, error: parsed.error.issues[0]?.message || 'Type and label are required' },
+        { status: 400 },
       )
     }
+    const { type, label, description, status } = parsed.data
 
-    // Get first user (demo user)
-    const user = await db.user.findFirst()
-    if (!user) {
-      return NextResponse.json({ success: false, error: 'No user found' }, { status: 404 })
-    }
-
-    // Get or create career map
-    let careerMap = await db.careerMap.findFirst({
-      where: { userId: user.id },
-    })
-
+    let careerMap = await db.careerMap.findFirst({ where: { userId: user.id } })
     if (!careerMap) {
-      careerMap = await db.careerMap.create({
-        data: { userId: user.id },
-      })
+      careerMap = await db.careerMap.create({ data: { userId: user.id } })
     }
 
-    // Get the current max orderIndex for this map
     const maxOrderNode = await db.careerNode.findFirst({
       where: { mapId: careerMap.id },
       orderBy: { orderIndex: 'desc' },
@@ -82,13 +57,14 @@ export async function POST(request: NextRequest) {
         type,
         label,
         description: description || null,
-        status: status || 'pending',
+        status,
         orderIndex: (maxOrderNode?.orderIndex ?? -1) + 1,
       },
     })
 
     return NextResponse.json({ success: true, node })
   } catch (error) {
+    if (error instanceof NextResponse) return error
     console.error('Create career node error:', error)
     return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 })
   }
