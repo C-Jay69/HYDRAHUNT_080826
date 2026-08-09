@@ -1,13 +1,14 @@
 import mammoth from 'mammoth';
-import { getDocument, GlobalWorkerOptions } from 'pdfjs-dist';
 
-// Configure worker source for pdfjs-dist
-// This points to the default CDN worker, but we can override if needed later
-GlobalWorkerOptions.workerSrc = '/_next/static/chunks/polyfill.js'; 
-// Note: In Next.js 16, sometimes workers need specific handling, 
-// but often the default import path works fine for server components.
-// If this fails, we might need to serve the worker explicitly, 
-// but let's try the simple approach first.
+// 1. Polyfill DOMMatrix for pdfjs-dist in Node.js / Bun server environments
+if (typeof globalThis.DOMMatrix === 'undefined') {
+  (globalThis as any).DOMMatrix = class DOMMatrix {
+    a = 1; b = 0; c = 0; d = 1; e = 0; f = 0;
+    multiply() { return this; }
+    translate() { return this; }
+    scale() { return this; }
+  };
+}
 
 export async function extractTextFromBuffer(buffer: Buffer, ext: string): Promise<string> {
   const normalizedExt = ext.toLowerCase().replace(/^\./, '');
@@ -30,21 +31,34 @@ export async function extractTextFromBuffer(buffer: Buffer, ext: string): Promis
 
 async function extractPdfText(buffer: Buffer): Promise<string> {
   try {
-    // Convert buffer to Uint8Array required by pdfjs
+    // Dynamically load legacy Node.js build of pdfjs-dist
+    let getDocument: any;
+    try {
+      const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs');
+      getDocument = pdfjs.getDocument;
+    } catch {
+      const pdfjs = require('pdfjs-dist/legacy/build/pdf.js');
+      getDocument = pdfjs.getDocument;
+    }
+
     const typedarray = new Uint8Array(buffer);
     
-    const loadingTask = getDocument(typedarray);
-    const pdf = await loadingTask.promise;
+    // Disable font rendering logic (we only need raw text)
+    const loadingTask = getDocument({
+      data: typedarray,
+      useSystemFonts: true,
+      disableFontFace: true,
+    });
     
+    const pdf = await loadingTask.promise;
     let fullText = '';
 
-    // Loop through all pages
     for (let i = 1; i <= pdf.numPages; i++) {
       const page = await pdf.getPage(i);
       const textContent = await page.getTextContent();
-      
-      // Concatenate items on the page
-      const pageText = textContent.items.map((item: any) => item.str).join(' ');
+      const pageText = textContent.items
+        .map((item: any) => item.str || '')
+        .join(' ');
       fullText += pageText + '\n';
     }
 
