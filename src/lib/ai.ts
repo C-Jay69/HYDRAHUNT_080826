@@ -1,8 +1,19 @@
 import ZAI from 'z-ai-web-dev-sdk'
 import type { ChatMessage } from 'z-ai-web-dev-sdk'
 
-const DEFAULT_MODEL = process.env.AI_MODEL || 'deepseek-chat'
-const STREAM_MODEL = process.env.AI_STREAM_MODEL || process.env.AI_MODEL || 'default'
+/*
+ * Model resolution:
+ * - Per-endpoint override (`opts.model`) wins.
+ * - Then `AI_MODEL` (general) / `AI_STREAM_MODEL` (streaming).
+ * - Then `OPEN_ROUTER_MODEL` (the env var provisioned for this project).
+ * - Finally a sensible default.
+ */
+const DEFAULT_MODEL = process.env.AI_MODEL || process.env.OPEN_ROUTER_MODEL || 'deepseek-chat'
+const STREAM_MODEL =
+  process.env.AI_STREAM_MODEL ||
+  process.env.OPEN_ROUTER_MODEL ||
+  process.env.AI_MODEL ||
+  'default'
 
 export interface AICompletionOptions {
   messages: ChatMessage[]
@@ -12,12 +23,40 @@ export interface AICompletionOptions {
   stream?: boolean
 }
 
-let zaiInstance: Awaited<ReturnType<typeof ZAI.create>> | null = null
-
-async function getClient() {
-  if (!zaiInstance) {
-    zaiInstance = await ZAI.create()
+/**
+ * Resolves the ZAI config object from environment variables so that
+ * a `.z-ai-config` file is not strictly required. Supports OpenRouter
+ * (primary) and OpenAI-compatible gateways as fallbacks. If no env vars
+ * are present, callers fall back to `ZAI.create()`, which reads `.z-ai-config`.
+ */
+function resolveEnvConfig(): { baseUrl: string; apiKey: string } | null {
+  const openRouterKey = process.env.OPEN_ROUTER_API_KEY
+  if (openRouterKey) {
+    return {
+      baseUrl: process.env.OPEN_ROUTER_BASE_URL || 'https://openrouter.ai/api/v1',
+      apiKey: openRouterKey,
+    }
   }
+  const openAiKey = process.env.OPENAI_API_KEY
+  const openAiBase = process.env.OPENAI_BASE_URL
+  if (openAiKey && openAiBase) {
+    return { baseUrl: openAiBase, apiKey: openAiKey }
+  }
+  return null
+}
+
+type ZaiInstance = Awaited<ReturnType<typeof ZAI.create>>
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let zaiInstance: ZaiInstance | null = null
+
+async function getClient(): Promise<ZaiInstance> {
+  if (!zaiInstance) {
+    const envConfig = resolveEnvConfig()
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    zaiInstance = envConfig ? new (ZAI as any)(envConfig as any) : await ZAI.create()
+  }
+  if (!zaiInstance) throw new Error('AI client is not configured')
   return zaiInstance
 }
 

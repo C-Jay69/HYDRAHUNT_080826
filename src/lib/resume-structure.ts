@@ -28,7 +28,22 @@ export interface StructuredResume {
   }>
 }
 
-const str = (v: unknown): string => (typeof v === 'string' ? v : '')
+/**
+ * Coerces an LLM value into the string shape the editor expects.
+ * - strings pass through
+ * - arrays are joined (so "bullets" returned as an array doesn't get blanked)
+ * - objects are JSON-stringified
+ * - null/undefined become ''
+ */
+function coerceString(v: unknown, joiner = '\n'): string {
+  if (typeof v === 'string') return v
+  if (v == null) return ''
+  if (Array.isArray(v)) return v.filter((x) => x != null).join(joiner)
+  if (typeof v === 'object') return JSON.stringify(v)
+  return String(v)
+}
+
+const str = (v: unknown): string => coerceString(v)
 
 const uid = () => randomUUID()
 
