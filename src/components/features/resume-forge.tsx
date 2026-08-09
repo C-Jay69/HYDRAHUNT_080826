@@ -501,14 +501,6 @@ function ListView() {
             <motion.div key={resume.id} variants={item}>
               <Card
                 onClick={() => setSelectedResume(resume.id)}
-                className="bg-hydra-surface-2 border-hydra-border cursor-pointer 
-          card-hover group transition-all duration-200 hover:border-hydra-
-          purple/40"
-              >
-
-            <motion.div key={resume.id} variants={item}>
-              <Card
-                onClick={() => setSelectedResume(resume.id)}
                 className="bg-hydra-surface-2 border-hydra-border cursor-pointer card-hover group transition-all duration-200 hover:border-hydra-purple/40"
               >
                 <CardContent className="p-4 space-y-3">
