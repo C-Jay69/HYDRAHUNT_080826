@@ -468,27 +468,89 @@ function ActiveSession({ sessionId, onBack }: { sessionId: string; onBack: () =>
         body: JSON.stringify({ message: trimmed, history }),
       })
 
-      if (res.ok) {
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}))
+        throw new Error(errData.error || 'Chat request failed')
+      }
+
+      const contentType = res.headers.get('content-type') || ''
+      if (contentType.includes('text/event-stream')) {
+        // Streaming SSE response
+        const reader = res.body?.getReader()
+        if (!reader) throw new Error('No response stream')
+
+        const aiMsg: InterviewMessage = {
+          id: `ai-${Date.now()}`,
+          role: 'ai',
+          content: '',
+          createdAt: new Date().toISOString(),
+        }
+        setMessages((prev) => [...prev, aiMsg])
+
+        const decoder = new TextDecoder()
+        let streamScore: number | undefined
+        let buffer = ''
+
+        const parseEvent = (line: string) => {
+          if (!line.startsWith('data:')) return
+          const payload = line.slice(5).trim()
+          if (!payload) return
+          try {
+            const event = JSON.parse(payload)
+            if (event.type === 'delta') {
+              const content = event.content || ''
+              setMessages((prev) => {
+                const copy = [...prev]
+                const idx = copy.findIndex((m) => m.id === aiMsg.id)
+                if (idx >= 0) copy[idx] = { ...copy[idx], content: copy[idx].content + content }
+                return copy
+              })
+            } else if (event.type === 'done') {
+              streamScore = event.score
+              if (streamScore != null) setLiveScore((prev) => prev + streamScore)
+            } else if (event.type === 'error') {
+              throw new Error(event.error || 'Stream error')
+            }
+          } catch {
+            // ignore malformed events
+          }
+        }
+
+        while (true) {
+          const { done, value } = await reader.read()
+          if (done) break
+          buffer += decoder.decode(value, { stream: true })
+          const lines = buffer.split('\n\n')
+          buffer = lines.pop() || ''
+          for (const line of lines) parseEvent(line)
+        }
+        if (buffer.trim()) parseEvent(buffer)
+      } else {
+        // Legacy JSON fallback
         const data = await res.json()
         const aiMsg: InterviewMessage = {
           id: data.id || `ai-${Date.now()}`,
           role: 'ai',
-          content: data.content || data.message || '',
+          content: data.content || data.message || data.response || '',
           score: data.score,
           createdAt: new Date().toISOString(),
         }
         setMessages((prev) => [...prev, aiMsg])
 
-        // Update live score from accumulated user message scores
-        if (data.score != null) {
-          setLiveScore((prev) => prev + data.score)
-        }
-        if (data.accumulatedScore != null) {
-          setLiveScore(data.accumulatedScore)
-        }
+        if (data.score != null) setLiveScore((prev) => prev + data.score)
+        if (data.accumulatedScore != null) setLiveScore(data.accumulatedScore)
       }
-    } catch {
-      // handle error silently
+    } catch (err) {
+      console.error('Chat error:', err)
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `error-${Date.now()}`,
+          role: 'ai',
+          content: `⚠️ Signal interrupted: ${err instanceof Error ? err.message : 'Something went wrong'}`,
+          createdAt: new Date().toISOString(),
+        },
+      ])
     } finally {
       setSending(false)
     }

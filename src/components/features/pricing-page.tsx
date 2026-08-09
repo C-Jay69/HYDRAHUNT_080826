@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import { motion } from 'framer-motion'
 import {
   Check,
@@ -22,6 +23,8 @@ import {
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { useAppStore } from '@/store/app-store'
+import { toast } from '@/hooks/use-toast'
 
 interface PlanFeature {
   text: string
@@ -43,6 +46,7 @@ interface Plan {
   iconBg: string
   buttonVariant?: string
   glowClass?: string
+  checkoutPlan?: string
 }
 
 const FREE_PLAN: Plan = {
@@ -80,6 +84,7 @@ const HUNTER_PLAN: Plan = {
   period: '/month',
   yearlyPrice: '$228',
   yearlyPeriod: '/year',
+  checkoutPlan: 'hunter_monthly',
   icon: Crosshair,
   iconColor: 'text-hydra-purple',
   iconBg: 'bg-hydra-purple/15',
@@ -114,6 +119,7 @@ const BEASTMASTER_PLAN: Plan = {
   iconBg: 'bg-hydra-purple/20',
   highlighted: true,
   recommended: true,
+  checkoutPlan: 'beastmaster_monthly',
   glowClass: 'shadow-[0_0_40px_rgba(177,84,248,0.2)] border-hydra-purple/40',
   features: [
     { text: 'Unlimited Resumes', included: true },
@@ -150,6 +156,41 @@ const item = {
 
 function PlanCard({ plan }: { plan: Plan }) {
   const IconComp = plan.icon
+  const [loading, setLoading] = useState(false)
+  const { isAuthenticated, setView } = useAppStore()
+
+  async function handleCheckout() {
+    if (!plan.checkoutPlan) {
+      // Free plan — just route to signup/dashboard
+      setView(isAuthenticated ? 'dashboard' : 'signup')
+      return
+    }
+    if (!isAuthenticated) {
+      toast({ title: 'Sign in required', description: 'Create an account before upgrading.' })
+      setView('signup')
+      return
+    }
+    setLoading(true)
+    try {
+      const res = await fetch('/api/stripe/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ plan: plan.checkoutPlan }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Checkout failed')
+      if (data.url) window.location.href = data.url
+      else toast({ title: 'Checkout unavailable', description: data.error })
+    } catch (err: unknown) {
+      toast({
+        title: 'Checkout failed',
+        description: err instanceof Error ? err.message : 'Something went wrong',
+        variant: 'destructive',
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
 
   return (
     <motion.div variants={item}>
@@ -217,13 +258,23 @@ function PlanCard({ plan }: { plan: Plan }) {
 
           {/* CTA */}
           <Button
+            onClick={handleCheckout}
+            disabled={loading}
             className={`w-full h-11 text-sm font-semibold ${
               plan.highlighted
                 ? 'bg-hydra-purple hover:bg-hydra-purple/80 text-white shadow-[0_0_20px_rgba(177,84,248,0.3)]'
                 : 'bg-hydra-surface border border-hydra-border text-foreground hover:bg-hydra-surface-2 hover:border-hydra-purple/30'
             }`}
           >
-            Get Started
+            {loading ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin mr-1" /> Redirecting...
+              </>
+            ) : plan.checkoutPlan ? (
+              'Upgrade Now'
+            ) : (
+              'Get Started'
+            )}
           </Button>
         </CardContent>
       </Card>
@@ -232,6 +283,37 @@ function PlanCard({ plan }: { plan: Plan }) {
 }
 
 export default function PricingPage() {
+  const [packLoading, setPackLoading] = useState(false)
+  const { isAuthenticated, setView } = useAppStore()
+
+  async function handleMissionPack() {
+    if (!isAuthenticated) {
+      toast({ title: 'Sign in required', description: 'Create an account before purchasing a Mission Pack.' })
+      setView('signup')
+      return
+    }
+    setPackLoading(true)
+    try {
+      const res = await fetch('/api/stripe/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ plan: 'mission_pack' }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Checkout failed')
+      if (data.url) window.location.href = data.url
+      else toast({ title: 'Checkout unavailable', description: data.error })
+    } catch (err: unknown) {
+      toast({
+        title: 'Checkout failed',
+        description: err instanceof Error ? err.message : 'Something went wrong',
+        variant: 'destructive',
+      })
+    } finally {
+      setPackLoading(false)
+    }
+  }
+
   return (
     <div className="space-y-8">
       {/* Header */}
@@ -303,7 +385,12 @@ export default function PricingPage() {
                   <span className="text-2xl font-bold text-foreground">$12</span>
                   <span className="text-sm text-hydra-muted">one-time</span>
                 </div>
-                <Button className="bg-hydra-yellow hover:bg-hydra-yellow/80 text-hydra-dark h-10 px-6 text-sm font-semibold">
+                <Button
+                  onClick={handleMissionPack}
+                  disabled={packLoading}
+                  className="bg-hydra-yellow hover:bg-hydra-yellow/80 text-hydra-dark h-10 px-6 text-sm font-semibold"
+                >
+                  {packLoading ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : null}
                   Buy Pack
                 </Button>
               </div>

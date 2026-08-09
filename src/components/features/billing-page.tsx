@@ -1,5 +1,6 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import {
   CreditCard,
@@ -22,6 +23,8 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
+import { useAppStore } from '@/store/app-store'
+import { toast } from '@/hooks/use-toast'
 
 interface UsageStat {
   label: string
@@ -120,6 +123,19 @@ const MOCK_PAYMENTS: PaymentRecord[] = [
   },
 ]
 
+interface BillingResponse {
+  plan: string
+  usage: {
+    aiGenerations: { used: number; limit: number | null }
+    analyses: { used: number; limit: number | null }
+    interviews: { used: number; limit: number | null }
+    jobTargets: { used: number; limit: number | null }
+    resumes: { used: number; limit: number | null }
+    storageMb: { used: number; limit: number }
+  }
+  billingEvents: PaymentRecord[]
+}
+
 const PLANS = [
   {
     key: 'free',
@@ -158,7 +174,86 @@ const item = {
 }
 
 export default function BillingPage() {
-  const currentPlan = 'hunter'
+  const setView = useAppStore((s) => s.setView)
+  const [currentPlan, setCurrentPlan] = useState('free')
+  const [usageStats, setUsageStats] = useState<UsageStat[]>(MOCK_USAGE)
+  const [payments, setPayments] = useState<PaymentRecord[]>(MOCK_PAYMENTS)
+  const [loading, setLoading] = useState(true)
+  const [portalLoading, setPortalLoading] = useState(false)
+
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      try {
+        const res = await fetch('/api/billing')
+        if (res.ok) {
+          const data: BillingResponse = await res.json()
+          if (cancelled) return
+          setCurrentPlan(data.plan)
+          setUsageStats([
+            {
+              label: 'AI Generations',
+              used: data.usage.aiGenerations.used,
+              limit: data.usage.aiGenerations.limit ?? 'Unlimited',
+              icon: Zap,
+              color: 'text-hydra-purple',
+              bgColor: 'bg-hydra-purple/15',
+            },
+            {
+              label: 'Resume Analyses',
+              used: data.usage.analyses.used,
+              limit: data.usage.analyses.limit ?? 'Unlimited',
+              icon: Target,
+              color: 'text-hydra-cyan',
+              bgColor: 'bg-hydra-cyan/15',
+            },
+            {
+              label: 'Interview Sessions',
+              used: data.usage.interviews.used,
+              limit: data.usage.interviews.limit ?? 'Unlimited',
+              icon: Swords,
+              color: 'text-hydra-yellow',
+              bgColor: 'bg-hydra-yellow/15',
+            },
+            {
+              label: 'Storage Used',
+              used: 0,
+              limit: `${data.usage.storageMb.limit} MB`,
+              icon: HardDrive,
+              color: 'text-hydra-green',
+              bgColor: 'bg-hydra-green/15',
+            },
+          ])
+          if (data.billingEvents.length > 0) setPayments(data.billingEvents)
+        }
+      } catch {
+        // fall back to mock data
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  async function openPortal() {
+    setPortalLoading(true)
+    try {
+      const res = await fetch('/api/stripe/portal', { method: 'POST' })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to open portal')
+      if (data.url) window.location.href = data.url
+    } catch (err: unknown) {
+      toast({
+        title: 'Portal unavailable',
+        description: err instanceof Error ? err.message : 'Something went wrong',
+        variant: 'destructive',
+      })
+    } finally {
+      setPortalLoading(false)
+    }
+  }
 
   const getStatusBadge = (status: PaymentRecord['status']) => {
     switch (status) {
@@ -240,10 +335,24 @@ export default function BillingPage() {
                 </div>
 
                 {currentPlan !== 'beastmaster' && (
-                  <Button className="bg-hydra-purple hover:bg-hydra-purple/80 text-white text-sm h-9">
-                    <ArrowUpRight className="w-4 h-4 mr-1.5" />
-                    Upgrade Plan
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button
+                      onClick={openPortal}
+                      variant="outline"
+                      disabled={portalLoading}
+                      className="border-hydra-border text-sm h-9"
+                    >
+                      {portalLoading ? <Loader2 className="w-4 h-4 animate-spin mr-1.5" /> : <CreditCard className="w-4 h-4 mr-1.5" />}
+                      Billing Portal
+                    </Button>
+                    <Button
+                      onClick={() => setView('pricing')}
+                      className="bg-hydra-purple hover:bg-hydra-purple/80 text-white text-sm h-9"
+                    >
+                      <ArrowUpRight className="w-4 h-4 mr-1.5" />
+                      Upgrade Plan
+                    </Button>
+                  </div>
                 )}
 
                 {currentPlan === 'beastmaster' && (
@@ -292,10 +401,11 @@ export default function BillingPage() {
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                {MOCK_USAGE.map((stat) => {
+                {usageStats.map((stat) => {
                   const IconComp = stat.icon
                   const isStringLimit = typeof stat.limit === 'string'
-                  const percentage = isStringLimit ? 24 : Math.round((stat.used / stat.limit) * 100)
+                  const isUnlimited = stat.limit === 'Unlimited'
+                  const percentage = isStringLimit ? (isUnlimited ? 0 : 24) : Math.round((stat.used / stat.limit) * 100)
 
                   return (
                     <div
@@ -315,12 +425,12 @@ export default function BillingPage() {
                       </div>
                       <div className="space-y-1.5">
                         <Progress
-                          value={isStringLimit ? 24 : percentage}
-                          className="h-2 bg-hydra-surface-2"
+                          value={isStringLimit ? 0 : percentage}
+                          className={`h-2 bg-hydra-surface-2 ${isUnlimited ? 'bg-hydra-surface-2' : ''}`}
                         />
                         <div className="flex justify-between text-[11px]">
-                          <span className="text-hydra-muted">{percentage}% used</span>
-                          {percentage >= 80 && (
+                          <span className="text-hydra-muted">{isUnlimited ? 'Unlimited' : `${percentage}% used`}</span>
+                          {!isUnlimited && percentage >= 80 && (
                             <span className="text-hydra-yellow">Running low</span>
                           )}
                         </div>

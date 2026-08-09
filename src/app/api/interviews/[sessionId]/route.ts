@@ -2,6 +2,34 @@ import { db } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireUser } from '@/lib/auth'
 
+export async function GET(
+  _request: NextRequest,
+  { params }: { params: Promise<{ sessionId: string }> },
+) {
+  try {
+    const user = await requireUser()
+    const { sessionId } = await params
+
+    const session = await db.interviewSession.findFirst({
+      where: { id: sessionId, userId: user.id },
+      include: {
+        messages: { orderBy: { createdAt: 'asc' } },
+        scores: true,
+      },
+    })
+
+    if (!session) {
+      return NextResponse.json({ success: false, error: 'Session not found' }, { status: 404 })
+    }
+
+    return NextResponse.json(session)
+  } catch (error) {
+    if (error instanceof NextResponse) return error
+    console.error('Get interview session error:', error)
+    return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 })
+  }
+}
+
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ sessionId: string }> },

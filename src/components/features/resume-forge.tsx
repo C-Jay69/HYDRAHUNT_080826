@@ -63,6 +63,8 @@ import {
   Zap,
   Sparkles,
   Loader2,
+  Download,
+  FileDown,
 } from 'lucide-react'
 
 /* -------------------------------------------------------------------------- */
@@ -440,6 +442,7 @@ function EditorContent({ resume }: { resume: Resume }) {
   const [title, setTitle] = useState(resume.title)
   const [sections, setSections] = useState<ResumeSection[]>(resume.sections)
   const [saving, setSaving] = useState(false)
+  const [exporting, setExporting] = useState<'pdf' | 'docx' | 'txt' | null>(null)
   const autosaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const firstLoad = useRef(true)
 
@@ -457,6 +460,37 @@ function EditorContent({ resume }: { resume: Resume }) {
       })
       .finally(() => setSaving(false))
   }, [title, sections, resumeId, queryClient])
+
+  /* ---- export ---- */
+  const handleExport = async (format: 'pdf' | 'docx' | 'txt') => {
+    setExporting(format)
+    try {
+      // Persist first so the export reflects the latest edits
+      await fetch(`/api/resumes/${resumeId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, sections }),
+      })
+      const res = await fetch(`/api/resumes/${resumeId}/export?format=${format}`)
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data.error || `Export failed (${res.status})`)
+      }
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `${title.replace(/[^a-zA-Z0-9-_ ]/g, '').replace(/\s+/g, '-')}.${format}`
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      URL.revokeObjectURL(url)
+    } catch (err) {
+      console.error('Export error:', err)
+    } finally {
+      setExporting(null)
+    }
+  }
 
   // Schedule autosave on changes after first render
   useEffect(() => {
@@ -591,6 +625,30 @@ function EditorContent({ resume }: { resume: Resume }) {
             <Save className="size-4 mr-1" />
           )}
           Save
+        </Button>
+
+        {/* Export Buttons */}
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => handleExport('pdf')}
+          disabled={exporting !== null}
+          className="border-hydra-border text-hydra-cyan hover:border-hydra-cyan/40 shrink-0"
+          title="Export as PDF (ATS-friendly)"
+        >
+          {exporting === 'pdf' ? <Loader2 className="size-4 mr-1 animate-spin" /> : <Download className="size-4 mr-1" />}
+          PDF
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => handleExport('docx')}
+          disabled={exporting !== null}
+          className="border-hydra-border text-hydra-purple hover:border-hydra-purple/40 shrink-0"
+          title="Export as DOCX"
+        >
+          {exporting === 'docx' ? <Loader2 className="size-4 mr-1 animate-spin" /> : <FileDown className="size-4 mr-1" />}
+          DOCX
         </Button>
       </div>
 
