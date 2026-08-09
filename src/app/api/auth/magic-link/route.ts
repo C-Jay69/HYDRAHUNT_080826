@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { createMagicLinkToken } from '@/lib/auth'
+import { sendEmail, senderConfigured } from '@/lib/email'
 import { magicLinkSchema } from '@/lib/validators'
 
 /**
  * POST /api/auth/magic-link
  * Generates a magic sign-in link for the given email. In production an email is
- * sent via the configured mail provider (RESEND_API_KEY). When no provider is
+ * sent via the configured mail provider (SENDER_API_KEY). When no provider is
  * configured the link is returned in the response body (dev/test convenience).
  */
 export async function POST(request: NextRequest) {
@@ -38,14 +39,10 @@ export async function POST(request: NextRequest) {
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || request.nextUrl.origin
     const link = `${baseUrl}/api/auth/magic-link/verify?token=${token}`
 
-    const mailConfigured = Boolean(process.env.RESEND_API_KEY)
+    const mailConfigured = senderConfigured()
     if (mailConfigured) {
       try {
-        // Lazy-import to avoid bundling the SDK when unused.
-        const { Resend } = await import('resend')
-        const resend = new Resend(process.env.RESEND_API_KEY)
-        await resend.emails.send({
-          from: process.env.MAIL_FROM || 'HydraHunt <no-reply@hydrahunt.ai>',
+        await sendEmail({
           to: email,
           subject: 'Your HydraHunt sign-in link',
           html: `<p>Click the link below to sign in to HydraHunt:</p><p><a href="${link}">Sign in</a></p><p>This link expires in 15 minutes.</p>`,

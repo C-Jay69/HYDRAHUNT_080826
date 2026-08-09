@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { sendEmail } from '@/lib/email'
 import { contactSchema } from '@/lib/validators'
 
 export async function POST(request: NextRequest) {
@@ -16,14 +17,11 @@ export async function POST(request: NextRequest) {
     // Optional: forward to email provider when configured.
     if (process.env.CONTACT_EMAIL_TO) {
       try {
-        const { Resend } = await import('resend')
-        const resend = new Resend(process.env.RESEND_API_KEY)
-        await resend.emails.send({
-          from: process.env.MAIL_FROM || 'HydraHunt <no-reply@hydrahunt.ai>',
+        await sendEmail({
           to: process.env.CONTACT_EMAIL_TO,
-          replyTo: parsed.data.email,
           subject: `[HydraHunt Contact] ${parsed.data.subject}`,
           text: `Name: ${parsed.data.name}\nEmail: ${parsed.data.email}\n\n${parsed.data.message}`,
+          replyTo: parsed.data.email,
         })
       } catch (err) {
         console.error('Contact email send failed:', err)
