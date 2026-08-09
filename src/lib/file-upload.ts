@@ -5,19 +5,37 @@ const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10 MB
 export async function extractTextFromBuffer(filename: string, buffer: Buffer): Promise<string> {
   const ext = (filename.split('.').pop() || '').toLowerCase()
 
-  if (ext === 'pdf') {
-  const pdfModule = await import('pdf-parse')
-  // Resolves whether pdf-parse was loaded as dynamic import, .default, or raw CJS module
-  const pdfParse = typeof pdfModule === 'function' 
-    ? pdfModule 
-    : typeof pdfModule.default === 'function' 
-    ? pdfModule.default 
-    : require('pdf-parse')
+if (ext === 'pdf') {
+    let pdfParseFunc: any
 
-  const data = await pdfParse(buffer)
-  return (data.text || '').trim()
-}
-  if (ext === 'docx') {
+    try {
+      // Require core lib directly to bypass pdf-parse index.js / canvas issues in Next.js Turbopack
+      pdfParseFunc = require('pdf-parse/lib/pdf-parse.js')
+    } catch {
+      try {
+        pdfParseFunc = require('pdf-parse')
+      } catch {
+        const mod = await import('pdf-parse')
+        pdfParseFunc = mod
+      }
+    }
+
+    // Resolve function wrapper if nested
+    if (typeof pdfParseFunc !== 'function') {
+      if (typeof pdfParseFunc?.default === 'function') {
+        pdfParseFunc = pdfParseFunc.default
+      } else if (typeof pdfParseFunc?.pdfParse === 'function') {
+        pdfParseFunc = pdfParseFunc.pdfParse
+      }
+    }
+
+    if (typeof pdfParseFunc !== 'function') {
+      throw new Error('Failed to resolve pdf-parse function.')
+    }
+
+    const data = await pdfParseFunc(buffer)
+    return (data.text || '').trim()
+  }
     const mammoth = await import('mammoth')
     const result = await mammoth.extractRawText({ buffer })
     return (result.value || '').trim()
