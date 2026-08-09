@@ -69,3 +69,34 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 })
   }
 }
+
+export async function PUT(request: NextRequest) {
+  try {
+    const user = await requireUser()
+    const body = await request.json()
+    const { id, status } = body
+
+    if (!id || !status) {
+      return NextResponse.json({ success: false, error: 'id and status are required' }, { status: 400 })
+    }
+
+    // Ownership check via the map
+    const node = await db.careerNode.findFirst({
+      where: { id, map: { userId: user.id } },
+    })
+    if (!node) {
+      return NextResponse.json({ success: false, error: 'Node not found' }, { status: 404 })
+    }
+
+    const updated = await db.careerNode.update({
+      where: { id },
+      data: { status },
+    })
+
+    return NextResponse.json({ success: true, node: updated })
+  } catch (error) {
+    if (error instanceof NextResponse) return error
+    console.error('Update career node error:', error)
+    return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 })
+  }
+}

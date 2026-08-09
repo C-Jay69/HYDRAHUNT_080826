@@ -2,7 +2,7 @@
 
 import { useAppStore, type AppView } from '@/store/app-store'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { useState, lazy, Suspense, Component, type ReactNode } from 'react'
+import { useState, lazy, Suspense, Component, useEffect, type ReactNode } from 'react'
 
 // Lazy load all views for code splitting
 const LandingPage = lazy(() => import('@/components/landing/landing-page'))
@@ -74,7 +74,14 @@ function SafeView({ children }: { children: ReactNode }) {
 const PUBLIC_VIEWS: AppView[] = ['landing', 'pricing', 'login', 'signup', 'contact']
 
 function AppRouter() {
-  const { view, isAuthenticated } = useAppStore()
+  const { view, isAuthenticated, sessionChecked, restoreSession } = useAppStore()
+
+  // Restore persisted session on first mount
+  useEffect(() => {
+    if (!sessionChecked) {
+      restoreSession()
+    }
+  }, [sessionChecked, restoreSession])
 
   const isPublicView = PUBLIC_VIEWS.includes(view)
 
