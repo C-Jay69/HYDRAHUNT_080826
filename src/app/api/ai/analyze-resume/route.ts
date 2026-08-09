@@ -5,6 +5,7 @@ import { complete, extractJson } from '@/lib/ai'
 import { RESUME_ANALYSIS_SYSTEM_PROMPT, buildResumeAnalysisUserPrompt, formatResumeForAI } from '@/lib/prompts'
 import { analyzeResumeSchema } from '@/lib/validators'
 import { AI_RATE_LIMIT, rateLimitResponse } from '@/lib/rate-limit'
+import { enforcePlanGate } from '@/lib/plans'
 
 // POST /api/ai/analyze-resume — create analysis, run AI, update result
 export async function POST(request: NextRequest) {
@@ -13,6 +14,8 @@ export async function POST(request: NextRequest) {
 
     const limited = rateLimitResponse(`ai:${user.id}`, AI_RATE_LIMIT.limit, AI_RATE_LIMIT.windowMs)
     if (limited) return limited
+
+    await enforcePlanGate(user.id, 'analyses')
 
     const body = await request.json()
     const parsed = analyzeResumeSchema.safeParse(body)
