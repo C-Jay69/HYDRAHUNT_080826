@@ -195,7 +195,7 @@ export default function ResumeForge() {
   if (selectedResumeId) {
     return <EditorView resumeId={selectedResumeId} />
   }
-  console.log("DEBUG resumes:", resumes);
+  
   return <ListView />
 }
 

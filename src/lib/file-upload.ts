@@ -6,11 +6,17 @@ export async function extractTextFromBuffer(filename: string, buffer: Buffer): P
   const ext = (filename.split('.').pop() || '').toLowerCase()
 
   if (ext === 'pdf') {
-    const pdfParse = (await import('pdf-parse')).default
-    const data = await pdfParse(buffer)
-    return (data.text || '').trim()
-  }
+  const pdfModule = await import('pdf-parse')
+  // Resolves whether pdf-parse was loaded as dynamic import, .default, or raw CJS module
+  const pdfParse = typeof pdfModule === 'function' 
+    ? pdfModule 
+    : typeof pdfModule.default === 'function' 
+    ? pdfModule.default 
+    : require('pdf-parse')
 
+  const data = await pdfParse(buffer)
+  return (data.text || '').trim()
+}
   if (ext === 'docx') {
     const mammoth = await import('mammoth')
     const result = await mammoth.extractRawText({ buffer })
