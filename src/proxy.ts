@@ -10,11 +10,11 @@ const PUBLIC_API_PREFIXES = [
 ]
 
 /**
- * Middleware: route protection.
+ * Proxy: route protection (Next.js 16 — replaces middleware).
  * - API routes (except public auth/webhook/health) require a valid session cookie.
  * - Authenticated users visiting /login or /signup are redirected to the dashboard.
  */
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
   const sessionUserId = getSessionFromRequest(request)
 

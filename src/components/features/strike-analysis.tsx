@@ -342,6 +342,7 @@ function DetailView({
   analysis: Analysis
   onBack: () => void
 }) {
+  const { setSelectedResume } = useAppStore()
   const strengths = analysis.strengths || []
   const weaknesses = analysis.weaknesses || []
   const missingKeywords = analysis.missingKeywords || []
@@ -349,6 +350,52 @@ function DetailView({
   const roleFitAssessment = analysis.roleFitAssessment || ''
   const actionChecklist = analysis.actionChecklist || []
   const score = analysis.atsScore ?? 0
+
+  const [applying, setApplying] = useState(false)
+  const [applied, setApplied] = useState(false)
+  const [applyError, setApplyError] = useState<string | null>(null)
+
+  const handleApplyImprovements = async () => {
+    setApplying(true)
+    setApplyError(null)
+    try {
+      const improvements: string[] = []
+      for (const bullet of rewrittenBullets) {
+        improvements.push(
+          `Rewrite the bullet "${bullet.original}" to: "${bullet.rewritten}"`,
+        )
+      }
+      for (const kw of missingKeywords) {
+        improvements.push(
+          `Incorporate the keyword "${kw}" naturally where it is truthful based on existing experience.`,
+        )
+      }
+      for (const action of actionChecklist) {
+        improvements.push(action)
+      }
+
+      if (improvements.length === 0) {
+        setApplyError('No improvements were generated for this analysis.')
+        return
+      }
+
+      const res = await fetch('/api/ai/apply-improvements', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ resumeId: analysis.resumeId, improvements }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setApplyError(data?.error || 'Failed to apply improvements.')
+        return
+      }
+      setApplied(true)
+    } catch {
+      setApplyError('Something went wrong. Please try again.')
+    } finally {
+      setApplying(false)
+    }
+  }
 
   if (analysis.status === 'processing') {
     return (
@@ -660,6 +707,61 @@ function DetailView({
             </CardContent>
           </Card>
         </motion.div>
+      </motion.div>
+
+      {/* Apply improvements */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.4 }}
+        className="mt-8 flex flex-col items-center gap-3 rounded-xl border border-hydra-purple/20 bg-hydra-purple/5 p-6 text-center"
+      >
+        <div className="w-12 h-12 rounded-xl bg-hydra-purple/10 flex items-center justify-center">
+          <Sparkles className="w-6 h-6 text-hydra-purple" />
+        </div>
+        <h3 className="text-lg font-semibold text-foreground">
+          Want us to apply these improvements?
+        </h3>
+        <p className="text-sm text-hydra-muted max-w-md">
+          Let the AI rewrite this resume to implement the rewritten bullets,
+          missing keywords, and action items above. A backup snapshot is saved
+          before any changes are made.
+        </p>
+
+        {applyError && (
+          <p className="text-sm text-hydra-red">{applyError}</p>
+        )}
+
+        {applied ? (
+          <div className="flex flex-col items-center gap-3">
+            <div className="flex items-center gap-2 text-sm text-hydra-green">
+              <Check className="w-4 h-4" />
+              Improvements applied — a snapshot was saved first.
+            </div>
+            <Button
+              onClick={() => {
+                setSelectedResume(analysis.resumeId)
+              }}
+              className="bg-hydra-purple hover:bg-hydra-purple/80 text-white"
+            >
+              <FileText className="w-4 h-4 mr-2" />
+              Open Improved Resume
+            </Button>
+          </div>
+        ) : (
+          <Button
+            onClick={handleApplyImprovements}
+            disabled={applying}
+            className="bg-hydra-purple hover:bg-hydra-purple/80 text-white"
+          >
+            {applying ? (
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+            ) : (
+              <Sparkles className="w-4 h-4 mr-2" />
+            )}
+            {applying ? 'Rewriting resume...' : 'Apply AI Improvements'}
+          </Button>
+        )}
       </motion.div>
     </motion.div>
   )

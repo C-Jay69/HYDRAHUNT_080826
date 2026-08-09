@@ -65,6 +65,7 @@ import {
   Loader2,
   Download,
   FileDown,
+  Upload,
 } from 'lucide-react'
 
 /* -------------------------------------------------------------------------- */
@@ -207,6 +208,10 @@ function ListView() {
   const queryClient = useQueryClient()
   const [dialogOpen, setDialogOpen] = useState(false)
   const [newTitle, setNewTitle] = useState('')
+  const [importOpen, setImportOpen] = useState(false)
+  const [importError, setImportError] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
 
   const { data: resumes = [], isLoading } = useQuery<Resume[]>({
     queryKey: ['resumes'],
@@ -227,6 +232,52 @@ function ListView() {
       setSelectedResume(data.id)
     },
   })
+
+  const importMutation = useMutation({
+    mutationFn: (file: File) => {
+      const formData = new FormData()
+      formData.append('file', file)
+      return fetch('/api/resumes/import', {
+        method: 'POST',
+        body: formData,
+      }).then(async (r) => {
+        const data = await r.json()
+        if (!r.ok) throw new Error(data?.error || 'Import failed')
+        return data
+      })
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['resumes'] })
+      setImportOpen(false)
+      setImportError(null)
+      setSelectedFile(null)
+      if (fileInputRef.current) fileInputRef.current.value = ''
+      setSelectedResume(data.id)
+    },
+    onError: (err: Error) => {
+      setImportError(err.message)
+    },
+  })
+
+  const handleImportFile = (file: File | null) => {
+    if (!file) return
+    const ext = file.name.split('.').pop()?.toLowerCase()
+    const allowed = ['pdf', 'docx', 'txt', 'md']
+    if (!ext || !allowed.includes(ext)) {
+      setImportError('Unsupported file type. Please upload a PDF, DOCX, TXT, or MD file.')
+      setSelectedFile(null)
+      if (fileInputRef.current) fileInputRef.current.value = ''
+      return
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      setImportError('File is too large (max 10MB).')
+      setSelectedFile(null)
+      if (fileInputRef.current) fileInputRef.current.value = ''
+      return
+    }
+    setImportError(null)
+    setSelectedFile(file)
+  }
 
   const handleCreate = () => {
     if (!newTitle.trim()) return
@@ -263,7 +314,104 @@ function ListView() {
           </p>
         </div>
 
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <div className="flex items-center gap-2">
+          <Dialog open={importOpen} onOpenChange={setImportOpen}>
+            <DialogTrigger asChild>
+              <Button
+                variant="outline"
+                className="border-hydra-border text-hydra-muted hover:text-white hover:border-hydra-cyan/40"
+              >
+                <Upload className="size-4 mr-2" />
+                Import Resume
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="bg-hydra-surface border-hydra-border">
+              <DialogHeader>
+                <DialogTitle className="text-white">Import Resume</DialogTitle>
+                <DialogDescription className="text-hydra-muted">
+                  Upload an existing resume (PDF, DOCX, TXT, or MD). Our AI will
+                  restructure it into the proper format so you can edit and optimize it.
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="space-y-4">
+                <label
+                  className={`flex flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed p-8 text-center transition-colors cursor-pointer ${
+                    selectedFile
+                      ? 'border-hydra-purple/60 bg-hydra-purple/5'
+                      : 'border-hydra-border bg-hydra-surface-2 hover:border-hydra-purple/40'
+                  }`}
+                >
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".pdf,.docx,.txt,.md,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain,text/markdown"
+                    className="hidden"
+                    onChange={(e) => handleImportFile(e.target.files?.[0] ?? null)}
+                    disabled={importMutation.isPending}
+                  />
+                  {selectedFile ? (
+                    <>
+                      <FileText className="size-8 text-hydra-purple" />
+                      <span className="text-sm font-medium text-white truncate max-w-full">
+                        {selectedFile.name}
+                      </span>
+                      <span className="text-xs text-hydra-muted">
+                        {(selectedFile.size / 1024).toFixed(1)} KB — ready to import
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="size-8 text-hydra-muted" />
+                      <span className="text-sm text-hydra-muted">
+                        Click to choose a file
+                      </span>
+                      <span className="text-xs text-hydra-muted/50">
+                        PDF · DOCX · TXT · MD (max 10MB)
+                      </span>
+                    </>
+                  )}
+                </label>
+
+                {importError && (
+                  <p className="text-sm text-red-400">{importError}</p>
+                )}
+
+                {importMutation.isPending && (
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2 text-sm text-hydra-muted">
+                      <Loader2 className="size-4 animate-spin text-hydra-purple" />
+                      Restructuring your resume with AI...
+                    </div>
+                    <Progress value={100} className="animate-pulse" />
+                  </div>
+                )}
+              </div>
+
+              <DialogFooter>
+                <Button
+                  variant="outline"
+                  onClick={() => setImportOpen(false)}
+                  disabled={importMutation.isPending}
+                  className="border-hydra-border text-hydra-muted hover:text-white"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={() => selectedFile && importMutation.mutate(selectedFile)}
+                  disabled={!selectedFile || importMutation.isPending}
+                  className="bg-hydra-purple hover:bg-hydra-purple/80 text-white"
+                >
+                  {importMutation.isPending ? (
+                    <Loader2 className="size-4 mr-2 animate-spin" />
+                  ) : null}
+                  {importMutation.isPending ? 'Importing...' : 'Import & Restructure'}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
             <Button className="bg-hydra-purple hover:bg-hydra-purple/80 text-white">
               <Plus className="size-4 mr-2" />
@@ -306,6 +454,7 @@ function ListView() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+        </div>
       </motion.div>
 
       {/* Resume Grid */}
@@ -328,9 +477,18 @@ function ListView() {
           <h3 className="text-lg font-semibold text-hydra-muted mb-1">
             No resumes yet
           </h3>
-          <p className="text-sm text-hydra-muted/60">
-            Create your first resume to start building your career arsenal.
+          <p className="text-sm text-hydra-muted/60 mb-4">
+            Create your first resume or import an existing one — our AI will
+            restructure it for you.
           </p>
+          <Button
+            variant="outline"
+            onClick={() => setImportOpen(true)}
+            className="border-hydra-purple/40 text-hydra-purple hover:bg-hydra-purple/10"
+          >
+            <Upload className="size-4 mr-2" />
+            Import a Resume
+          </Button>
         </motion.div>
       ) : (
         <motion.div

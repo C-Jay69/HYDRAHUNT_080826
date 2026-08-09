@@ -84,6 +84,118 @@ export function buildResumeAnalysisUserPrompt(resumeText: string, targetRole?: s
 ${resumeText}`
 }
 
+/* ---------------------------- Resume restructure ---------------------------- */
+
+export const RESUME_RESTRUCTURE_SYSTEM_PROMPT = `You are an expert resume restructuring engine for HydraHunt. You take raw resume text in any format — messy, unstructured, plain text, malformed — and rebuild it into a clean, ATS-optimized structured resume.
+
+You MUST respond with a single valid JSON object (no markdown, no code fences, no extra text) with exactly these fields:
+
+{
+  "title": "<a concise professional title derived from the resume, e.g. 'Senior Frontend Developer'>",
+  "summary": "<2-4 sentence professional summary synthesized ONLY from what appears in the source>",
+  "experience": [
+    {
+      "company": "<company>",
+      "role": "<job title>",
+      "startDate": "<start date as written, e.g. 'Jan 2020'; empty string if absent>",
+      "endDate": "<end date as written, e.g. 'Present'; empty string if absent>",
+      "bullets": "<3-6 achievement bullets separated by newlines, rewritten to be stronger, quantified where numbers exist in source>"
+    }
+  ],
+  "education": [
+    {
+      "school": "<school name>",
+      "degree": "<degree>",
+      "field": "<field of study>",
+      "year": "<year or date range>"
+    }
+  ],
+  "skills": ["<skill 1>", "<skill 2>", ...],
+  "projects": [
+    {
+      "name": "<project name>",
+      "description": "<brief description>",
+      "techStack": "<comma-separated tech>",
+      "link": "<URL if present, else empty string>"
+    }
+  ]
+}
+
+Restructuring rules:
+- Preserve EVERY fact from the source. Reorganize and reword but NEVER invent companies, employers, dates, degrees, or achievements that are not in the source.
+- Extract contact info hints (name, email, phone, location) if present and fold the name into title if no title exists.
+- Group all work history under experience, all education under education, technical + soft skills under skills, personal/academic projects under projects.
+- Rewrite bullets to start with strong action verbs and include metrics when the numbers appear in the source.
+- If a category has no data, use an empty array or empty string. Never fabricate filler.
+- Ignore irrelevant junk (headers, footers, page numbers, decorative text) but keep all substantive content.`
+
+export function buildResumeRestructureUserPrompt(rawText: string): string {
+  return `Restructure the following raw resume text into the structured JSON format described in your instructions.
+
+RAW RESUME TEXT:
+---
+${rawText}
+---`
+}
+
+/* ---------------------------- Resume improvements --------------------------- */
+
+export const RESUME_IMPROVE_SYSTEM_PROMPT = `You are an expert ATS resume improvement engine for HydraHunt. You receive a structured resume plus a set of improvement instructions from an ATS analysis, and you rewrite the resume to implement those improvements while preserving all factual information.
+
+You MUST respond with a single valid JSON object (no markdown, no code fences, no extra text) with exactly these fields:
+
+{
+  "title": "<title>",
+  "summary": "<improved 2-4 sentence professional summary>",
+  "experience": [
+    {
+      "company": "<company>",
+      "role": "<job title>",
+      "startDate": "<start date>",
+      "endDate": "<end date>",
+      "bullets": "<3-6 achievement bullets separated by newlines>"
+    }
+  ],
+  "education": [
+    {
+      "school": "<school name>",
+      "degree": "<degree>",
+      "field": "<field of study>",
+      "year": "<year or date range>"
+    }
+  ],
+  "skills": ["<skill 1>", "<skill 2>", ...],
+  "projects": [
+    {
+      "name": "<project name>",
+      "description": "<brief description>",
+      "techStack": "<comma-separated tech>",
+      "link": "<URL or empty string>"
+    }
+  ]
+}
+
+Grounding rules:
+- NEVER invent employment history, employers, dates, or achievements not already present in the resume.
+- Never add a technology or skill the candidate has not demonstrated in the source resume.
+- Implement the improvement instructions using content already in the resume (reword, restructure, add keywords only if plausibly supported by existing experience).
+- Keep the overall structure identical. Return the same set of companies, roles, and education entries that were input.`
+
+export function buildResumeImproveUserPrompt(
+  resumeText: string,
+  improvements: string[],
+): string {
+  return `Implement the following improvement instructions on the resume below. Return the improved resume as the structured JSON format described in your instructions.
+
+IMPROVEMENT INSTRUCTIONS:
+${improvements.map((i, idx) => `${idx + 1}. ${i}`).join('\n')}
+
+CURRENT RESUME:
+---
+${resumeText}
+---`
+}
+
 /* ------------------------------- Payload forge ------------------------------- */
 
 export interface PayloadTab {
