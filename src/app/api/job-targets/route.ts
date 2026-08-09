@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { requireUser } from '@/lib/auth'
 import { jobTargetCreateSchema } from '@/lib/validators'
+import { enforcePlanGate } from '@/lib/plans'
 
 // GET /api/job-targets — return all job targets for the current user
 export async function GET() {
@@ -23,6 +24,9 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const user = await requireUser()
+
+    await enforcePlanGate(user.id, 'jobTargets')
+
     const body = await request.json()
     const parsed = jobTargetCreateSchema.safeParse(body)
     if (!parsed.success) {
