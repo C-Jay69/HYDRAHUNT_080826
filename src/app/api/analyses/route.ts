@@ -1,10 +1,13 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { requireUser } from '@/lib/auth'
 
-// GET /api/analyses — return all analyses with resume title
+// GET /api/analyses — return all analyses for the current user with resume title
 export async function GET() {
   try {
+    const user = await requireUser()
     const analyses = await db.resumeAnalysis.findMany({
+      where: { userId: user.id },
       orderBy: { createdAt: 'desc' },
       include: {
         resume: {
@@ -31,7 +34,8 @@ export async function GET() {
     }))
 
     return NextResponse.json(formatted)
-  } catch {
+  } catch (error) {
+    if (error instanceof NextResponse) return error
     return NextResponse.json([])
   }
 }
@@ -39,28 +43,23 @@ export async function GET() {
 // POST /api/analyses — create a new analysis (processing status)
 export async function POST(request: Request) {
   try {
+    const user = await requireUser()
     const body = await request.json()
     const { resumeId, targetRole } = body
 
     if (!resumeId) {
-      return NextResponse.json(
-        { error: 'resumeId is required' },
-        { status: 400 },
-      )
+      return NextResponse.json({ error: 'resumeId is required' }, { status: 400 })
     }
 
-    // Verify resume exists
-    const resume = await db.resume.findUnique({ where: { id: resumeId } })
+    // Verify resume ownership
+    const resume = await db.resume.findFirst({ where: { id: resumeId, userId: user.id } })
     if (!resume) {
-      return NextResponse.json(
-        { error: 'Resume not found' },
-        { status: 404 },
-      )
+      return NextResponse.json({ error: 'Resume not found' }, { status: 404 })
     }
 
     const analysis = await db.resumeAnalysis.create({
       data: {
-        userId: 'demo-user',
+        userId: user.id,
         resumeId,
         targetRole: targetRole || null,
         status: 'processing',
@@ -68,10 +67,8 @@ export async function POST(request: Request) {
     })
 
     return NextResponse.json(analysis, { status: 201 })
-  } catch {
-    return NextResponse.json(
-      { error: 'Failed to create analysis' },
-      { status: 500 },
-    )
+  } catch (error) {
+    if (error instanceof NextResponse) return error
+    return NextResponse.json({ error: 'Failed to create analysis' }, { status: 500 })
   }
 }
