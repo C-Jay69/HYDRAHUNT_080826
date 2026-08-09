@@ -1,28 +1,22 @@
 import { db } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
+import { requireUser } from '@/lib/auth'
+import { versionCreateSchema } from '@/lib/validators'
 
 export async function GET() {
   try {
-    // Get first user (demo user)
-    const user = await db.user.findFirst()
-    if (!user) {
-      return NextResponse.json({ success: true, versions: [] })
-    }
-
+    const user = await requireUser()
     const versions = await db.resumeVersion.findMany({
-      where: {
-        resume: { userId: user.id },
-      },
+      where: { resume: { userId: user.id } },
       orderBy: { createdAt: 'desc' },
       include: {
-        resume: {
-          select: { id: true, title: true },
-        },
+        resume: { select: { id: true, title: true } },
       },
     })
 
     return NextResponse.json({ success: true, versions })
   } catch (error) {
+    if (error instanceof NextResponse) return error
     console.error('Get versions error:', error)
     return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 })
   }
@@ -30,34 +24,27 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
+    const user = await requireUser()
     const body = await request.json()
-    const { resumeId, label, notes } = body
-
-    if (!resumeId) {
+    const parsed = versionCreateSchema.safeParse(body)
+    if (!parsed.success) {
       return NextResponse.json(
-        { success: false, error: 'resumeId is required' },
-        { status: 400 }
+        { success: false, error: parsed.error.issues[0]?.message || 'resumeId is required' },
+        { status: 400 },
       )
     }
+    const { resumeId, label, notes } = parsed.data
 
-    // Fetch the current resume with its sections
-    const resume = await db.resume.findUnique({
-      where: { id: resumeId },
-      include: {
-        sections: {
-          orderBy: { sortOrder: 'asc' },
-        },
-      },
+    // Ownership check
+    const resume = await db.resume.findFirst({
+      where: { id: resumeId, userId: user.id },
+      include: { sections: { orderBy: { sortOrder: 'asc' } } },
     })
 
     if (!resume) {
-      return NextResponse.json(
-        { success: false, error: 'Resume not found' },
-        { status: 404 }
-      )
+      return NextResponse.json({ success: false, error: 'Resume not found' }, { status: 404 })
     }
 
-    // Build snapshot JSON from current resume data
     const snapshot = JSON.stringify({
       id: resume.id,
       title: resume.title,
@@ -84,6 +71,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ success: true, version })
   } catch (error) {
+    if (error instanceof NextResponse) return error
     console.error('Create version error:', error)
     return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 })
   }
