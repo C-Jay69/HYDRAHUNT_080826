@@ -9,6 +9,7 @@ import {
 } from '@/lib/prompts'
 import { structuredToSections } from '@/lib/resume-structure'
 import { AI_RATE_LIMIT, rateLimitResponse } from '@/lib/rate-limit'
+import { enforcePlanGate } from '@/lib/plans'
 
 // POST /api/ai/apply-improvements — rewrite a resume to implement the
 // suggestions from an ATS analysis (rewritten bullets, missing keywords,
@@ -19,6 +20,8 @@ export async function POST(request: NextRequest) {
 
     const limited = rateLimitResponse(`ai:${user.id}`, AI_RATE_LIMIT.limit, AI_RATE_LIMIT.windowMs)
     if (limited) return limited
+
+    await enforcePlanGate(user.id, 'aiGenerations')
 
     const body = await request.json()
     const resumeId = body?.resumeId as string | undefined

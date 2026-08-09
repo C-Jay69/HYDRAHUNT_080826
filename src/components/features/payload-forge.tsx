@@ -34,7 +34,7 @@ import ReactMarkdown from 'react-markdown'
 interface Resume {
   id: string
   title: string
-  atsScore: number
+  atsScore: number | null
   isDefault: boolean
 }
 
@@ -128,6 +128,7 @@ export default function PayloadForge() {
   const [activeTab, setActiveTab] = useState<OutputTab>('summary')
   const [resumes, setResumes] = useState<Resume[]>([])
   const [resumesLoaded, setResumesLoaded] = useState(false)
+  const [resumeError, setResumeError] = useState<string | null>(null)
 
   const [outputs, setOutputs] = useState<Record<OutputTab, string>>({
     summary: '',
@@ -143,7 +144,13 @@ export default function PayloadForge() {
 
   useEffect(() => {
     fetch('/api/resumes')
-      .then((res) => res.json())
+      .then(async (res) => {
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}))
+          throw new Error(err?.error || `Failed to load resumes (${res.status})`)
+        }
+        return res.json()
+      })
       .then((data) => {
         const list: Resume[] = Array.isArray(data) ? data : data?.resumes ?? []
         setResumes(list)
@@ -152,8 +159,8 @@ export default function PayloadForge() {
           setSelectedResumeId(defaultResume.id)
         }
       })
-      .catch(() => {
-        // Graceful fallback — no resumes available
+      .catch((err) => {
+        setResumeError(err instanceof Error ? err.message : 'Failed to load resumes')
       })
       .finally(() => setResumesLoaded(true))
   }, [])
@@ -189,7 +196,7 @@ export default function PayloadForge() {
           resumeId: selectedResumeId,
           jobDescription: jobDescription.trim(),
           company: company.trim(),
-          tone,
+          tone: tone.toLowerCase(),
         }),
         signal: abortRef.current.signal,
       })
@@ -316,7 +323,7 @@ export default function PayloadForge() {
               {/* Resume Select */}
               <div className="space-y-2">
                 <Label className="text-sm font-medium">Target Resume</Label>
-                <Select value={selectedResumeId} onValueChange={setSelectedResumeId}>
+                <Select value={selectedResumeId} onValueChange={setSelectedResumeId} disabled={!!resumeError}>
                   <SelectTrigger className="w-full bg-hydra-surface border-hydra-border text-foreground focus:ring-hydra-purple/40">
                     <SelectValue placeholder={resumesLoaded && resumes.length === 0 ? 'No resumes found' : 'Select a resume...'} />
                   </SelectTrigger>
@@ -331,12 +338,17 @@ export default function PayloadForge() {
                               Default
                             </Badge>
                           )}
-                          <span className="text-xs text-hydra-muted ml-auto">{resume.atsScore}%</span>
+                          <span className="text-xs text-hydra-muted ml-auto">{resume.atsScore != null ? `${resume.atsScore}%` : '—'}</span>
                         </div>
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
+                {resumeError && (
+                  <p className="text-xs text-hydra-red">
+                    {resumeError}
+                  </p>
+                )}
               </div>
 
               {/* Tone Select */}

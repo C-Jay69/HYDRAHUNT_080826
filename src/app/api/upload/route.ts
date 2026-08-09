@@ -8,7 +8,16 @@ export async function POST(request: NextRequest) {
   try {
     const user = await requireUser()
 
-    const { filename, buffer, text } = await parseUpload(request)
+    const formData = await request.formData()
+    const file = formData.get('file') as File | null
+    if (!file) {
+      return NextResponse.json(
+        { success: false, error: 'No file provided' },
+        { status: 400 },
+      )
+    }
+
+    const { fileName, text } = await parseUpload(file)
 
     // Placeholder hook: future virus-scan integration point.
     // const scanResult = await scanForMalware(buffer) // TODO
@@ -25,7 +34,7 @@ export async function POST(request: NextRequest) {
     const resume = await db.resume.create({
       data: {
         userId: user.id,
-        title: filename.replace(/\.[^.]+$/, '').slice(0, 80) || 'Uploaded Resume',
+        title: fileName.replace(/\.[^.]+$/, '').slice(0, 80) || 'Uploaded Resume',
         isDefault: existing === 0,
         sections: {
           create: [

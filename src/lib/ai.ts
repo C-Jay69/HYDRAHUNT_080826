@@ -13,7 +13,7 @@ const STREAM_MODEL =
   process.env.AI_STREAM_MODEL ||
   process.env.OPEN_ROUTER_MODEL ||
   process.env.AI_MODEL ||
-  'default'
+  'deepseek-chat'
 
 export interface AICompletionOptions {
   messages: ChatMessage[]

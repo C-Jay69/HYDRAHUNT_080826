@@ -16,7 +16,8 @@ export async function GET() {
     return NextResponse.json(targets)
   } catch (error) {
     if (error instanceof NextResponse) return error
-    return NextResponse.json([])
+    console.error('GET /api/job-targets failed:', error)
+    return NextResponse.json({ error: 'Failed to fetch job targets' }, { status: 500 })
   }
 }
 

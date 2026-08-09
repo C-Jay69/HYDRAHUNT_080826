@@ -66,6 +66,7 @@ import {
   Download,
   FileDown,
   Upload,
+  AlertTriangle,
 } from 'lucide-react'
 
 /* -------------------------------------------------------------------------- */
@@ -213,9 +214,14 @@ function ListView() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
 
-  const { data: resumes = [], isLoading } = useQuery<Resume[]>({
+  const { data: resumes = [], isLoading, error } = useQuery<Resume[]>({
     queryKey: ['resumes'],
-    queryFn: () => fetch('/api/resumes').then((r) => r.json()),
+    queryFn: () =>
+      fetch('/api/resumes').then(async (r) => {
+        if (!r.ok) throw new Error(`Failed to load resumes (${r.status})`)
+        const data = await r.json()
+        return Array.isArray(data) ? data : []
+      }),
   })
 
   const createMutation = useMutation({
@@ -467,6 +473,20 @@ function ListView() {
             />
           ))}
         </div>
+      ) : error ? (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="flex flex-col items-center justify-center py-16 text-center"
+        >
+          <AlertTriangle className="size-12 text-hydra-red/60 mb-3" />
+          <h3 className="text-lg font-semibold text-foreground mb-1">
+            Couldn't load resumes
+          </h3>
+          <p className="text-sm text-hydra-muted/70 max-w-md">
+            {error instanceof Error ? error.message : 'There was a problem loading your resumes. Check your connection and try again.'}
+          </p>
+        </motion.div>
       ) : resumes.length === 0 ? (
         <motion.div
           initial={{ opacity: 0 }}
@@ -689,8 +709,15 @@ function EditorContent({ resume }: { resume: Resume }) {
   }
 
   /* ---- derived data for preview ---- */
-  const summaryText =
-    sections.find((s) => s.type === 'summary')?.content ?? ''
+  const summaryText = (() => {
+    const raw = sections.find((s) => s.type === 'summary')?.content ?? '""'
+    try {
+      const parsed = JSON.parse(raw)
+      return typeof parsed === 'string' ? parsed : ''
+    } catch {
+      return raw
+    }
+  })()
   const experienceEntries: ExperienceEntry[] = JSON.parse(
     sections.find((s) => s.type === 'experience')?.content ?? '[]',
   )
@@ -937,10 +964,17 @@ function SummaryEditor({
   content: string
   onUpdate: (c: string) => void
 }) {
+  let value = ''
+  try {
+    const parsed = JSON.parse(content)
+    value = typeof parsed === 'string' ? parsed : ''
+  } catch {
+    value = content
+  }
   return (
     <Textarea
-      value={content}
-      onChange={(e) => onUpdate(e.target.value)}
+      value={value}
+      onChange={(e) => onUpdate(JSON.stringify(e.target.value))}
       placeholder="Write a professional summary..."
       className="bg-hydra-surface border-hydra-border text-white placeholder:text-hydra-muted min-h-[100px] resize-y"
     />
