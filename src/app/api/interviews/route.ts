@@ -2,6 +2,7 @@ import { db } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireUser } from '@/lib/auth'
 import { interviewSessionCreateSchema } from '@/lib/validators'
+import { enforcePlanGate } from '@/lib/plans'
 
 export async function GET() {
   try {
@@ -26,6 +27,9 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const user = await requireUser()
+
+    await enforcePlanGate(user.id, 'interviews')
+
     const body = await request.json()
     const parsed = interviewSessionCreateSchema.safeParse(body)
     if (!parsed.success) {
