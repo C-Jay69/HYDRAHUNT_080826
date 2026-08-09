@@ -40,6 +40,7 @@ export async function POST(request: NextRequest) {
     const { fileName, text } = await parseUpload(file);
     const structuredSections = parseTextIntoSections(text);
 
+    // 1. Create primary Resume record
     const resume = await db.resume.create({
       data: {
         userId: user.id,
@@ -50,6 +51,7 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    // 2. Save all sections to the database
     if ('resumeSection' in db) {
       for (const sec of structuredSections) {
         await (db as any).resumeSection.create({
@@ -58,14 +60,25 @@ export async function POST(request: NextRequest) {
             title: sec.title,
             type: sec.type,
             content: sec.content,
-            sortOrder: sec.order, // FIXED: Now using sortOrder
+            sortOrder: sec.order,
           },
         });
       }
     }
 
-    return NextResponse.json(resume, { status: 201 });
+    // 3. Fetch full resume including sections to pass back to editor state
+    const fullResume = await db.resume.findUnique({
+      where: { id: resume.id },
+      include: {
+        sections: {
+          orderBy: { sortOrder: 'asc' },
+        },
+      },
+    });
+
+    return NextResponse.json(fullResume || resume, { status: 201 });
   } catch (error: any) {
+    console.error('Resume import error:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
