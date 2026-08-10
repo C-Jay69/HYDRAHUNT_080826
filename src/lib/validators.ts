@@ -114,6 +114,19 @@ export const activityLogCreateSchema = z.object({
   details: z.string().trim().max(2000).nullable().optional(),
 })
 
+export const scrapeJobsSchema = z.object({
+  keywords: z.string().trim().min(1, 'Keywords are required').max(200),
+  location: z.string().trim().max(200).optional(),
+  pages: z.number().int().min(1).max(5).default(3),
+})
+
+export const applyJobSchema = z.object({
+  jobId: z.string().min(1),
+  resumeId: z.string().min(1),
+  autoApply: z.boolean().default(false),
+  notes: z.string().trim().max(2000).nullable().optional(),
+})
+
 export const contactSchema = z.object({
   name: z.string().trim().min(1).max(200),
   email: z.string().trim().email('A valid email is required').max(255),

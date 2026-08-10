@@ -16,6 +16,7 @@ import {
   LogOut,
   ChevronLeft,
   Gauge,
+  Search,
   type LucideIcon,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -29,6 +30,7 @@ interface NavItem {
 const navItems: NavItem[] = [
   { label: 'Dashboard', view: 'dashboard', icon: LayoutDashboard },
   { label: 'Kill List', view: 'kill-list', icon: Crosshair },
+  { label: 'Job Opportunities', view: 'job-opportunities', icon: Search },
   { label: 'Resume Forge', view: 'resume-forge', icon: FileText },
   { label: 'Payload Forge', view: 'payload-forge', icon: Zap },
   { label: 'Interview Drills', view: 'interview-drills', icon: Swords },

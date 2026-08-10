@@ -21,6 +21,7 @@ const viewTitles: Record<AppView, string> = {
   'version-vault': 'Version Vault',
   'mission-log': 'Mission Log',
   'career-map': 'Career Map',
+  'job-opportunities': 'Job Opportunities',
   settings: 'Settings',
   billing: 'Billing',
   contact: 'Contact',

@@ -147,7 +147,14 @@ function SessionList({ onSelect }: { onSelect: (id: string) => void }) {
       const res = await fetch('/api/interviews')
       if (res.ok) {
         const data = await res.json()
-        setSessions(data)
+        // The API wraps sessions in { success, sessions[] }. Normalize to an
+        // array so `filtered.map` never crashes on a non-array response.
+        const list = Array.isArray(data?.sessions)
+          ? data.sessions
+          : Array.isArray(data)
+            ? data
+            : []
+        setSessions(list)
       }
     } catch {
       // graceful fallback — show empty list

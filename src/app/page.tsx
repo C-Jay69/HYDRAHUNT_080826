@@ -12,6 +12,7 @@ const PricingPage = lazy(() => import('@/components/features/pricing-page'))
 const AppShell = lazy(() => import('@/components/app/app-shell'))
 const Dashboard = lazy(() => import('@/components/app/dashboard'))
 const KillList = lazy(() => import('@/components/features/kill-list'))
+const JobOpportunities = lazy(() => import('@/components/features/job-opportunities'))
 const ResumeForge = lazy(() => import('@/components/features/resume-forge'))
 const PayloadForge = lazy(() => import('@/components/features/payload-forge'))
 const InterviewDrills = lazy(() => import('@/components/features/interview-drills'))
@@ -120,6 +121,8 @@ function AppRouter() {
         return <Dashboard />
       case 'kill-list':
         return <KillList />
+      case 'job-opportunities':
+        return <JobOpportunities />
       case 'resume-forge':
       case 'resume-edit':
         return <ResumeForge />

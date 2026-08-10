@@ -17,6 +17,7 @@ type AppView =
   | 'version-vault'
   | 'mission-log'
   | 'career-map'
+  | 'job-opportunities'
   | 'settings'
   | 'billing'
   | 'contact'
