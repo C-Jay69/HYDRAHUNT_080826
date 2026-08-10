@@ -8,12 +8,14 @@ import type { ChatMessage } from 'z-ai-web-dev-sdk'
  * - Then `OPEN_ROUTER_MODEL` (the env var provisioned for this project).
  * - Finally a sensible default.
  */
-const DEFAULT_MODEL = process.env.AI_MODEL || process.env.OPEN_ROUTER_MODEL || 'deepseek-chat'
+// NOTE: use the FULL provider/model id (e.g. "deepseek/deepseek-chat"), not the
+// ambiguous short form ("deepseek-chat") — OpenRouter rejects the short form.
+const DEFAULT_MODEL = process.env.AI_MODEL || process.env.OPEN_ROUTER_MODEL || 'deepseek/deepseek-chat'
 const STREAM_MODEL =
   process.env.AI_STREAM_MODEL ||
   process.env.OPEN_ROUTER_MODEL ||
   process.env.AI_MODEL ||
-  'deepseek-chat'
+  'deepseek/deepseek-chat'
 
 export interface AICompletionOptions {
   messages: ChatMessage[]
@@ -77,25 +79,89 @@ export async function complete(opts: AICompletionOptions): Promise<string> {
 
 /**
  * Streaming completion. Returns a ReadableStream of text chunks (UTF-8).
+ *
+ * The ZAI SDK returns the raw fetch `response.body` (a ReadableStream of
+ * Uint8Array) when `stream: true` — i.e. an SSE stream of `data: {...}` lines —
+ * and leaves SSE parsing to the caller. We decode the byte chunks, parse SSE
+ * events, and re-emit only the assistant text (`choices[0].delta.content`).
+ *
+ * This is also defensive: if a provider returns OpenAI-style delta objects
+ * instead of raw SSE bytes, those are handled too.
  */
 export async function completeStream(opts: AICompletionOptions): Promise<ReadableStream<Uint8Array>> {
   const zai = await getClient()
-  const stream = (await zai.chat.completions.create({
+  const encoder = new TextEncoder()
+  const decoder = new TextDecoder()
+
+  const raw = (await zai.chat.completions.create({
     model: opts.model || STREAM_MODEL,
     messages: opts.messages,
     stream: true,
     temperature: opts.temperature,
-  })) as AsyncIterable<{ choices: Array<{ delta?: { content?: string }; message?: { content?: string } }> }>
-
-  const encoder = new TextEncoder()
+    max_tokens: opts.maxTokens,
+    thinking: { type: 'disabled' },
+  })) as AsyncIterable<Uint8Array | string | Record<string, unknown>>
 
   return new ReadableStream<Uint8Array>({
     async start(controller) {
       try {
-        for await (const part of stream) {
-          const content = part?.choices?.[0]?.delta?.content || part?.choices?.[0]?.message?.content
-          if (content) {
-            controller.enqueue(encoder.encode(content))
+        let buffer = ''
+        for await (const chunk of raw) {
+          // Defensive: some providers yield OpenAI-style delta objects.
+          if (chunk && typeof chunk === 'object' && 'choices' in chunk) {
+            const content =
+              (chunk as any)?.choices?.[0]?.delta?.content ||
+              (chunk as any)?.choices?.[0]?.message?.content
+            if (content) controller.enqueue(encoder.encode(content))
+            continue
+          }
+
+          // Otherwise treat as raw text / bytes from an SSE stream.
+          let text: string
+          if (typeof chunk === 'string') {
+            text = chunk
+          } else if (chunk instanceof Uint8Array) {
+            text = decoder.decode(chunk, { stream: true })
+          } else {
+            continue
+          }
+          buffer += text
+
+          // SSE events are delimited by a blank line (\n\n).
+          let eoh: number
+          while ((eoh = buffer.indexOf('\n\n')) >= 0) {
+            const event = buffer.slice(0, eoh)
+            buffer = buffer.slice(eoh + 2)
+            for (const line of event.split('\n')) {
+              const trimmed = line.trim()
+              if (trimmed.startsWith('data: ')) {
+                const data = trimmed.slice(6)
+                if (data === '[DONE]') continue
+                try {
+                  const parsed = JSON.parse(data)
+                  const content =
+                    parsed?.choices?.[0]?.delta?.content ||
+                    parsed?.choices?.[0]?.message?.content
+                  if (content) controller.enqueue(encoder.encode(content))
+                } catch {
+                  // non-JSON data line (e.g. ping); ignore
+                }
+              }
+            }
+          }
+        }
+
+        // Flush any trailing partial event in the buffer.
+        const trailing = buffer.trim()
+        if (trailing.startsWith('data: ')) {
+          try {
+            const parsed = JSON.parse(trailing.slice(6))
+            const content =
+              parsed?.choices?.[0]?.delta?.content ||
+              parsed?.choices?.[0]?.message?.content
+            if (content) controller.enqueue(encoder.encode(content))
+          } catch {
+            // ignore
           }
         }
       } catch (err) {

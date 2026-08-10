@@ -205,11 +205,12 @@ export default function PayloadForge() {
         throw new Error(`HTTP ${response.status}`)
       }
 
-      const reader = response.body.getReader()
-      const decoder = new TextDecoder()
-      let buffer = ''
-      let currentTab: OutputTab = 'summary'
-      setStreamingTab('summary')
+         const reader = response.body.getReader()
+         const decoder = new TextDecoder()
+         let buffer = ''
+         let currentTab: OutputTab = 'summary'
+         let producedContent = false
+         setStreamingTab('summary')
 
       while (true) {
         const { done, value } = await reader.read()
@@ -233,21 +234,34 @@ export default function PayloadForge() {
             continue
           }
 
-          setOutputs((prev) => ({
-            ...prev,
-            [currentTab]: prev[currentTab] + trimmed + '\n',
-          }))
-        }
-      }
+           setOutputs((prev) => ({
+             ...prev,
+             [currentTab]: prev[currentTab] + trimmed + '\n',
+           }))
+           producedContent = true
+           }
+         }
 
-      // Process remaining buffer
-      if (buffer.trim()) {
-        setOutputs((prev) => ({
-          ...prev,
-          [currentTab]: prev[currentTab] + buffer.trim() + '\n',
-        }))
-      }
-    } catch (err: unknown) {
+         // Process remaining buffer
+         if (buffer.trim()) {
+           setOutputs((prev) => ({
+             ...prev,
+             [currentTab]: prev[currentTab] + buffer.trim() + '\n',
+           }))
+           producedContent = true
+         }
+
+         // If the stream yielded no parseable content (e.g. the model returned a
+         // safety refusal or empty response), surface a clear, actionable error
+         // instead of the misleading "No content generated for this section."
+         if (!producedContent) {
+           setOutputs((prev) => ({
+             ...prev,
+             summary:
+               '**No payload content was generated.** The AI model returned an empty or safety-restricted response.\n\nMake sure a resume is selected and a valid job description is provided, then try again. If it keeps failing, switch to a reliable model (e.g. `deepseek/deepseek-chat`) instead of the `openrouter/free` pool in `.env`.',
+           }))
+         }
+       } catch (err: unknown) {
       if (err instanceof Error && err.name === 'AbortError') return
       // On error, show a message in the summary tab
       setOutputs((prev) => ({
