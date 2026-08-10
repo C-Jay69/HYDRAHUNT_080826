@@ -127,7 +127,6 @@ def scrape_site(site: str, keywords: str, location: str | None, n: int, hours_ol
             "search_term": keywords,
             "results_wanted": min(max(n, 1), 50),
             "verbose": 0,
-            "is_remote": None,
         }
         if location:
             kwargs["location"] = location
