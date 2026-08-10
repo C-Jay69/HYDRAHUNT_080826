@@ -4,6 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev -p 3000 2>&1 | tee dev.log",
+    "dev:services": "bash start-server.sh",
+    "jobs:backfill": "curl -s -X POST http://localhost:3000/api/jobs/backfill -H 'Content-Type: application/json' -d '{\"sites\":[\"linkedin\",\"indeed\",\"glassdoor\"],\"keyword\":\"software engineer\",\"recordsLimit\":100,\"dryRun\":false}'",
     "build": "next build && cp -r .next/static .next/standalone/.next/ && cp -r public .next/standalone/",
     "start": "NODE_ENV=production bun .next/standalone/server.js 2>&1 | tee server.log",
     "lint": "eslint .",

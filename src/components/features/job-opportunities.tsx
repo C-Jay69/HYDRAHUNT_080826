@@ -32,8 +32,17 @@ import {
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Switch } from '@/components/ui/switch'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { useAppStore } from '@/store/app-store'
 import { cn } from '@/lib/utils'
+
+type JobSource = 'linkedin' | 'weworkremotely' | 'remoteok' | 'remotive' | 'dice'
 
 interface JobOpportunity {
   id: string
@@ -60,6 +69,7 @@ interface Resume {
 
 interface ScrapeEvent {
   type: 'progress' | 'page' | 'jobs' | 'done' | 'error'
+  source?: JobSource
   page?: number
   pages?: number
   found?: number
@@ -180,12 +190,14 @@ export default function JobOpportunities() {
   const [scrapeKeyword, setScrapeKeyword] = useState('software engineer')
   const [scrapeLocation, setScrapeLocation] = useState('')
   const [scrapePages, setScrapePages] = useState(2)
+  const [scrapeSource, setScrapeSource] = useState<JobSource>('linkedin')
   const [scraping, setScraping] = useState(false)
   const [scrapeProgress, setScrapeProgress] = useState<{
     page: number
     pages: number
     found: number
     totalFound: number
+    source?: JobSource
     error?: string
   } | null>(null)
   const [previewJob, setPreviewJob] = useState<JobOpportunity | null>(null)
@@ -234,9 +246,10 @@ export default function JobOpportunities() {
     setScrapeProgress(null)
     setApplyResult(null)
 
-    const params = new URLSearchParams({
+     const params = new URLSearchParams({
       keywords: scrapeKeyword.trim(),
       pages: String(scrapePages),
+      source: scrapeSource,
     })
     if (scrapeLocation.trim()) params.set('location', scrapeLocation.trim())
 
@@ -262,6 +275,7 @@ export default function JobOpportunities() {
         setScrapeProgress({
           page: payload.page ?? 0,
           pages: payload.pages ?? 0,
+          source: (payload.source as JobSource) || scrapeSource,
           found: payload.found ?? 0,
           totalFound: payload.totalFound ?? 0,
         })
@@ -291,7 +305,7 @@ export default function JobOpportunities() {
       evt.close()
       fetchJobs()
     }
-  }, [scrapeKeyword, scrapeLocation, scrapePages, scraping, fetchJobs])
+  }, [scrapeKeyword, scrapeLocation, scrapePages, scrapeSource, scraping, fetchJobs])
 
   const handleApply = useCallback((job: JobOpportunity) => {
     setPreviewJob(job)
@@ -417,6 +431,25 @@ export default function JobOpportunities() {
                   onChange={(e) => setScrapePages(Math.min(5, Math.max(1, Number(e.target.value) || 1)))}
                   className="border-hydra-border bg-hydra-surface"
                 />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-xs text-muted-foreground">Source</Label>
+                <Select value={scrapeSource} onValueChange={(v) => setScrapeSource(v as JobSource)}>
+                  <SelectTrigger className="border-hydra-border bg-hydra-surface">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="border-hydra-border bg-hydra-surface">
+                    <SelectItem value="linkedin">LinkedIn (ChocoData)</SelectItem>
+                    <SelectItem value="indeed">Indeed (JobSpy)</SelectItem>
+                    <SelectItem value="glassdoor">Glassdoor (JobSpy)</SelectItem>
+                    <SelectItem value="zip_recruiter">ZipRecruiter (JobSpy)</SelectItem>
+                    <SelectItem value="google">Google Jobs (JobSpy)</SelectItem>
+                    <SelectItem value="weworkremotely">We Work Remotely</SelectItem>
+                    <SelectItem value="remoteok">RemoteOK</SelectItem>
+                    <SelectItem value="remotive">Remotive</SelectItem>
+                    <SelectItem value="dice">Dice</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               <div className="flex items-end gap-2">
                 <Button

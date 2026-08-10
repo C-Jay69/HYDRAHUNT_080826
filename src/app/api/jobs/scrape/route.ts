@@ -3,7 +3,13 @@ import { db } from '@/lib/db'
 import { requireUser } from '@/lib/auth'
 import { enforcePlanGate } from '@/lib/plans'
 import { scrapeJobsSchema } from '@/lib/validators'
-import { fetchChocoJobs, chocoRateLimit, type ChocoJob } from '@/lib/chocoClient'
+import {
+  fetchChocoJobs,
+  chocoRateLimit,
+  normalizeJob,
+  type JobSource,
+  type NormalizedJob,
+} from '@/lib/chocoClient'
 
 const encoder = new TextEncoder()
 
@@ -14,9 +20,89 @@ function sse(
   controller.enqueue(encoder.encode(`data: ${JSON.stringify(payload)}\n\n`))
 }
 
-// GET /api/jobs/scrape?keywords=...&location=...&pages=3
-// Streams ScrapingRun progress as SSE so the Job Opportunities UI can render
-// results as they arrive, page by page, respecting the free-tier quota.
+/** Sources served by the JobSpy Python micro-service (ChocoData can't do these). */
+const JOBSPY_SOURCES: Record<string, true> = {
+  indeed: true,
+  glassdoor: true,
+  zip_recruiter: true,
+  google: true,
+}
+
+const JOBSPY_URL = process.env.JOBSPY_URL || 'http://127.0.0.1:3001/scrape'
+
+/** Map a JobSpy service result to the canonical NormalizedJob shape. */
+function fromJobSpyJob(j: Record<string, unknown>): NormalizedJob {
+  const url = typeof j.jobUrl === 'string' ? j.jobUrl : typeof j.applyUrl === 'string' ? (j.applyUrl as string) : ''
+  const title = typeof j.title === 'string' ? j.title : ''
+  const company = typeof j.company === 'string' ? j.company : ''
+  // Synthesize a stable external id from the job URL or company:title.
+  const externalId = url ? `jobspy:${url}` : `jobspy:${company}:${title}`
+  return {
+    externalId,
+    title: title || undefined,
+    company,
+    companyUrl: typeof j.companyUrl === 'string' ? j.companyUrl : undefined,
+    location: typeof j.location === 'string' ? j.location : undefined,
+    jobUrl: url || undefined,
+    postedDate: typeof j.postedDate === 'string' ? j.postedDate : undefined,
+    postedLabel: typeof j.postedLabel === 'string' ? j.postedLabel : undefined,
+    salary: typeof j.salary === 'string' ? j.salary : j.salary == null ? null : undefined,
+    companyLogo: typeof j.companyLogo === 'string' ? j.companyLogo : undefined,
+    applyUrl: typeof j.applyUrl === 'string' ? j.applyUrl : url || undefined,
+    raw: typeof j.raw === 'string' ? j.raw : JSON.stringify(j),
+  }
+}
+
+/**
+ * Persist (upsert) a normalized job for the current user. Shared by both the
+ * ChocoData and JobSpy code paths so a single write path serves all sources.
+ */
+async function upsertOpportunity(
+  user: { id: string },
+  job: NormalizedJob,
+): Promise<void> {
+  const extId = job.externalId || ''
+  try {
+    await db.jobOpportunity.upsert({
+      where: {
+        externalId_userId: { externalId: extId, userId: user.id },
+      },
+      update: {
+        title: job.title || '',
+        company: job.company || null,
+        companyUrl: job.companyUrl || null,
+        location: job.location || null,
+        jobUrl: job.jobUrl || null,
+        postedDate: job.postedDate || null,
+        postedLabel: job.postedLabel || null,
+        salary: job.salary || null,
+        companyLogo: job.companyLogo || null,
+        raw: job.raw || undefined,
+      },
+      create: {
+        userId: user.id,
+        externalId: extId || null,
+        title: job.title || '',
+        company: job.company || null,
+        companyUrl: job.companyUrl || null,
+        location: job.location || null,
+        jobUrl: job.jobUrl || null,
+        postedDate: job.postedDate || null,
+        postedLabel: job.postedLabel || null,
+        salary: job.salary || null,
+        companyLogo: job.companyLogo || null,
+        raw: job.raw || undefined,
+      },
+    })
+  } catch {
+    // unique-constraint miss or transient DB error; keep streaming
+  }
+}
+
+// GET /api/jobs/scrape?keywords=...&location=...&pages=3&source=linkedin
+// Streams ScrapingRun progress as SSE. Sources are split across two backends:
+//   - ChocoData (Node HTTP): linkedin, weworkremotely, remoteok, remotive, dice
+//   - JobSpy (Python service): indeed, glassdoor, zip_recruiter, google
 export async function GET(request: NextRequest) {
   const controller = new ReadableStream<Uint8Array>({
     async start(controller) {
@@ -28,11 +114,13 @@ export async function GET(request: NextRequest) {
         const keywords = sp.get('keywords') || ''
         const location = sp.get('location') || undefined
         const pages = Math.min(Number(sp.get('pages') || 3), 5)
+        const source = (sp.get('source') || 'linkedin') as JobSource
 
         const parseResult = scrapeJobsSchema.safeParse({
           keywords,
-          location: location || null,
+          location,
           pages,
+          source,
         })
         if (!parseResult.success) {
           sse(controller, {
@@ -62,6 +150,7 @@ export async function GET(request: NextRequest) {
 
         sse(controller, {
           type: 'progress',
+          source,
           page: 0,
           pages: p,
           found: 0,
@@ -71,25 +160,41 @@ export async function GET(request: NextRequest) {
         let totalFound = 0
         let requestCount = 0
         const seen = new Set<string>()
-        const collected: ChocoJob[] = []
+        const collected: NormalizedJob[] = []
 
-        for (let page = 1; page <= p; page++) {
-          // Respect the per-minute ChocoData rate limit before each call.
-          if (!chocoRateLimit(user.id)) {
-            await new Promise((r) => setTimeout(r, 1500))
-          }
+        if (JOBSPY_SOURCES[source]) {
+          // ----------------------- JobSpy branch -----------------------
+          // JobSpy isn't paginated like ChocoData; treat `pages` as a result
+          // multiplier (pages * 10) and fetch a single batch per source.
+          const n = Math.min(p * 10, 50)
+          const url = new URL(JOBSPY_URL)
+          url.searchParams.set('keywords', kw)
+          if (loc) url.searchParams.set('location', loc)
+          url.searchParams.set('site', source)
+          url.searchParams.set('n', String(n))
 
           sse(controller, {
             type: 'progress',
-            page,
+            source,
+            page: 1,
             pages: p,
             found: totalFound,
             totalFound,
           })
 
-          let data
+          let data: { jobs?: unknown[]; errors?: string[] }
           try {
-            data = await fetchChocoJobs(kw, loc, page, 10)
+            const res = await fetch(url.toString(), {
+              method: 'GET',
+              headers: { Accept: 'application/json' },
+              // JobSpy can be slow (browser scraping under the hood).
+              signal: AbortSignal.timeout(90_000),
+            })
+            if (!res.ok) {
+              const body = (await res.text()).slice(0, 300)
+              throw new Error(`JobSpy (${source}) returned HTTP ${res.status}: ${body}`)
+            }
+            data = (await res.json()) as { jobs?: unknown[]; errors?: string[] }
             requestCount += 1
           } catch (err) {
             const msg = err instanceof Error ? err.message : String(err)
@@ -102,67 +207,90 @@ export async function GET(request: NextRequest) {
             return
           }
 
-          const pageResults: ChocoJob[] = Array.isArray(data?.results)
-            ? (data.results as ChocoJob[])
-            : []
+          const rawJobs = Array.isArray(data?.jobs) ? data.jobs : []
+          const pageResults: NormalizedJob[] = rawJobs
+            .map((j) => fromJobSpyJob(j as Record<string, unknown>))
+            .filter(Boolean)
 
           for (const job of pageResults) {
-            const key =
-              job.id || job.job_id || `${job.company}:${job.title}:${job.url}`
+            const key = job.externalId || job.jobUrl
             if (!key || seen.has(key)) continue
             seen.add(key)
             collected.push(job)
-
-            // Persist each discovered opportunity as we find it.
-            try {
-              await db.jobOpportunity.upsert({
-                where: {
-                  externalId_userId: {
-                    externalId: job.job_id || key,
-                    userId: user.id,
-                  },
-                },
-                update: {
-                  title: job.title || '',
-                  company: job.company || null,
-                  companyUrl: job.company_url || null,
-                  location: job.location || null,
-                  jobUrl: job.url || null,
-                  postedDate: job.posted_date || null,
-                  postedLabel: job.posted_label || null,
-                  salary: job.salary || null,
-                  companyLogo: job.company_logo || null,
-                  raw: JSON.stringify(job),
-                },
-                create: {
-                  userId: user.id,
-                  externalId: job.job_id || key,
-                  title: job.title || '',
-                  company: job.company || null,
-                  companyUrl: job.company_url || null,
-                  location: job.location || null,
-                  jobUrl: job.url || null,
-                  postedDate: job.posted_date || null,
-                  postedLabel: job.posted_label || null,
-                  salary: job.salary || null,
-                  companyLogo: job.company_logo || null,
-                  raw: JSON.stringify(job),
-                },
-              })
-            } catch {
-              // unique-constraint miss; ignore and keep streaming
-            }
+            await upsertOpportunity(user, job)
           }
 
           totalFound = collected.length
           sse(controller, {
             type: 'page',
-            page,
+            source,
+            page: 1,
             pages: p,
             found: totalFound,
             totalFound,
             jobs: pageResults,
           })
+
+          if (data?.errors?.length) {
+            sse(controller, {
+              type: 'error',
+              error: `JobSpy warnings: ${data.errors.join('; ')}`,
+            })
+          }
+        } else {
+          // ---------------------- ChocoData branch ----------------------
+          for (let page = 1; page <= p; page++) {
+            if (!chocoRateLimit(user.id)) {
+              await new Promise((r) => setTimeout(r, 1500))
+            }
+
+            sse(controller, {
+              type: 'progress',
+              source,
+              page,
+              pages: p,
+              found: totalFound,
+              totalFound,
+            })
+
+            let data
+            try {
+              data = await fetchChocoJobs(source, kw, loc, page, 10)
+              requestCount += 1
+            } catch (err) {
+              const msg = err instanceof Error ? err.message : String(err)
+              sse(controller, { type: 'error', error: msg })
+              await db.scrapingRun.update({
+                where: { id: runId },
+                data: { status: 'failed', totalFound, requestCount },
+              })
+              controller.close()
+              return
+            }
+
+            const pageResults: NormalizedJob[] = Array.isArray(data?.results)
+              ? (data.results as Record<string, unknown>[]).map(normalizeJob)
+              : []
+
+            for (const job of pageResults) {
+              const key = job.externalId || job.jobUrl
+              if (!key || seen.has(key)) continue
+              seen.add(key)
+              collected.push(job)
+              await upsertOpportunity(user, job)
+            }
+
+            totalFound = collected.length
+            sse(controller, {
+              type: 'page',
+              source,
+              page,
+              pages: p,
+              found: totalFound,
+              totalFound,
+              jobs: pageResults,
+            })
+          }
         }
 
         await db.scrapingRun.update({
@@ -172,6 +300,7 @@ export async function GET(request: NextRequest) {
 
         sse(controller, {
           type: 'done',
+          source,
           page: p,
           pages: p,
           found: totalFound,

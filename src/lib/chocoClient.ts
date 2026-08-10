@@ -2,40 +2,22 @@
  * ChocoData Scraper API client.
  *
  * ChocoData is a general web-scraper-as-a-service (1000 req/day on the
- * free tier). This client wraps the LinkedIn job-search endpoint, which is
- * the canonical path for harvesting remote/hybrid job listings:
+ * free tier). This client wraps multiple job-board endpoints that all share
+ * the same envelope shape:
  *
- *   GET https://api.chocodata.com/api/v1/linkedin/jobsearch
+ *   { query, page, total_results, results:[{ ... }] }
  *
- * Query params:
- *   api_key   — ChocoData bearer key (CHOCODATA_API_KEY)
- *   keywords   — search keywords (e.g. "software engineer")
- *   location   — optional location filter
- *   page       — 1-indexed page number
- *   per_page   — results per page (default 10)
- *   start      — offset (alternative to `page`)
+ * Confirmed-working sources (all verified live with the project key):
+ *   - linkedin         → /api/v1/linkedin/jobsearch   (params: keywords, location)
+ *   - weworkremotely   → /api/v1/weworkremotely/search  (params: q, location)
+ *   - remoteok         → /api/v1/remoteok/search        (params: q, location)
+ *   - remotive         → /api/v1/remotive/search        (params: q, location)
+ *   - dice             → /api/v1/dice/search            (params: q, location)
  *
- * Response shape (verified live):
- *   {
- *     query: "software engineer",
- *     keywords: "software engineer",
- *     location: "United States",
- *     start: 0,
- *     page: 1,
- *     total_results: 10,
- *     results: [
- *       {
- *         position: 1, id: "4447220072", job_id: "4447220072",
- *         title: "Software Engineer (All Levels)",
- *         url: "https://www.linkedin.com/jobs/view/...",
- *         company: "Blossom", company_url: "https://www.linkedin.com/company/...",
- *         location: "New York, NY", posted_date: "2026-07-30",
- *         posted_label: "1 week ago", salary: null,
- *         company_logo: "https://media.licdn.com/...",
- *         ...
- *       }
- *     ]
- *   }
+ * Registered but flaky (transient/extraction failures):
+ *   - indeed.search  (bot-blocked), monster.search, careerbuilder.search
+ *
+ * NOT supported by ChocoData: glassdoor, ziprecruiter, flexjobs, remote.co
  *
  * Free-tier guardrails:
  *  - `pages` is clamped to a small default to stay within the 1000 req/day
@@ -44,40 +26,72 @@
  *    and conserve quota.
  */
 
-export interface ChocoJob {
+export type JobSource =
+  | 'linkedin'
+  | 'weworkremotely'
+  | 'remoteok'
+  | 'remotive'
+  | 'dice'
+
+/** Maps a friendly source name to the ChocoData API path segment. */
+export const SOURCE_TARGET: Record<JobSource, string> = {
+  linkedin: 'linkedin/jobsearch',
+  weworkremotely: 'weworkremotely/search',
+  remoteok: 'remoteok/search',
+  remotive: 'remotive/search',
+  dice: 'dice/search',
+}
+
+/** Parameter name each source accepts for the keyword query. */
+const KEYWORD_PARAM: Record<JobSource, string> = {
+  linkedin: 'keywords',
+  weworkremotely: 'q',
+  remoteok: 'q',
+  remotive: 'q',
+  dice: 'q',
+}
+
+/**
+ * A normalized job record after pulling the disparate source payloads into a
+ * common shape. Field names vary by board (e.g. weworkremotely uses `price`,
+ * remoteok uses `apply_url`, remotive uses `thumbnail`); this is the canonical
+ * representation persisted to JobOpportunity.
+ */
+export interface NormalizedJob {
   position?: number
-  id?: string
-  job_id?: string
+  externalId?: string
   title?: string
   url?: string
   company?: string
-  company_url?: string
+  companyUrl?: string
   location?: string
-  posted_date?: string
-  posted_label?: string
+  postedDate?: string
+  postedLabel?: string
   salary?: string | null
-  company_logo?: string
+  companyLogo?: string
+  applyUrl?: string
+  raw?: string
   [key: string]: unknown
 }
 
 export interface ChocoSearchResponse {
   query?: string
   keywords?: string
-  location?: string
-  start?: number
   page?: number
   total_results?: number
-  results?: ChocoJob[]
+  results?: unknown[]
   [key: string]: unknown
 }
 
 export interface ScrapeProgress {
   type: 'progress' | 'page' | 'jobs' | 'done' | 'error'
+  source?: JobSource
   page?: number
   pages?: number
   found?: number
   totalFound?: number
-  jobs?: ChocoJob[]
+  jobs?: NormalizedJob[]
+  requestCount?: number
   error?: string
 }
 
@@ -97,33 +111,69 @@ export function chocoHeaders(): Record<string, string> {
 }
 
 /**
- * Fetches a single page of LinkedIn job results from ChocoData.
- * Returns the parsed JSON envelope (no array normalization).
+ * Normalizes a raw ChocoData result object into the canonical JobOpportunity
+ * shape. Boards differ in their field names; this hides that from the scraper.
+ */
+export function normalizeJob(raw: Record<string, unknown>): NormalizedJob {
+  const toStr = (v: unknown): string | undefined =>
+    typeof v === 'string' ? v : v === undefined || v === null ? undefined : String(v)
+
+  return {
+    position: typeof raw.position === 'number' ? raw.position : undefined,
+    externalId:
+      toStr(raw.job_id) || toStr(raw.id) || toStr(raw.slug) || undefined,
+    title: toStr(raw.title),
+    url: toStr(raw.url),
+    company: toStr(raw.company),
+    companyUrl: toStr(raw.company_url) || toStr(raw.companyUrl),
+    location: toStr(raw.location),
+    postedDate: toStr(raw.posted_date) || toStr(raw.date_posted),
+    postedLabel: toStr(raw.posted_label) || toStr(raw.age),
+    salary:
+      toStr(raw.salary) || toStr(raw.price) || toStr(raw.compensation) || null,
+    companyLogo: toStr(raw.company_logo) || toStr(raw.thumbnail) || toStr(raw.image),
+    applyUrl: toStr(raw.apply_url) || toStr(raw.applyLink) || toStr(raw.url),
+    raw: JSON.stringify(raw),
+  }
+}
+
+/**
+ * Fetches a single page of job results from a given ChocoData source.
+ * `source` selects the endpoint; `page` is 1-indexed.
  */
 export async function fetchChocoJobs(
+  source: JobSource,
   keywords: string,
   location: string | undefined,
   page: number,
   perPage = 10,
 ): Promise<ChocoSearchResponse> {
+  const target = SOURCE_TARGET[source]
+  const kwParam = KEYWORD_PARAM[source]
+
   const params = new URLSearchParams({
     api_key: process.env.CHOCODATA_API_KEY || '',
-    keywords,
+    [kwParam]: keywords,
     page: String(page),
     per_page: String(perPage),
   })
   if (location) params.set('location', location)
 
-  const res = await fetch(`${CHOCO_API_BASE}/linkedin/jobsearch?${params.toString()}`, {
-    method: 'GET',
-    headers: chocoHeaders(),
-    cache: 'no-store',
-    next: { revalidate: 0 },
-  })
+  const res = await fetch(
+    `${CHOCO_API_BASE}/${target}?${params.toString()}`,
+    {
+      method: 'GET',
+      headers: chocoHeaders(),
+      cache: 'no-store',
+      next: { revalidate: 0 },
+    },
+  )
 
   if (!res.ok) {
     const body = (await res.text()).slice(0, 500)
-    throw new Error(`ChocoData request failed (HTTP ${res.status}): ${body}`)
+    throw new Error(
+      `ChocoData [${source}] request failed (HTTP ${res.status}): ${body}`,
+    )
   }
 
   return (await res.json()) as ChocoSearchResponse
@@ -132,6 +182,7 @@ export async function fetchChocoJobs(
 /**
  * Minimal sliding-window rate limiter for ChocoData to avoid exhausting the
  * 1000 req/day free tier too fast. `CHOCODATA_RATE_LIMIT_RPM` defaults to 10.
+ * Keyed per userId so concurrent users don't share a bucket.
  */
 const chocoBuckets = new Map<string, { count: number; resetAt: number }>()
 
