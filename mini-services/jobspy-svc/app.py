@@ -129,7 +129,13 @@ def scrape_site(site: str, keywords: str, location: str | None, n: int, hours_ol
             "verbose": 0,
         }
         if location:
-            kwargs["location"] = location
+            # Treat "Remote" (or any remote-flavored location) as a remote
+            # filter rather than a city string — boards like Indeed/Glassdoor
+            # expect is_remote and 400/0-result on location="Remote".
+            if "remote" in location.lower():
+                kwargs["is_remote"] = True
+            else:
+                kwargs["location"] = location
         if hours_old is not None:
             kwargs["hours_old"] = hours_old
 
