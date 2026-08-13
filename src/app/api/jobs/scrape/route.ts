@@ -30,6 +30,29 @@ const JOBSPY_SOURCES: Record<string, true> = {
 
 const JOBSPY_URL = process.env.JOBSPY_URL || 'http://127.0.0.1:3001/scrape'
 
+/** Turn a thrown fetch error from the JobSpy service into an actionable message. */
+function jobSpyError(err: unknown): string {
+  const cause = (err as { cause?: { code?: string } })?.cause
+  const code = cause?.code
+  const port = (() => {
+    try {
+      return new URL(JOBSPY_URL).port || '3001'
+    } catch {
+      return '3001'
+    }
+  })()
+  if (code === 'ECONNREFUSED') {
+    return `JobSpy service is not running on port ${port}. Start it with: npm run dev:services`
+  }
+  if (code === 'ECONNRESET' || code === 'UND_ERR_CONNECT_TIMEOUT' || code === 'ETIMEDOUT') {
+    return `JobSpy service on port ${port} did not respond (${code}). It may still be starting — try again in a moment.`
+  }
+  if (err instanceof Error && err.name === 'TimeoutError') {
+    return `JobSpy service on port ${port} timed out while scraping. Try fewer pages or try again.`
+  }
+  return err instanceof Error ? err.message : String(err)
+}
+
 /** Map a JobSpy service result to the canonical NormalizedJob shape. */
 function fromJobSpyJob(j: Record<string, unknown>): NormalizedJob {
   const url = typeof j.jobUrl === 'string' ? j.jobUrl : typeof j.applyUrl === 'string' ? (j.applyUrl as string) : ''
@@ -197,7 +220,7 @@ export async function GET(request: NextRequest) {
             data = (await res.json()) as { jobs?: unknown[]; errors?: string[] }
             requestCount += 1
           } catch (err) {
-            const msg = err instanceof Error ? err.message : String(err)
+            const msg = jobSpyError(err)
             sse(controller, { type: 'error', error: msg })
             await db.scrapingRun.update({
               where: { id: runId },
@@ -231,9 +254,17 @@ export async function GET(request: NextRequest) {
             jobs: pageResults,
           })
 
+          // Per-site warnings (e.g. Glassdoor 400 on a fuzzy location) are
+          // non-fatal: surface them as a note, but don't abort the stream —
+          // other boards may still have returned jobs.
           if (data?.errors?.length) {
             sse(controller, {
-              type: 'error',
+              type: 'progress',
+              source,
+              page: 1,
+              pages: p,
+              found: totalFound,
+              totalFound,
               error: `JobSpy warnings: ${data.errors.join('; ')}`,
             })
           }

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { motion } from 'framer-motion'
 import {
   Search,
@@ -43,6 +43,17 @@ import { useAppStore } from '@/store/app-store'
 import { cn } from '@/lib/utils'
 
 type JobSource = 'linkedin' | 'weworkremotely' | 'remoteok' | 'remotive' | 'dice'
+
+/** True when a search location string is remote-flavored (Remote, Anywhere, Worldwide…). */
+function isRemoteSearch(location: string | undefined | null): boolean {
+  if (!location) return false
+  return /remote|anywhere|worldwide|work from home|\bwfh\b|global/i.test(location)
+}
+
+/** True when a job's location reads as remote ("Anywhere In The World", "Remote", …). */
+function isRemoteJob(job: JobOpportunity): boolean {
+  return isRemoteSearch(job.location)
+}
 
 interface JobOpportunity {
   id: string
@@ -296,6 +307,7 @@ export default function JobOpportunities() {
           pages: payload.pages ?? 0,
           found: payload.found ?? 0,
           totalFound: payload.totalFound ?? 0,
+          error: payload.error,
         })
       }
     }
@@ -372,6 +384,18 @@ export default function JobOpportunities() {
   const clearScrape = useCallback(() => {
     setScrapeProgress(null)
   }, [])
+
+  // When the user prefers a remote location, surface remote/anywhere jobs first
+  // instead of letting them sink below the on-site results.
+  const remotePreferred = isRemoteSearch(scrapeLocation)
+  const sortedJobs = useMemo(() => {
+    if (!remotePreferred) return jobs
+    return [...jobs].sort((a, b) => {
+      const ra = isRemoteJob(a) ? 0 : 1
+      const rb = isRemoteJob(b) ? 0 : 1
+      return ra - rb
+    })
+  }, [jobs, remotePreferred])
 
   return (
     <motion.div
@@ -533,7 +557,7 @@ export default function JobOpportunities() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {jobs.map((job) => (
+            {sortedJobs.map((job) => (
               <JobCard key={job.id} job={job} onApply={handleApply} />
             ))}
           </div>
