@@ -188,8 +188,8 @@ export async function GET(request: NextRequest) {
         if (JOBSPY_SOURCES[source]) {
           // ----------------------- JobSpy branch -----------------------
           // JobSpy isn't paginated like ChocoData; treat `pages` as a result
-          // multiplier (pages * 10) and fetch a single batch per source.
-          const n = Math.min(p * 10, 50)
+          // multiplier (pages * 25) and fetch a single batch per source.
+          const n = Math.min(p * 25, 100)
           const url = new URL(JOBSPY_URL)
           url.searchParams.set('keywords', kw)
           if (loc) url.searchParams.set('location', loc)

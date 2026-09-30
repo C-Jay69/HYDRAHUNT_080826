@@ -42,7 +42,7 @@ import {
 import { useAppStore } from '@/store/app-store'
 import { cn } from '@/lib/utils'
 
-type JobSource = 'linkedin' | 'weworkremotely' | 'remoteok' | 'remotive' | 'dice'
+type JobSource = 'linkedin' | 'weworkremotely' | 'remoteok' | 'remotive' | 'dice' | 'indeed' | 'glassdoor' | 'zip_recruiter' | 'google'
 
 /** True when a search location string is remote-flavored (Remote, Anywhere, Worldwide…). */
 function isRemoteSearch(location: string | undefined | null): boolean {

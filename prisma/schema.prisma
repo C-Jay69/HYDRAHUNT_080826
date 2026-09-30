@@ -8,68 +8,68 @@ datasource db {
 }
 
 model User {
-  id           String   @id @default(cuid())
-  email        String   @unique
-  name         String?
-  image        String?
-  passwordHash String?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  profile   Profile?
-  resumes   Resume[]
-  jobTargets    JobTarget[]
-  payloads      GeneratedPayload[]
-   interviewSessions InterviewSession[]
-   analyses      ResumeAnalysis[]
-   careerMaps    CareerMap[]
-   activityLog   ActivityLog[]
-   subscriptions Subscription[]
-   jobOpportunities JobOpportunity[]
-   jobApplications JobApplication[]
-   scrapingRuns  ScrapingRun[]
+  id                String             @id @default(cuid())
+  email             String             @unique
+  name              String?
+  image             String?
+  passwordHash      String?
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  activityLog       ActivityLog[]
+  careerMaps        CareerMap[]
+  payloads          GeneratedPayload[]
+  interviewSessions InterviewSession[]
+  jobApplications   JobApplication[]
+  jobOpportunities  JobOpportunity[]
+  jobTargets        JobTarget[]
+  profile           Profile?
+  resumes           Resume[]
+  analyses          ResumeAnalysis[]
+  scrapingRuns      ScrapingRun[]
+  subscriptions     Subscription[]
 }
 
 model Profile {
-  id              String   @id @default(cuid())
-  userId          String   @unique
-  headline        String?
-  bio             String?
-  location        String?
-  website         String?
-  linkedin        String?
-  github          String?
-  phone           String?
-  targetRole      String?
-  targetSalary    Int?
-  targetLocation  String?
-  experience      String?
-  onboardingComplete Boolean @default(false)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id                 String   @id @default(cuid())
+  userId             String   @unique
+  headline           String?
+  bio                String?
+  location           String?
+  website            String?
+  linkedin           String?
+  github             String?
+  phone              String?
+  targetRole         String?
+  targetSalary       Int?
+  targetLocation     String?
+  experience         String?
+  onboardingComplete Boolean  @default(false)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Resume {
-  id          String   @id @default(cuid())
-  userId      String
-  title       String   @default("My Resume")
-  summary     String?
-  isDefault   Boolean  @default(false)
-  atsScore    Int?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  sections    ResumeSection[]
-  versions    ResumeVersion[]
-  analyses    ResumeAnalysis[]
+  id        String           @id @default(cuid())
+  userId    String
+  title     String           @default("My Resume")
+  summary   String?
+  isDefault Boolean          @default(false)
+  atsScore  Int?
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  analyses  ResumeAnalysis[]
+  sections  ResumeSection[]
+  versions  ResumeVersion[]
 }
 
 model ResumeSection {
   id        String   @id @default(cuid())
   resumeId  String
-  type      String   // "experience", "education", "skills", "projects", "certifications", "custom"
+  type      String
   title     String
-  content   String   // JSON string of section data
+  content   String
   sortOrder Int      @default(0)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -77,33 +77,33 @@ model ResumeSection {
 }
 
 model ResumeVersion {
-  id          String   @id @default(cuid())
-  resumeId    String
-  label       String?
-  snapshot    String   // JSON string of full resume data
-  notes       String?
-  createdAt   DateTime @default(now())
-  resume      Resume   @relation(fields: [resumeId], references: [id], onDelete: Cascade)
+  id        String   @id @default(cuid())
+  resumeId  String
+  label     String?
+  snapshot  String
+  notes     String?
+  createdAt DateTime @default(now())
+  resume    Resume   @relation(fields: [resumeId], references: [id], onDelete: Cascade)
 }
 
 model ResumeAnalysis {
-  id          String   @id @default(cuid())
-  resumeId    String
-  userId      String
-  targetRole  String?
-  status      String   @default("processing") // "processing", "completed", "failed"
-  atsScore    Int?
-  strengths   String?  // JSON array
-  weaknesses  String?  // JSON array
-  missingKeywords String? // JSON array
-  rewrittenBullets String? // JSON array
+  id                String   @id @default(cuid())
+  resumeId          String
+  userId            String
+  targetRole        String?
+  status            String   @default("processing")
+  atsScore          Int?
+  strengths         String?
+  weaknesses        String?
+  missingKeywords   String?
+  rewrittenBullets  String?
   roleFitAssessment String?
-  actionChecklist  String? // JSON array
-  rawResponse String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  resume      Resume   @relation(fields: [resumeId], references: [id], onDelete: Cascade)
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  actionChecklist   String?
+  rawResponse       String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  resume            Resume   @relation(fields: [resumeId], references: [id], onDelete: Cascade)
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model GeneratedPayload {
@@ -124,188 +124,188 @@ model GeneratedPayload {
 }
 
 model JobTarget {
-  id          String   @id @default(cuid())
-  userId      String
-  company     String
-  role        String
-  salary      String?
-  location    String?
-  status      String   @default("intel") // "intel", "acquired", "payload_sent", "interview", "offer", "eliminated"
-  priority    String   @default("medium") // "low", "medium", "high", "critical"
-  jobUrl      String?
-  notes       String?
-  followUpAt  DateTime?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  activities  JobActivity[]
-  jobNotes    JobNote[]
+  id         String        @id @default(cuid())
+  userId     String
+  company    String
+  role       String
+  salary     String?
+  location   String?
+  status     String        @default("intel")
+  priority   String        @default("medium")
+  jobUrl     String?
+  notes      String?
+  followUpAt DateTime?
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+  activities JobActivity[]
+  jobNotes   JobNote[]
+  user       User          @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model JobNote {
-  id        String   @id @default(cuid())
+  id        String    @id @default(cuid())
   targetId  String
   content   String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
   target    JobTarget @relation(fields: [targetId], references: [id], onDelete: Cascade)
 }
 
 model JobActivity {
-  id        String   @id @default(cuid())
+  id        String    @id @default(cuid())
   targetId  String
   action    String
   details   String?
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
   target    JobTarget @relation(fields: [targetId], references: [id], onDelete: Cascade)
 }
 
 model InterviewSession {
-  id          String   @id @default(cuid())
-  userId      String
-  type        String   @default("behavioral") // "behavioral", "technical", "role-specific"
-  status      String   @default("active") // "active", "completed"
-  role        String?
-  company     String?
-  score       Int?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  messages    InterviewMessage[]
-  scores      InterviewScore[]
+  id        String             @id @default(cuid())
+  userId    String
+  type      String             @default("behavioral")
+  status    String             @default("active")
+  role      String?
+  company   String?
+  score     Int?
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
+  messages  InterviewMessage[]
+  scores    InterviewScore[]
+  user      User               @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model InterviewMessage {
-  id        String   @id @default(cuid())
+  id        String           @id @default(cuid())
   sessionId String
-  role      String   // "user", "ai"
+  role      String
   content   String
   score     Int?
   feedback  String?
-  createdAt DateTime @default(now())
+  createdAt DateTime         @default(now())
   session   InterviewSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
 }
 
 model InterviewScore {
-  id             String   @id @default(cuid())
-  sessionId      String
-  category       String
-  score          Int
-  maxScore       Int      @default(10)
-  feedback       String?
-  createdAt      DateTime @default(now())
-  session        InterviewSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  id        String           @id @default(cuid())
+  sessionId String
+  category  String
+  score     Int
+  maxScore  Int              @default(10)
+  feedback  String?
+  createdAt DateTime         @default(now())
+  session   InterviewSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
 }
 
 model CareerMap {
-  id          String   @id @default(cuid())
+  id          String       @id @default(cuid())
   userId      String
-  title       String   @default("My Career Map")
+  title       String       @default("My Career Map")
   currentRole String?
   targetRole  String?
-  timeline    String?  // JSON
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  timeline    String?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   nodes       CareerNode[]
 }
 
 model CareerNode {
-  id          String   @id @default(cuid())
+  id          String    @id @default(cuid())
   mapId       String
-  type        String   // "current", "target", "skill", "certification", "milestone"
+  type        String
   label       String
   description String?
-  status      String   @default("pending") // "pending", "in_progress", "completed"
-  orderIndex  Int      @default(0)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  status      String    @default("pending")
+  orderIndex  Int       @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
   map         CareerMap @relation(fields: [mapId], references: [id], onDelete: Cascade)
 }
 
 model JobOpportunity {
-  id          String           @id @default(cuid())
-  userId      String
-  externalId  String?
-  title       String
-  company     String?
-  companyUrl  String?
-  location    String?
-  jobUrl      String?
-  postedDate  String?
-  postedLabel String?
-  salary      String?
-  companyLogo String?
-  raw         String?
-  status      String           @default("new") // "new", "applied", "interview", "offer", "rejected"
-  createdAt   DateTime         @default(now())
-  updatedAt   DateTime         @updatedAt
-  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id           String           @id @default(cuid())
+  userId       String
+  externalId   String?
+  title        String
+  company      String?
+  companyUrl   String?
+  location     String?
+  jobUrl       String?
+  postedDate   String?
+  postedLabel  String?
+  salary       String?
+  companyLogo  String?
+  raw          String?
+  status       String           @default("new")
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
   applications JobApplication[]
+  user         User             @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([externalId, userId], name: "externalId_userId")
 }
 
 model JobApplication {
-  id           String   @id @default(cuid())
-  userId       String
-  jobId        String
-  resumeId     String?
-  status       String   @default("pending") // "pending", "sent", "failed"
-  dryRun       Boolean  @default(true)
-  sentAt       DateTime?
-  details      String?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  job          JobOpportunity @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  id        String         @id @default(cuid())
+  userId    String
+  jobId     String
+  resumeId  String?
+  status    String         @default("pending")
+  dryRun    Boolean        @default(true)
+  sentAt    DateTime?
+  details   String?
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+  job       JobOpportunity @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model ScrapingRun {
-  id          String   @id @default(cuid())
-  userId      String
-  keywords    String
-  location    String?
-  pages       Int      @default(1)
-  totalFound  Int?
+  id           String   @id @default(cuid())
+  userId       String
+  keywords     String
+  location     String?
+  pages        Int      @default(1)
+  totalFound   Int?
   requestCount Int?
-  status      String   @default("active") // "active", "completed", "failed"
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status       String   @default("active")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model ActivityLog {
-  id          String   @id @default(cuid())
-  userId      String
-  action      String
-  category    String   // "resume", "payload", "application", "interview", "analysis", "billing"
-  details     String?
-  createdAt   DateTime @default(now())
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id        String   @id @default(cuid())
+  userId    String
+  action    String
+  category  String
+  details   String?
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Subscription {
-  id            String   @id @default(cuid())
-  userId        String
-  plan          String   @default("free") // "free", "hunter", "beastmaster", "mission_pack"
-  status        String   @default("active") // "active", "canceled", "past_due"
-  stripeSubId   String?
+  id                 String         @id @default(cuid())
+  userId             String
+  plan               String         @default("free")
+  status             String         @default("active")
+  stripeSubId        String?
   currentPeriodStart DateTime?
   currentPeriodEnd   DateTime?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  billingEvents BillingEvent[]
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+  billingEvents      BillingEvent[]
+  user               User           @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model BillingEvent {
-  id             String   @id @default(cuid())
+  id             String       @id @default(cuid())
   subscriptionId String
-  eventType      String   // "payment_succeeded", "payment_failed", "subscription_created", etc.
+  eventType      String
   amount         Int?
   currency       String?
   description    String?
-  createdAt      DateTime @default(now())
+  createdAt      DateTime     @default(now())
   subscription   Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
 }

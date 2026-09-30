@@ -26,7 +26,7 @@ if command -v python3 >/dev/null 2>&1; then
     JOBSPY_PID=$!
     # Wait (up to ~15s) for the service to bind before next dev starts.
     for _ in $(seq 1 30); do
-      code="$(curl -s -o /dev/null -w '%{http_code}' "${JOBSPY_URL%\/scrape}/scrape" 2>/dev/null || true)"
+      code="$(curl -s -o /dev/null -w '%{http_code}'"${JOBSPY_URL%\/scrape}/scrape" 2>/dev/null || true)"
       if [ "$code" != "000" ] && [ -n "$code" ]; then
         break
       fi
