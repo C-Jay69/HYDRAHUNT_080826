@@ -127,12 +127,12 @@ const container = {
 
 const item = {
   hidden: { opacity: 0, y: 12 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.35, ease: 'easeOut' } },
+  show: { opacity: 1, y: 0, transition: { duration: 0.35, ease: 'easeOut' as const } },
 }
 
 const cardVariant = {
   hidden: { opacity: 0, scale: 0.95 },
-  visible: { opacity: 1, scale: 1, transition: { duration: 0.25, ease: 'easeOut' } },
+  visible: { opacity: 1, scale: 1, transition: { duration: 0.25, ease: 'easeOut' as const } },
   exit: { opacity: 0, scale: 0.95, transition: { duration: 0.15 } },
 }
 
@@ -307,7 +307,7 @@ function KanbanColumn({
 function AddTargetDialog({
   onAdd,
 }: {
-  onAdd: (target: Omit<JobTarget, 'id' | 'createdAt' | 'updatedAt'>) => void
+  onAdd: (target: JobTarget) => void
 }) {
   const [open, setOpen] = useState(false)
   const [form, setForm] = useState({

@@ -38,7 +38,7 @@ function LoadingSpinner() {
 
 class ViewErrorBoundary extends Component<{
   children: ReactNode
-}, { hasError: boolean }> {
+}, { hasError: boolean; error: Error | null }> {
   state = { hasError: false, error: null as Error | null }
   static getDerivedStateFromError(error: Error) {
     return { hasError: true, error }

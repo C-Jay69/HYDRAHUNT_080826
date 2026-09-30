@@ -405,7 +405,9 @@ export default function BillingPage() {
                   const IconComp = stat.icon
                   const isStringLimit = typeof stat.limit === 'string'
                   const isUnlimited = stat.limit === 'Unlimited'
-                  const percentage = isStringLimit ? (isUnlimited ? 0 : 24) : Math.round((stat.used / stat.limit) * 100)
+                  const percentage = typeof stat.limit === 'number'
+                    ? Math.round((stat.used / stat.limit) * 100)
+                    : (isUnlimited ? 0 : 24)
 
                   return (
                     <div

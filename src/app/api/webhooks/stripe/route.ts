@@ -125,11 +125,17 @@ async function syncSubscription(userId: string, object: {
     plan = 'mission_pack'
   }
 
-  await db.subscription.upsert({
-    where: { userId },
-    update: { plan, status: 'active' },
-    create: { userId, plan, status: 'active' },
-  })
+  const existing = await db.subscription.findFirst({ where: { userId } })
+  if (existing) {
+    await db.subscription.update({
+      where: { id: existing.id },
+      data: { plan, status: 'active' },
+    })
+  } else {
+    await db.subscription.create({
+      data: { userId, plan, status: 'active' },
+    })
+  }
 
   await db.activityLog.create({
     data: { userId, action: `Subscribed to ${plan} plan`, category: 'billing' },

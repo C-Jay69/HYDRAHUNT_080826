@@ -1,0 +1,81 @@
+version: "3.9"
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: hydrahunt-app
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      HOSTNAME: 0.0.0.0
+      DATABASE_URL: postgresql://hydrahunt:hydrahunt_secret@postgres:5432/hydrahunt?schema=public
+      AUTH_SECRET: ${AUTH_SECRET:-hydrahunt-production-secret-change-me-32chars}
+      NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
+      OPEN_ROUTER_API_KEY: ${OPEN_ROUTER_API_KEY:-}
+      OPEN_ROUTER_MODEL: ${OPEN_ROUTER_MODEL:-deepseek/deepseek-chat}
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+      STRIPE_PRICE_MISSION_PACK: ${STRIPE_PRICE_MISSION_PACK:-}
+      STRIPE_PRICE_HUNTER_MONTHLY: ${STRIPE_PRICE_HUNTER_MONTHLY:-}
+      STRIPE_PRICE_HUNTER_YEARLY: ${STRIPE_PRICE_HUNTER_YEARLY:-}
+      STRIPE_PRICE_BEASTMASTER_MONTHLY: ${STRIPE_PRICE_BEASTMASTER_MONTHLY:-}
+      STRIPE_PRICE_BEASTMASTER_YEARLY: ${STRIPE_PRICE_BEASTMASTER_YEARLY:-}
+      JOBSPY_URL: http://jobspy:3001/scrape
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: hydrahunt-postgres
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: hydrahunt
+      POSTGRES_PASSWORD: hydrahunt_secret
+      POSTGRES_DB: hydrahunt
+    volumes:
+      - hydrahunt_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hydrahunt -d hydrahunt"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: hydrahunt-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - hydrahunt_redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  jobspy:
+    image: python:3.12-slim
+    container_name: hydrahunt-jobspy
+    restart: unless-stopped
+    working_dir: /srv/jobspy
+    volumes:
+      - ./mini-services/jobspy-svc:/srv/jobspy:ro
+    command: >
+      sh -c "pip install --no-cache-dir flask python-jobspy && python3 app.py"
+    ports:
+      - "3001:3001"
+
+volumes:
+  hydrahunt_pgdata:
+  hydrahunt_redisdata:

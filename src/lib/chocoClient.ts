@@ -62,6 +62,7 @@ export interface NormalizedJob {
   externalId?: string
   title?: string
   url?: string
+  jobUrl?: string
   company?: string
   companyUrl?: string
   location?: string
@@ -71,7 +72,6 @@ export interface NormalizedJob {
   companyLogo?: string
   applyUrl?: string
   raw?: string
-  [key: string]: unknown
 }
 
 export interface ChocoSearchResponse {
@@ -124,6 +124,7 @@ export function normalizeJob(raw: Record<string, unknown>): NormalizedJob {
       toStr(raw.job_id) || toStr(raw.id) || toStr(raw.slug) || undefined,
     title: toStr(raw.title),
     url: toStr(raw.url),
+    jobUrl: toStr(raw.job_url) || toStr(raw.url) || toStr(raw.apply_url),
     company: toStr(raw.company),
     companyUrl: toStr(raw.company_url) || toStr(raw.companyUrl),
     location: toStr(raw.location),

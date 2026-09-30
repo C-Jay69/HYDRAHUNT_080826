@@ -1,12 +1,12 @@
 import { db } from "./src/lib/db";
-import bcrypt from "bcryptjs"; // or "bcrypt" depending on what package you use
+import { hashPassword } from "./src/lib/auth";
 
 async function createAdmin() {
   const email = "admin@example.com";
   const rawPassword = "password123";
 
-  // Hash the password (standard bcrypt salt)
-  const passwordHash = await bcrypt.hash(rawPassword, 10);
+  // Hash the password
+  const passwordHash = hashPassword(rawPassword);
 
   // Upsert user (creates if doesn't exist, updates password if exists)
   const user = await db.user.upsert({

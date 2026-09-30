@@ -21,6 +21,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Input } from '@/components/ui/input'
+import { useAppStore } from '@/store/app-store'
 import ReactMarkdown from 'react-markdown'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -101,7 +102,14 @@ function formatDate(dateStr: string): string {
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export default function InterviewDrills() {
-  const [activeSessionId, setActiveSessionId] = useState<string | null>(null)
+  const { selectedInterviewSessionId, setSelectedInterviewSession } = useAppStore()
+  const [localSessionId, setLocalSessionId] = useState<string | null>(null)
+  const activeSessionId = selectedInterviewSessionId ?? localSessionId
+
+  const handleSelectSession = (id: string | null) => {
+    setLocalSessionId(id)
+    setSelectedInterviewSession(id)
+  }
 
   return (
     <AnimatePresence mode="wait">
@@ -113,7 +121,7 @@ export default function InterviewDrills() {
           exit={{ opacity: 0, x: -20 }}
           transition={{ duration: 0.2 }}
         >
-          <ActiveSession sessionId={activeSessionId} onBack={() => setActiveSessionId(null)} />
+          <ActiveSession sessionId={activeSessionId} onBack={() => handleSelectSession(null)} />
         </motion.div>
       ) : (
         <motion.div
@@ -123,7 +131,7 @@ export default function InterviewDrills() {
           exit={{ opacity: 0, x: 20 }}
           transition={{ duration: 0.2 }}
         >
-          <SessionList onSelect={setActiveSessionId} />
+          <SessionList onSelect={handleSelectSession} />
         </motion.div>
       )}
     </AnimatePresence>
@@ -514,7 +522,8 @@ function ActiveSession({ sessionId, onBack }: { sessionId: string; onBack: () =>
               })
             } else if (event.type === 'done') {
               streamScore = event.score
-              if (streamScore != null) setLiveScore((prev) => prev + streamScore)
+              const scoreToAdd = streamScore
+              if (scoreToAdd != null) setLiveScore((prev) => prev + scoreToAdd)
             } else if (event.type === 'error') {
               throw new Error(event.error || 'Stream error')
             }

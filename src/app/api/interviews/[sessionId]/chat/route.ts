@@ -70,12 +70,13 @@ export async function POST(
     // Rough heuristic score based on answer length/depth (stored per AI message).
     const contentLength = message.trim().split(/\s+/).length
     const heuristicScore = Math.max(0, Math.min(10, Math.round(contentLength / 40)))
+    let reader: ReadableStreamDefaultReader<Uint8Array> | null = null
 
     return new Response(
       new ReadableStream<Uint8Array>({
         async start(controller) {
           let full = ''
-          const reader = stream.getReader()
+          reader = stream.getReader()
           try {
             while (true) {
               const { done, value } = await reader.read()

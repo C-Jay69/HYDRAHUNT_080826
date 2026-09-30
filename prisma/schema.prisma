@@ -60,8 +60,20 @@ model Resume {
   updatedAt   DateTime @updatedAt
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   sections    ResumeSection[]
+  skills      ResumeSkill[]
   versions    ResumeVersion[]
   analyses    ResumeAnalysis[]
+}
+
+model ResumeSkill {
+  id          String   @id @default(cuid())
+  resumeId    String
+  name        String
+  category    String?  @default("general")
+  proficiency String?  @default("proficient")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  resume      Resume   @relation(fields: [resumeId], references: [id], onDelete: Cascade)
 }
 
 model ResumeSection {
