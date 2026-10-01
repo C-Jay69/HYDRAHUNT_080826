@@ -292,8 +292,12 @@ export default function JobOpportunities() {
         })
         setScraping(false)
         evt.close()
-        // Refresh the job list from DB so the new records render.
-        fetchJobs()
+        // Use the jobs returned from the scrape (payload.jobs) instead of re-fetching all historical jobs
+        if (payload.jobs && payload.jobs.length > 0) {
+          setJobs(payload.jobs)
+        } else {
+          fetchJobs()
+        }
         return
       }
 
@@ -315,7 +319,8 @@ export default function JobOpportunities() {
     evt.onerror = () => {
       setScraping(false)
       evt.close()
-      fetchJobs()
+      // Only fetch if we don't have current scrape results
+      if (jobs.length === 0) fetchJobs()
     }
   }, [scrapeKeyword, scrapeLocation, scrapePages, scrapeSource, scraping, fetchJobs])
 
@@ -383,7 +388,8 @@ export default function JobOpportunities() {
 
   const clearScrape = useCallback(() => {
     setScrapeProgress(null)
-  }, [])
+    fetchJobs()
+  }, [fetchJobs])
 
   // When the user prefers a remote location, surface remote/anywhere jobs first
   // instead of letting them sink below the on-site results.
@@ -530,7 +536,7 @@ export default function JobOpportunities() {
                     onClick={clearScrape}
                     className="h-6 text-xs"
                   >
-                    Clear
+                    Show All Jobs
                   </Button>
                 )}
               </div>
