@@ -80,6 +80,17 @@ Air calculations must be consistent with six consumers + lamp.
 - [x] Ines voice: dry, precise, specific nouns/numbers, understatement, writes things down
 - [x] No real victims, real figures at edges only
 
+### Chapter 4 — The Record (2023)
+- [x] Ines at Lang Maritime archive, founders' museum, third floor
+- [x] Researcher pass signed by Ashcombe, "PUBLIC COLLECTIONS ONLY"
+- [x] Boarding record found: clean, complete, unimpeachable (ticket 13052, age 31, investor, next of kin none)
+- [x] Handwriting shift discovered: pre-1912 quick/forward-leaning; post-1915 rounded/deliberate
+- [x] Early life records empty — transferred to family office 1985, not available
+- [x] Lifeboat Register Boat 13: entry T. Lang first class, UNSIGNED (no officer attestation)
+- [x] Insurance records / phantom cargo — Margaret denies knowledge
+- [x] Ines voice: dry, precise, specific nouns/numbers, understatement, writes things down, questions occasionally
+- [x] References envelope from Chapter 2 (signature ink post-1915)
+
 ### Chapter 3 — Thirty-Six Hours Earlier (1912)
 - [x] Set April 14 evening, before iceberg strike (~11:40 PM)
 - [x] Pym logs strongroom, manifest doesn't match cargo (silver bars missing, sovereigns transferred, dispatch case absent)
