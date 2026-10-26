@@ -80,4 +80,15 @@ Air calculations must be consistent with six consumers + lamp.
 - [x] Ines voice: dry, precise, specific nouns/numbers, understatement, writes things down
 - [x] No real victims, real figures at edges only
 
+### Chapter 3 — Thirty-Six Hours Earlier (1912)
+- [x] Set April 14 evening, before iceberg strike (~11:40 PM)
+- [x] Pym logs strongroom, manifest doesn't match cargo (silver bars missing, sovereigns transferred, dispatch case absent)
+- [x] Lang deposits chained pouch in safe ("undeclared")
+- [x] Courier speaks once, clipped: "That is not for opening"
+- [x] Cross uses warm/managing voice, "the safe displaces what it displaces"
+- [x] Pym hedges ("If it's no trouble," "I believe," "It's possible"), refuses to round
+- [x] Hale, Nora, Rees not yet present (swept in when watertight doors close in Ch. 8)
+- [x] Head count: 4 people in room (Pym, Lang, courier, Cross) — NOT yet six
+- [x] Lang murdered shortly after this (Ch. 5), then strongroom sealed with six inside
+
 ---
