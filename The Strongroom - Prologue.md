@@ -2,7 +2,7 @@
 
 The iceberg did not strike the ship like a blow. It sighed against the hull.
 
-Alfred Pym felt it through the sole of his boot: a long, low shudder that ran up the deckplates and stopped. He was sitting on the edge of his bunk in the purser's office, checking the strongroom log against the cargo manifest by lamplight. The *Titanic* had been vibrating since Southampton, but this was different. This was metal meeting metal at speed, the sound of a heavy object parting steel.
+Alfred Pym felt it through the sole of his boot: a long, low shudder that ran up the deckplates and stopped. He was sitting on the edge of his bunk in the purser's office, checking the strongroom log against the cargo manifest by lamplight. The *Titanic* had been vibrating since Southampton, but this was different. Metal meeting metal at speed. A heavy object parting steel.
 
 He stood. The lamplight shuddered in its bracket.
 
@@ -20,9 +20,9 @@ They moved through First Class. Stewards were awake now, calling out down the pa
 
 The courier stopped at the strongroom door. The heavy steel stood ajar.
 
-"The room," the courier said. Clipped. One sentence.
+"The room," the courier said.
 
-Pym opened it wider. The air inside was cold — about three degrees, the temperature of a compartment built for specie and ships' papers, not for five breathing bodies.
+Pym opened it wider. The air inside was cold — about three degrees, the temperature of a compartment built for specie and ships' papers, not for six breathing bodies.
 
 Constance Hale sat on the bench, gloves adjusted, posture formal as though she were still awaiting the captain's table. Nora Quill came up behind them, quick and rhythmic: "Well, that's grand. Bring out the good silver." Dai Rees was last, soot-darkened, going at once to the starboard bulkhead to press his ear to the plate.
 
@@ -46,7 +46,7 @@ The plunge was sound only: a vast roar that filled the steel walls and then cut 
 
 Silence.
 
-Pym knelt on the cold steel floor. He could not see his own hand before his face. He could hear five people breathing. He could hear the seam weeping along the starboard bulkhead, slow and steady. He could hear the ocean pressing in from all sides, two miles above them, two miles below.
+Pym knelt on the cold steel floor. He could not see his own hand before his face. He could hear six people breathing. He could hear the seam weeping along the starboard bulkhead, slow and steady. He could hear the ocean pressing in from all sides, two miles above them, two miles below.
 
 He opened the ledger.
 
