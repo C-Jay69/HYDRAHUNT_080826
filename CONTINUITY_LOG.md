@@ -71,12 +71,13 @@ Air calculations must be consistent with six consumers + lamp.
 - [x] Ship's descent experienced through sound, then silence
 - [x] Pym opens ledger, writes "Hour one," does not round
 
-### Chapter 1 — Hour Thirty
-- [x] Head count: SIX persons at rest (fixed from five)
-- [x] Air math: consistent with six consumers + lamp (~30 cubic feet remaining at hour thirty)
-- [x] Pym announces air running out twice as fast
-- [x] Cross: "Let's not frighten the others yet"
-- [x] All six voices distinct without tags
-- [x] Trimmed ~15-20% from previous draft; removed direct character-function explanations
+### Chapter 2 — The Gala (2023)
+- [x] Ines attends Lang Maritime founders' gala
+- [x] Ashcombe introduces himself — passive voice, no contractions, "we" not "you", uses names, apologizes in advance, never threatens
+- [x] Anonymous envelope arrives — one page, lifeboat-register anomaly (Boat 13, T. Lang, post-1915 ink)
+- [x] Ines notes Lang death date 1962, no pre-1915 photos, handwriting shift after 1912
+- [x] Ashcombe warns Ines to keep page to herself, references founding trust language
+- [x] Ines voice: dry, precise, specific nouns/numbers, understatement, writes things down
+- [x] No real victims, real figures at edges only
 
 ---
