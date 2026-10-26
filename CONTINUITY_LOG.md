@@ -72,10 +72,11 @@ Air calculations must be consistent with six consumers + lamp.
 - [x] Pym opens ledger, writes "Hour one," does not round
 
 ### Chapter 1 — Hour Thirty
-- [ ] Head count: must say SIX persons at rest, not five
-- [ ] Air math: consistent with six consumers + lamp
+- [x] Head count: SIX persons at rest (fixed from five)
+- [x] Air math: consistent with six consumers + lamp (~30 cubic feet remaining at hour thirty)
 - [x] Pym announces air running out twice as fast
 - [x] Cross: "Let's not frighten the others yet"
 - [x] All six voices distinct without tags
+- [x] Trimmed ~15-20% from previous draft; removed direct character-function explanations
 
 ---
