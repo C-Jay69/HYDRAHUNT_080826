@@ -116,12 +116,17 @@ function JobCard({
   }[job.status as keyof typeof statusColor] || 'border-hydra-border bg-hydra-surface'
 
   return (
-    <motion.div variants={item} onClick={() => onApply(job)}>
+    <motion.div
+      variants={item}
+      onClick={() => onApply(job)}
+      className="cursor-pointer"
+    >
       <Card
         className={cn(
           'card-hover border cursor-pointer bg-hydra-surface-2/50',
           statusColor,
         )}
+        onClick={(e) => e.stopPropagation()}
       >
         <CardContent className="p-4">
           <div className="flex gap-3">
@@ -564,7 +569,11 @@ export default function JobOpportunities() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {sortedJobs.map((job) => (
-              <JobCard key={job.id} job={job} onApply={handleApply} />
+              <JobCard
+                key={job.id ?? `${job.title}-${job.company || ''}-${job.location || ''}`}
+                job={job}
+                onApply={handleApply}
+              />
             ))}
           </div>
         )}
