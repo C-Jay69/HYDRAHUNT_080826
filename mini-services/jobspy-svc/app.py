@@ -136,6 +136,15 @@ def scrape_site(site: str, keywords: str, location: str | None, n: int, hours_ol
                 kwargs["is_remote"] = True
             else:
                 kwargs["location"] = location
+                # Add distance parameter for location filtering (in miles)
+                # Controls how far from the specified location to search
+                kwargs["distance"] = 50
+                # Filter Indeed to specific country when location mentions it
+                location_lower = location.lower()
+                if "canada" in location_lower:
+                    kwargs["country_indeed"] = "canada"
+                elif "usa" in location_lower or "united states" in location_lower:
+                    kwargs["country_indeed"] = "usa"
         if hours_old is not None:
             kwargs["hours_old"] = hours_old
 
