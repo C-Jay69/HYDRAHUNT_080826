@@ -468,7 +468,9 @@ function ActiveSession({ sessionId, onBack }: { sessionId: string; onBack: () =>
     }
 
     try {
-      const history = updatedMessages.map((m) => ({ role: m.role, content: m.content }))
+      const history = updatedMessages.map(
+        (m) => ({ role: m.role === 'ai' ? 'assistant' : m.role, content: m.content })
+      )
       const res = await fetch(`/api/interviews/${sessionId}/chat?XTransformPort=3000`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
