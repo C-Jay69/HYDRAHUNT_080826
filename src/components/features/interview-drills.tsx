@@ -908,12 +908,14 @@ function ActiveSession({ sessionId, onBack }: { sessionId: string; onBack: () =>
             <p className="text-[10px] text-hydra-muted uppercase tracking-wider">Score</p>
             <p className="text-lg font-bold text-hydra-purple">{avgScore}<span className="text-xs text-hydra-muted font-normal">/40</span></p>
           </div>
-          <div className="h-8 w-px bg-hydra-border" />
+          <div className="h-8 w-px bg-hydra-border border-0" role="presentation" />
           <div>
             <p className="text-[10px] text-hydra-muted uppercase tracking-wider flex items-center gap-1">
-              <Clock className="h-2.5 w-2.5" /> Time
+              <span className="text-lg font-mono font-bold text-hydra-cyan">
+                {formatDuration(elapsed)}
+              </span>{' '}
+              Time
             </p>
-            <p className="text-lg font-mono font-bold text-hydra-cyan">{formatDuration(elapsed)}</p>
           </div>
         </div>
         {!ended && (
@@ -921,12 +923,13 @@ function ActiveSession({ sessionId, onBack }: { sessionId: string; onBack: () =>
             <span className="text-[10px] text-hydra-muted uppercase tracking-wider">Score</span>
             <span className="text-lg font-bold text-hydra-purple">{liveScore}/40</span>
           </div>
-          <div className="h-8 w-px bg-hydra-border" />
           <div>
             <p className="text-[10px] text-hydra-muted uppercase tracking-wider flex items-center gap-1">
-              <Clock className="h-2.5 w-2.5" /> Time
+              <span className="text-lg font-mono font-bold text-hydra-cyan">
+                {formatDuration(elapsed)}
+              </span>{' '}
+              Time
             </p>
-            <p className="text-lg font-mono font-bold text-hydra-cyan">{formatDuration(elapsed)}</p>
           </div>
         </div>
         <Button
