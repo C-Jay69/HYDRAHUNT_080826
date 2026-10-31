@@ -151,9 +151,24 @@ function JobCard({
               </div>
             )}
             <div className="min-w-0 flex-1">
+              {job.jobUrl ? (
+              <a
+                href={job.jobUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-inherit underline hover:text-hydra-purple transition-colors"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  window.open(job.jobUrl, '_blank')
+                }}
+              >
+                {job.title}
+              </a>
+            ) : (
               <p className="text-sm font-semibold text-foreground line-clamp-1">
                 {job.title}
               </p>
+            )}
               <p className="text-xs text-muted-foreground/80 truncate">
                 {job.company || 'Unknown company'}
               </p>
