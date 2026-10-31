@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { motion } from 'framer-motion'
+import { motion, type Variants } from 'framer-motion'
 import {
   Wrench,
   Zap,
@@ -18,6 +18,11 @@ import {
   Shield,
   Cpu,
   Radio,
+  LayoutDashboard,
+  Search,
+  ScrollText,
+  Settings,
+  CreditCard,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useAppStore } from '@/store/app-store'
@@ -26,7 +31,7 @@ import { useAppStore } from '@/store/app-store'
 /*  Animation helpers                                                  */
 /* ------------------------------------------------------------------ */
 
-const fadeUp = {
+const fadeUp: Variants = {
   hidden: { opacity: 0, y: 24 },
   visible: (i: number) => ({
     opacity: 1,
@@ -35,7 +40,7 @@ const fadeUp = {
   }),
 }
 
-const container = {
+const container: Variants = {
   hidden: {},
   visible: { transition: { staggerChildren: 0.1 } },
 }
@@ -111,6 +116,170 @@ const features = [
     icon: Map,
     title: 'Career Map',
     desc: 'Visualize your career trajectory and plot your next strategic move.',
+  },
+]
+
+/* ------------------------------------------------------------------ */
+/*  Field Manual data                                                  */
+/* ------------------------------------------------------------------ */
+
+/** The order a new user should work through the modules. */
+const recommendedFlow = [
+  'Search jobs',
+  'Add to Kill List',
+  'Tailor resume',
+  'Generate payload',
+  'Run analysis',
+  'Drill interview',
+]
+
+interface ManualItem {
+  icon: React.ElementType
+  name: string
+  tagline: string
+  steps: string[]
+}
+
+const manualGroups: { title: string; blurb: string; items: ManualItem[] }[] = [
+  {
+    title: 'Find & track',
+    blurb: 'Pick your targets and keep every application moving.',
+    items: [
+      {
+        icon: LayoutDashboard,
+        name: 'Dashboard',
+        tagline: 'Your mission overview',
+        steps: [
+          'Start here after login: four tiles show Total Targets, Active Payloads, Resume Score and Interview Prep.',
+          'Use Quick Actions to jump straight into a workflow without hunting through the sidebar.',
+        ],
+      },
+      {
+        icon: Search,
+        name: 'Job Opportunities',
+        tagline: 'One search across nine job boards',
+        steps: [
+          'Enter a keyword and location, choose a source — LinkedIn, Indeed, Glassdoor, ZipRecruiter, Google, WeWorkRemotely, RemoteOK, Remotive or Dice — then run the search.',
+          'Open a posting to preview it, attach the resume you want to use, and send the application. Auto-apply can submit it for you.',
+          'Every application you send becomes a target in your Kill List.',
+        ],
+      },
+      {
+        icon: Crosshair,
+        name: 'Kill List',
+        tagline: 'Your application pipeline',
+        steps: [
+          'Add a target with company, role, salary, location, priority and notes.',
+          'Drag cards between stages as things move: Intel Gathered, Target Acquired, Payload Sent, Interview, Offer — or Eliminated.',
+          'This board is the single source of truth for where every application stands.',
+        ],
+      },
+    ],
+  },
+  {
+    title: 'Build & send',
+    blurb: 'Turn one resume into tailored material for each target.',
+    items: [
+      {
+        icon: FileText,
+        name: 'Resume Forge',
+        tagline: 'Build, score and export your resume',
+        steps: [
+          'Import an existing resume (PDF, DOCX, TXT or MD) or start from scratch.',
+          'Fill in summary, experience, education, skills and projects — drag sections to reorder them.',
+          'Watch the ATS meter update as you type, then export an ATS-friendly PDF.',
+          'Mark one resume as Default so Payload Forge, Strike Analysis and applications preselect it.',
+        ],
+      },
+      {
+        icon: Zap,
+        name: 'Payload Forge',
+        tagline: 'Generate the outreach material',
+        steps: [
+          'Pick a resume, paste the job description, add the company and choose a tone: Confident, Professional, Casual or Aggressive.',
+          'Generate once to fill five tabs — Summary, Cover Letter, Outreach Email, LinkedIn message and Talking Points.',
+          'Copy any tab, or regenerate with a different tone and compare.',
+        ],
+      },
+      {
+        icon: Shield,
+        name: 'Version Vault',
+        tagline: 'Snapshot and restore resumes',
+        steps: [
+          'Save a snapshot before any large edit so you can always roll back.',
+          'Label snapshots by milestone — "Before Interview Round" or "ATS Optimization Pass", for example.',
+          'Restore a snapshot to replace the current resume with that saved version.',
+        ],
+      },
+    ],
+  },
+  {
+    title: 'Prepare & review',
+    blurb: 'Sharpen the story and see what is actually working.',
+    items: [
+      {
+        icon: Target,
+        name: 'Strike Analysis',
+        tagline: 'Deep AI resume review',
+        steps: [
+          'Choose a resume and the role you are targeting, then run the analysis.',
+          'Read six outputs: ATS score, strengths, weaknesses, missing keywords, rewritten bullets and a role-fit assessment.',
+          'Hit Apply improvements to write the suggested rewrites back into the resume.',
+        ],
+      },
+      {
+        icon: Swords,
+        name: 'Interview Drills',
+        tagline: 'AI mock interviews',
+        steps: [
+          'Start a session and pick a type — Behavioral, Technical or Role-Specific — plus the role and company.',
+          'Answer one question at a time; the AI responds with brief feedback and a score out of 10.',
+          'End the session to save it, then revisit past sessions from the list.',
+        ],
+      },
+      {
+        icon: ScrollText,
+        name: 'Mission Log',
+        tagline: 'Everything you have done, timestamped',
+        steps: [
+          'Review the activity feed covering resumes, payloads, applications, interviews, analyses and billing.',
+          'Filter by category to reconstruct what you sent, and when.',
+        ],
+      },
+      {
+        icon: Map,
+        name: 'Career Map',
+        tagline: 'Plan the next move',
+        steps: [
+          'Map your current role against the role you want next.',
+          'Add the skills, certifications and milestones that bridge the gap.',
+          'Move each node from Pending to In Progress to Completed as you close it.',
+        ],
+      },
+    ],
+  },
+  {
+    title: 'Account',
+    blurb: 'Keep your profile and plan current.',
+    items: [
+      {
+        icon: Settings,
+        name: 'Settings',
+        tagline: 'Your profile',
+        steps: [
+          'Fill in name, headline, bio, location and links (website, LinkedIn, GitHub) so generated material is grounded in real details.',
+        ],
+      },
+      {
+        icon: CreditCard,
+        name: 'Billing',
+        tagline: 'Plan and usage',
+        steps: [
+          'Check your current plan and how much of each quota you have used.',
+          'Upgrade when you need more resumes or AI generations.',
+        ],
+      },
+    ],
   },
 ]
 
@@ -257,6 +426,7 @@ export default function LandingPage() {
 
   const navItems = [
     { label: 'Features', view: 'features' as const, id: 'features' },
+    { label: 'Field Manual', view: 'features' as const, id: 'field-manual' },
     { label: 'Pricing', view: 'pricing' as const, id: 'pricing-teaser' },
   ]
 
@@ -487,6 +657,120 @@ export default function LandingPage() {
         </section>
 
         {/* ---------------------------------------------------------- */}
+        {/*  FIELD MANUAL SECTION                                       */}
+        {/* ---------------------------------------------------------- */}
+        <section
+          id="field-manual"
+          className="py-20 sm:py-28 border-t border-hydra-border"
+        >
+          <div className="mx-auto max-w-6xl px-4 sm:px-6">
+            <motion.div
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true, amount: 0.3 }}
+              variants={container}
+              className="text-center mb-12 sm:mb-16"
+            >
+              <motion.h2
+                variants={fadeUp}
+                custom={0}
+                className="text-3xl sm:text-4xl font-bold tracking-tight"
+              >
+                The <span className="gradient-text">Field Manual</span>
+              </motion.h2>
+              <motion.p
+                variants={fadeUp}
+                custom={1}
+                className="mt-3 text-muted-foreground max-w-xl mx-auto"
+              >
+                Every module in the sidebar, what it is for and how to use it. No
+                hunting through menus wondering what a name means.
+              </motion.p>
+            </motion.div>
+
+            {/* Recommended order */}
+            <motion.div
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true, amount: 0.3 }}
+              variants={fadeUp}
+              custom={0}
+              className="mb-12 sm:mb-16 rounded-xl border border-hydra-border bg-hydra-surface p-5 sm:p-6"
+            >
+              <h3 className="text-sm font-semibold uppercase tracking-wider text-hydra-purple">
+                Recommended first run
+              </h3>
+              <ol className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-2 text-sm">
+                {recommendedFlow.map((step, i) => (
+                  <li key={step} className="flex items-center gap-2">
+                    <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-hydra-border bg-hydra-surface-2 text-[10px] font-bold text-hydra-cyan">
+                      {i + 1}
+                    </span>
+                    <span className="text-muted-foreground">{step}</span>
+                    {i < recommendedFlow.length - 1 && (
+                      <ChevronRight className="h-3.5 w-3.5 text-hydra-muted/40" />
+                    )}
+                  </li>
+                ))}
+              </ol>
+            </motion.div>
+
+            <div className="space-y-12 sm:space-y-16">
+              {manualGroups.map((group) => (
+                <motion.div
+                  key={group.title}
+                  initial="hidden"
+                  whileInView="visible"
+                  viewport={{ once: true, amount: 0.15 }}
+                  variants={container}
+                >
+                  <div className="mb-4 flex flex-col gap-1 sm:flex-row sm:items-baseline sm:gap-3">
+                    <h3 className="text-lg font-semibold text-foreground">
+                      {group.title}
+                    </h3>
+                    <p className="text-sm text-muted-foreground">{group.blurb}</p>
+                  </div>
+
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    {group.items.map((item, i) => (
+                      <motion.div
+                        key={item.name}
+                        variants={fadeUp}
+                        custom={i}
+                        className="card-hover rounded-xl border border-hydra-border bg-hydra-surface p-5"
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <div className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-hydra-border bg-hydra-surface-2">
+                            <item.icon className="h-4 w-4 text-hydra-purple" />
+                          </div>
+                          <div className="min-w-0">
+                            <h4 className="font-semibold text-foreground">
+                              {item.name}
+                            </h4>
+                            <p className="text-xs text-hydra-cyan">{item.tagline}</p>
+                          </div>
+                        </div>
+                        <ul className="mt-3 space-y-1.5">
+                          {item.steps.map((step) => (
+                            <li
+                              key={step}
+                              className="flex gap-2 text-sm text-muted-foreground leading-relaxed"
+                            >
+                              <span className="mt-2 h-1 w-1 shrink-0 rounded-full bg-hydra-cyan" />
+                              <span>{step}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </motion.div>
+                    ))}
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* ---------------------------------------------------------- */}
         {/*  SOCIAL PROOF SECTION                                       */}
         {/* ---------------------------------------------------------- */}
         <section className="py-16 sm:py-20 border-y border-hydra-border">
@@ -567,6 +851,12 @@ export default function LandingPage() {
                 className="text-sm text-muted-foreground hover:text-hydra-purple transition-colors"
               >
                 Features
+              </button>
+              <button
+                onClick={() => scrollTo('field-manual')}
+                className="text-sm text-muted-foreground hover:text-hydra-purple transition-colors"
+              >
+                Field Manual
               </button>
               <button
                 onClick={() => setView('pricing')}
