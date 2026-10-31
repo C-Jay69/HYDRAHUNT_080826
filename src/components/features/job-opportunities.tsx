@@ -67,6 +67,7 @@ interface JobOpportunity {
   postedLabel: string | null
   salary: string | null
   companyLogo: string | null
+  raw: string | null
   status: string
   createdAt: string
   updatedAt: string
@@ -103,9 +104,11 @@ const item = {
 function JobCard({
   job,
   onApply,
+  onDetailsClick,
 }: {
   job: JobOpportunity
   onApply: (job: JobOpportunity) => void
+  onDetailsClick?: () => void
 }) {
   const statusColor = {
     new: 'border-hydra-cyan/30 bg-hydra-surface',
@@ -118,7 +121,10 @@ function JobCard({
   return (
     <motion.div
       variants={item}
-      onClick={() => onApply(job)}
+      onClick={() => {
+        onDetailsClick?.()
+        onApply(job)
+      }}
       className="cursor-pointer"
     >
       <Card
@@ -199,6 +205,86 @@ function JobCard({
   )
 }
 
+function JobOpportunityDetail({
+  job,
+}: {
+  job: JobOpportunity
+}) {
+  const statusColor = {
+    new: 'border-hydra-cyan/30 bg-hydra-surface',
+    applied: 'border-hydra-green/30 bg-hydra-surface',
+    interview: 'border-hydra-yellow/30 bg-hydra-surface',
+    offer: 'border-hydra-emerald-400/30 bg-hydra-surface',
+    rejected: 'border-hydra-red/30 bg-hydra-surface',
+  }[job.status as keyof typeof statusColor] || 'border-hydra-border bg-hydra-surface'
+
+  return (
+    <div>
+      <h2 className="text-xl font-bold text-foreground mb-3">
+        {job.title}
+      </h2>
+
+      <div className="grid grid-cols-2 gap-4 mb-4">
+        <div>
+          <p className="text-sm text-muted-foreground mb-1">Company</p>
+          <p className="font-medium">{job.company || 'Unknown company'}</p>
+        </div>
+        <div>
+          <p className="text-sm text-muted-foreground mb-1">Location</p>
+          <p className="font-medium">{job.location || 'Not specified'}</p>
+        </div>
+      </div>
+
+      {job.salary && (
+        <div className="mb-4">
+          <p className="text-sm text-muted-foreground mb-1">Salary</p>
+          <p className="font-medium text-hydra-green">{job.salary}</p>
+        </div>
+      )}
+
+      {job.postedLabel && (
+        <div className="mb-4">
+          <p className="text-sm text-muted-foreground mb-1">Posted</p>
+          <p className="font-medium">{job.postedLabel}</p>
+        </div>
+      )}
+
+      {job.jobUrl && (
+        <div className="mb-6">
+          <p className="text-sm text-muted-foreground mb-1">Original Listing</p>
+          <a
+            href={job.jobUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-hydra-purple underline hover:text-hydra-cursor"
+          >
+            View on {job.company || 'website'}
+          </a>
+        </div>
+      )}
+
+      {job.raw && (
+        <div>
+          <p className="text-sm text-muted-foreground mb-1">Description</p>
+          <p className="text-sm break-all">{job.raw}</p>
+        </div>
+      )}
+
+      <div>
+        <p className="text-sm text-muted-foreground mb-1">Status</p>
+        <span
+          className={cn(
+            'px-2 py-1 text-xs rounded',
+            statusColor,
+          )}
+        >
+          {job.status}
+        </span>
+      </div>
+    </div>
+  )
+}
+
 export default function JobOpportunities() {
   const { setView } = useAppStore()
   const [jobs, setJobs] = useState<JobOpportunity[]>([])
@@ -227,6 +313,8 @@ export default function JobOpportunities() {
     dryRun: boolean
     message: string
   } | null>(null)
+  const [showJobDetails, setShowJobDetails] = useState(false)
+  const [selectedJobId, setSelectedJobId] = useState<string>('')
 
   useEffect(() => {
     fetch('/api/resumes')
@@ -573,11 +661,54 @@ export default function JobOpportunities() {
                 key={job.id ?? `${job.title}-${job.company || ''}-${job.location || ''}`}
                 job={job}
                 onApply={handleApply}
+                onDetailsClick={() => {
+                  setShowJobDetails(true)
+                  setSelectedJobId(job.id)
+                }}
               />
             ))}
           </div>
         )}
       </motion.div>
+
+      {/* Job Details Dialog */}
+      <Dialog
+        open={showJobDetails && !!selectedJobId}
+        onOpenChange={(open) => {
+          if (!open) {
+            setShowJobDetails(false)
+            setSelectedJobId('')
+          }
+        }}
+      >
+        <DialogHeader className="pb-2">
+          <DialogTitle className="text-foreground">
+            <Send className="inline-block h-4 w-4 mr-2 text-hydra-purple" />
+            {selectedJobId ? 'Job Details' : ''}
+          </DialogTitle>
+        </DialogHeader>
+
+        {showJobDetails && !!selectedJobId && (
+          <div className="p-4 space-y-4 max-w-lg">
+            {jobs.find((j) => j.id === selectedJobId) && (
+              <JobOpportunityDetail job={jobs.find((j) => j.id === selectedJobId)!} />
+            )}
+          </div>
+        )}
+
+        <DialogFooter className="justify-end pt-2">
+          <Button
+            variant="outline"
+            onClick={() => {
+              setShowJobDetails(false)
+              setSelectedJobId('')
+            }}
+            className="border-hydra-border bg-hydra-surface-2"
+          >
+            Close
+          </Button>
+        </DialogFooter>
+      </Dialog>
 
       {/* Apply Dialog */}
       <Dialog open={!!previewJob} onOpenChange={(open) => !open && setPreviewJob(null)}>
