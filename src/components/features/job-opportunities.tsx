@@ -132,7 +132,7 @@ function JobCard({
           'card-hover border cursor-pointer bg-hydra-surface-2/50',
           statusColor,
         )}
-        onClick={(e) => e.stopPropagation()}
+        onClick={(e) => {}}
       >
         <CardContent className="p-4">
           <div className="flex gap-3">
@@ -158,6 +158,7 @@ function JobCard({
                 rel="noopener noreferrer"
                 className="text-inherit underline hover:text-hydra-purple transition-colors"
                 onClick={(e) => {
+                  e.preventDefault()
                   e.stopPropagation()
                   window.open(job.jobUrl, '_blank')
                 }}
@@ -165,7 +166,7 @@ function JobCard({
                 {job.title}
               </a>
             ) : (
-              <p className="text-sm font-semibold text-foreground line-clamp-1">
+              <p className="text-sm font-semibold text-foreground line-clamp-1 cursor-pointer">
                 {job.title}
               </p>
             )}
@@ -746,7 +747,7 @@ export default function JobOpportunities() {
                   <Briefcase className="h-4 w-4 text-hydra-purple" />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-sm font-semibold text-foreground line-clamp-1">
+                  <p className="text-sm font-semibold text-foreground line-clamp-1 cursor-pointer">
                     {previewJob.title}
                   </p>
                   <p className="text-xs text-muted-foreground/80">
