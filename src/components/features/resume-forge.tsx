@@ -68,6 +68,7 @@ import {
   Upload,
   AlertTriangle,
 } from 'lucide-react'
+import { computeResumeAtsScore } from '@/lib/ats'
 
 /* -------------------------------------------------------------------------- */
 /*  Types                                                                      */
@@ -223,6 +224,14 @@ function ListView() {
         return Array.isArray(data) ? data : []
       }),
   })
+
+  // `resume.atsScore` is only populated when a client explicitly persists one, so
+  // most resumes read as null and the card fell back to "No ATS score" while the
+  // editor computed a heuristic. Resolve the same number here for the list.
+  const resumeCards = resumes.map((resume) => ({
+    ...resume,
+    displayAtsScore: resume.atsScore ?? computeResumeAtsScore(resume.sections),
+  }))
 
   const createMutation = useMutation({
     mutationFn: (title: string) =>
@@ -517,7 +526,7 @@ function ListView() {
           animate="show"
           className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"
         >
-          {(Array.isArray(resumes) ? resumes : []).map((resume) => (
+          {resumeCards.map((resume) => (
             <motion.div key={resume.id} variants={item}>
               <Card
                 onClick={() => setSelectedResume(resume.id)}
@@ -548,27 +557,26 @@ function ListView() {
                   </div>
 
                   <div className="flex items-center justify-between">
-                    {resume.atsScore !== null && resume.atsScore !== undefined ? (
-                      <div className="flex items-center gap-2">
-                        <Badge
-                          variant="outline"
-                          className={
-                            resume.atsScore >= 70
-                              ? 'border-emerald-500/40 text-emerald-400 text-[10px]'
-                              : resume.atsScore >= 40
-                                ? 'border-yellow-500/40 text-yellow-400 text-[10px]'
-                                : 'border-red-500/40 text-red-400 text-[10px]'
-                          }
-                        >
-                          <Zap className="size-3 mr-1" />
-                          ATS {resume.atsScore}%
-                        </Badge>
-                      </div>
-                    ) : (
-                      <span className="text-xs text-hydra-muted/50">
-                        No ATS score
-                      </span>
-                    )}
+                    <div className="flex items-center gap-2">
+                      <Badge
+                        variant="outline"
+                        title={
+                          resume.atsScore != null
+                            ? 'ATS score saved for this resume'
+                            : 'Estimated ATS score from your resume content'
+                        }
+                        className={
+                          resume.displayAtsScore >= 70
+                            ? 'border-emerald-500/40 text-emerald-400 text-[10px]'
+                            : resume.displayAtsScore >= 40
+                              ? 'border-yellow-500/40 text-yellow-400 text-[10px]'
+                              : 'border-red-500/40 text-red-400 text-[10px]'
+                        }
+                      >
+                        <Zap className="size-3 mr-1" />
+                        ATS {resume.displayAtsScore}%
+                      </Badge>
+                    </div>
                     <span className="text-xs text-hydra-purple opacity-0 group-hover:opacity-100 transition-opacity">
                       Open →
                     </span>
@@ -731,23 +739,8 @@ function EditorContent({ resume }: { resume: Resume }) {
     sections.find((s) => s.type === 'projects')?.content ?? '[]',
   )
 
-  /* ---- ATS score (simple heuristic for demo) ---- */
-  const computeAtsScore = () => {
-    let score = 0
-    if (summaryText.length > 50) score += 20
-    if (experienceEntries.length > 0) score += 25
-    if (educationEntries.length > 0) score += 15
-    if (skillsList.length >= 5) score += 20
-    if (projectEntries.length > 0) score += 10
-    const totalBullets = experienceEntries.reduce(
-      (a, e) => a + e.bullets.split('\n').filter(Boolean).length,
-      0,
-    )
-    if (totalBullets >= 5) score += 10
-    return Math.min(score, 100)
-  }
-
-  const atsScore = computeAtsScore()
+  /* ---- ATS score — shared heuristic so the list and editor agree ---- */
+  const atsScore = computeResumeAtsScore(sections)
 
   return (
     <motion.div
