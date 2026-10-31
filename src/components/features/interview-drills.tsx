@@ -635,6 +635,13 @@ function ActiveSession({ sessionId, onBack }: { sessionId: string; onBack: () =>
                 {formatDuration(elapsed)}
               </span>
             </div>
+            {/* Live Score Display */}
+            {session?.status !== 'completed' && (
+              <div className="flex items-center gap-2">
+                <Trophy className="h-3 w-3 text-hydra-yellow" />
+                <span className="text-xs font-medium text-hydra-purple">{liveScore}/40</span>
+              </div>
+            )}
           </div>
         </div>
         {!ended && (
@@ -664,7 +671,7 @@ function ActiveSession({ sessionId, onBack }: { sessionId: string; onBack: () =>
                   </div>
                   <p className="text-hydra-muted text-sm font-medium">Session Ready</p>
                   <p className="text-hydra-muted/60 text-xs mt-1 max-w-xs">
-                    Type your answer to begin. The AI interviewer will ask the first question when you respond.
+                    The interviewer will ask you a question. Please type your response.
                   </p>
                 </div>
               )}
@@ -796,9 +803,9 @@ function ActiveSession({ sessionId, onBack }: { sessionId: string; onBack: () =>
             </CardContent>
           </Card>
 
-          {/* Score Breakdown (shown when ended) */}
+          {/* Score Breakdown (shown during interview and when ended) */}
           <AnimatePresence>
-            {ended && scores.length > 0 && (
+            {(!ended && liveScore > 0) || (ended && scores.length > 0) && (
               <motion.div
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -811,6 +818,27 @@ function ActiveSession({ sessionId, onBack }: { sessionId: string; onBack: () =>
                       <Trophy className="h-3.5 w-3.5 text-hydra-yellow" />
                       Score Breakdown
                     </p>
+                    {!ended && liveScore > 0 && (
+                      <div className="space-y-1.5">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-foreground/80">Live Score</span>
+                          <span className="font-semibold text-hydra-purple">{liveScore}/40</span>
+                        </div>
+                        <div className="h-1.5 rounded-full bg-hydra-surface overflow-hidden">
+                          <motion.div
+                            initial={{ width: 0 }}
+                            animate={{ width: `${(liveScore / 40) * 100}%` }}
+                            transition={{ duration: 0.6, delay: 0.1, ease: 'easeOut' }}
+                            className={`h-full rounded-full ${
+                              liveScore >= 28 ? 'bg-hydra-green' : liveScore >= 16 ? 'bg-hydra-yellow' : 'bg-hydra-red'
+                            }`}
+                          />
+                        </div>
+                        <p className="text-[10px] text-hydra-muted leading-relaxed">
+                          Provisional score based on answer depth. Category scores will be finalized at session end.
+                        </p>
+                      </div>
+                    )}
                     {SCORE_CATEGORIES.map((cat) => {
                       const scoreEntry = scores.find((s) => s.category.toLowerCase() === cat.toLowerCase())
                       const val = scoreEntry?.score ?? 0
@@ -889,17 +917,28 @@ function ActiveSession({ sessionId, onBack }: { sessionId: string; onBack: () =>
           </div>
         </div>
         {!ended && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleEndSession}
-            disabled={ending || messages.length === 0}
-            className="border-hydra-red/30 text-hydra-red hover:bg-hydra-red/10 hover:text-hydra-red gap-1.5 text-xs"
-          >
-            {ending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Swords className="h-3 w-3" />}
-            End
-          </Button>
-        )}
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] text-hydra-muted uppercase tracking-wider">Score</span>
+            <span className="text-lg font-bold text-hydra-purple">{liveScore}/40</span>
+          </div>
+          <div className="h-8 w-px bg-hydra-border" />
+          <div>
+            <p className="text-[10px] text-hydra-muted uppercase tracking-wider flex items-center gap-1">
+              <Clock className="h-2.5 w-2.5" /> Time
+            </p>
+            <p className="text-lg font-mono font-bold text-hydra-cyan">{formatDuration(elapsed)}</p>
+          </div>
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleEndSession}
+          disabled={ending || messages.length === 0}
+          className="border-hydra-red/30 text-hydra-red hover:bg-hydra-red/10 hover:text-hydra-red gap-1.5 text-xs"
+        >
+          {ending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Swords className="h-3 w-3" />}
+          End
+        </Button>
       </div>
     </div>
   )

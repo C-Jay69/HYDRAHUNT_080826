@@ -53,10 +53,22 @@ export async function POST(
       { role: 'system', content: buildInterviewSystemPrompt(session.type, session.role, session.company) },
     ]
 
-    if (Array.isArray(history)) {
-      for (const msg of history) {
-        if (msg.role && msg.content) {
-          messages.push({ role: msg.role === 'assistant' ? 'assistant' : 'user', content: msg.content })
+    // If this is the first message (no prior history), add an opening question
+    const isFirstMessage = !history || (Array.isArray(history) && history.length === 0)
+    if (isFirstMessage) {
+      const openingQuestions: Record<string, string> = {
+        behavioral: 'To start, could you tell me about a recent professional achievement you\'re proud of and why it mattered?',
+        technical: 'To start, could you walk me through a recent technical challenge you solved and your approach?',
+        'role-specific': 'To start, could you tell me about your experience with the target role\'s key responsibilities?',
+      }
+      const question = openingQuestions[session.type] || openingQuestions.behavioral
+      messages.push({ role: 'assistant', content: question })
+    } else {
+      if (Array.isArray(history)) {
+        for (const msg of history) {
+          if (msg.role && msg.content) {
+            messages.push({ role: msg.role === 'assistant' ? 'assistant' : 'user', content: msg.content })
+          }
         }
       }
     }
