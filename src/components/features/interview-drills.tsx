@@ -919,29 +919,17 @@ function ActiveSession({ sessionId, onBack }: { sessionId: string; onBack: () =>
           </div>
         </div>
         {!ended && (
-          <div className="flex items-center gap-2">
-            <span className="text-[10px] text-hydra-muted uppercase tracking-wider">Score</span>
-            <span className="text-lg font-bold text-hydra-purple">{liveScore}/40</span>
-          </div>
-          <div>
-            <p className="text-[10px] text-hydra-muted uppercase tracking-wider flex items-center gap-1">
-              <span className="text-lg font-mono font-bold text-hydra-cyan">
-                {formatDuration(elapsed)}
-              </span>{' '}
-              Time
-            </p>
-          </div>
-        </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleEndSession}
-          disabled={ending || messages.length === 0}
-          className="border-hydra-red/30 text-hydra-red hover:bg-hydra-red/10 hover:text-hydra-red gap-1.5 text-xs"
-        >
-          {ending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Swords className="h-3 w-3" />}
-          End
-        </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleEndSession}
+            disabled={ending || messages.length === 0}
+            className="border-hydra-red/30 text-hydra-red hover:bg-hydra-red/10 hover:text-hydra-red gap-1.5 text-xs"
+          >
+            {ending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Swords className="h-3 w-3" />}
+            End
+          </Button>
+        )}
       </div>
     </div>
   )

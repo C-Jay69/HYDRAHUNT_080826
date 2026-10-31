@@ -52,6 +52,22 @@ const TAB_CONFIG: { value: OutputTab; label: string; icon: React.ElementType }[]
   { value: 'talkingPoints', label: 'Talking Points', icon: MessageSquare },
 ]
 
+// The model emits ---TAB: delimiters in whatever casing it likes
+// (---TAB:coverLetter, ---TAB:coverletter, **---TAB:COVER_LETTER**). Normalise the
+// suffix to a lowercase, underscore-separated key before matching, otherwise the
+// camelCase tab keys never resolve and sections get appended to the previous tab.
+const TAB_BY_DELIMITER = new Map<string, OutputTab>(
+  TAB_CONFIG.map((t) => [t.value.toLowerCase(), t.value]),
+)
+for (const [alias, tab] of [
+  ['cover_letter', 'coverLetter'],
+  ['outreach_email', 'outreachEmail'],
+  ['talking_points', 'talkingPoints'],
+  ['linkedin_message', 'linkedin'],
+] as const) {
+  TAB_BY_DELIMITER.set(alias, tab)
+}
+
 const container = {
   hidden: { opacity: 0 },
   show: {
@@ -225,8 +241,14 @@ export default function PayloadForge() {
           if (!trimmed) continue
 
           if (trimmed.startsWith('---TAB:')) {
-            const tabName = trimmed.replace('---TAB:', '').trim().toLowerCase() as OutputTab
-            if (['summary', 'coverLetter', 'outreachEmail', 'linkedin', 'talkingPoints'].includes(tabName)) {
+            // Tolerate markdown emphasis and separators the model may wrap the
+            // delimiter in, e.g. "**---TAB:coverLetter**" or "---TAB: cover-letter".
+            const raw = trimmed
+              .replace(/^[-*`\s]*---TAB:/, '')
+              .replace(/[*`\s:]+$/, '')
+              .trim()
+            const tabName = TAB_BY_DELIMITER.get(raw.toLowerCase().replace(/[\s-]+/g, '_'))
+            if (tabName) {
               currentTab = tabName
               setStreamingTab(tabName)
               setActiveTab(tabName)
