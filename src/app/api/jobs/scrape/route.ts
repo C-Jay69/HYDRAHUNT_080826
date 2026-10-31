@@ -300,7 +300,11 @@ export async function GET(request: NextRequest) {
             }
 
             const pageResults: NormalizedJob[] = Array.isArray(data?.results)
-              ? (data.results as Record<string, unknown>[]).map(normalizeJob)
+              ? (data.results as Record<string, unknown>[]).map((job) => {
+                  // Map url field to jobUrl for DB persistence
+                  job.jobUrl = job.url
+                  return job
+                })
               : []
 
             for (const job of pageResults) {
