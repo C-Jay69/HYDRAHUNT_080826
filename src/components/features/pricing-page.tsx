@@ -51,7 +51,7 @@ interface Plan {
 }
 
 const FREE_PLAN: Plan = {
-  name: 'ENTER THE HUNT',
+  name: 'DAY ONE',
   subtitle: 'Get started with basic tools',
   price: 'Free',
   period: 'forever',
@@ -60,17 +60,17 @@ const FREE_PLAN: Plan = {
   iconBg: 'bg-hydra-surface-2',
   features: [
     { text: '1 Resume', included: true },
-    { text: '3 AI Payload Generations / month', included: true },
+    { text: '3 AI Kit Generations / month', included: true },
     { text: '1 Resume Analysis / month', included: true },
     { text: '10 Job Targets', included: true },
     { text: 'Watermarked PDF Export', included: true },
-    { text: 'Kill List Tracker', included: true },
-    { text: 'Interview Drills', included: true },
+    { text: 'A-List Tracker', included: true },
+    { text: 'Mock Room', included: true },
     { text: 'Unlimited AI Generations', included: false },
-    { text: 'Version Vault', included: false },
+    { text: 'Rewind', included: false },
     { text: 'ATS Scoring', included: false },
     { text: 'DOCX Export', included: false },
-    { text: 'Career Map', included: false },
+    { text: 'Trajectory', included: false },
     { text: 'Advanced Analytics', included: false },
     { text: 'Priority AI Processing', included: false },
     { text: 'Custom Branding', included: false },
@@ -79,7 +79,7 @@ const FREE_PLAN: Plan = {
 }
 
 const HUNTER_PLAN: Plan = {
-  name: 'HUNTER',
+  name: 'STRIDE',
   subtitle: 'For serious job seekers',
   price: '$24',
   period: '/month',
@@ -91,16 +91,16 @@ const HUNTER_PLAN: Plan = {
   iconBg: 'bg-hydra-purple/15',
   features: [
     { text: 'Unlimited Resumes', included: true },
-    { text: '100 AI Payload Generations / month', included: true },
+    { text: '100 AI Kit Generations / month', included: true },
     { text: '10 Resume Analyses / month', included: true },
     { text: '20 Interview Sessions / month', included: true },
     { text: 'Unlimited Job Targets', included: true },
-    { text: 'Version Vault', included: true },
+    { text: 'Rewind', included: true },
     { text: 'ATS Scoring', included: true },
     { text: 'PDF + DOCX Export', included: true },
-    { text: 'Kill List Tracker', included: true },
-    { text: 'Interview Drills', included: true },
-    { text: 'Career Map', included: false },
+    { text: 'A-List Tracker', included: true },
+    { text: 'Mock Room', included: true },
+    { text: 'Trajectory', included: false },
     { text: 'Advanced Analytics', included: false },
     { text: 'Priority AI Processing', included: false },
     { text: 'Custom Branding', included: false },
@@ -109,8 +109,8 @@ const HUNTER_PLAN: Plan = {
 }
 
 const BEASTMASTER_PLAN: Plan = {
-  name: 'BEASTMASTER',
-  subtitle: 'Unlock everything, dominate the hunt',
+  name: 'APEX',
+  subtitle: 'Unlock everything, at your own pace',
   price: '$59',
   period: '/month',
   yearlyPrice: '$588',
@@ -128,17 +128,17 @@ const BEASTMASTER_PLAN: Plan = {
     { text: 'Unlimited Analyses', included: true },
     { text: 'Unlimited Interview Sessions', included: true },
     { text: 'Unlimited Job Targets', included: true },
-    { text: 'Version Vault', included: true },
+    { text: 'Rewind', included: true },
     { text: 'ATS Scoring', included: true },
     { text: 'PDF + DOCX Export', included: true },
-    { text: 'Career Map', included: true },
+    { text: 'Trajectory', included: true },
     { text: 'Advanced Analytics', included: true },
     { text: 'Priority AI Processing', included: true },
     { text: 'Early Access to Features', included: true },
     { text: 'Custom Branding', included: true },
     { text: 'Priority Support', included: true },
-    { text: 'Kill List Tracker', included: true },
-    { text: 'Interview Drills', included: true },
+    { text: 'A-List Tracker', included: true },
+    { text: 'Mock Room', included: true },
   ],
 }
 
@@ -229,7 +229,7 @@ function PlanCard({ plan }: { plan: Plan }) {
             {plan.yearlyPrice && (
               <p className="text-xs text-hydra-muted mt-1">
                 or <span className="text-hydra-cyan font-medium">{plan.yearlyPrice}</span>{plan.yearlyPeriod}
-                <span className="text-hydra-green ml-1">Save {plan.name === 'HUNTER' ? '20%' : '16%'}</span>
+                <span className="text-hydra-green ml-1">Save {plan.name === 'STRIDE' ? '20%' : '16%'}</span>
               </p>
             )}
           </div>
@@ -289,7 +289,7 @@ export default function PricingPage() {
 
   async function handleMissionPack() {
     if (!isAuthenticated) {
-      toast({ title: 'Sign in required', description: 'Create an account before purchasing a Mission Pack.' })
+      toast({ title: 'Sign in required', description: 'Create an account before purchasing a Boost Pack.' })
       setView('signup')
       return
     }
@@ -338,7 +338,7 @@ export default function PricingPage() {
       >
         <h1 className="text-2xl font-bold text-foreground mb-2">Choose Your Weapon</h1>
         <p className="text-sm text-hydra-muted max-w-lg mx-auto">
-          Select the plan that matches your hunting style. Upgrade or downgrade at any time.
+          Select the plan that matches your pace. Upgrade or downgrade at any time.
         </p>
       </motion.div>
 
@@ -354,7 +354,7 @@ export default function PricingPage() {
         <PlanCard plan={BEASTMASTER_PLAN} />
       </motion.div>
 
-      {/* Mission Pack */}
+      {/* Boost Pack */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -370,13 +370,13 @@ export default function PricingPage() {
               </div>
               <div className="flex-1">
                 <div className="flex items-center gap-2 mb-1">
-                  <h3 className="text-lg font-bold text-foreground">MISSION PACK</h3>
+                  <h3 className="text-lg font-bold text-foreground">BOOST PACK</h3>
                   <Badge className="bg-hydra-yellow/15 text-hydra-yellow border-hydra-yellow/30 text-[10px]">
                     ONE-TIME
                   </Badge>
                 </div>
                 <p className="text-sm text-hydra-muted mb-3">
-                  Need a quick boost? Get a one-time power pack with 10 AI payload generations + 1 resume analysis.
+                  Need a quick boost? Get a one-time pack with 10 AI kit generations + 1 resume analysis.
                   Expires after 30 days.
                 </p>
                 <div className="flex flex-wrap gap-3">
@@ -420,7 +420,7 @@ export default function PricingPage() {
         transition={{ delay: 0.8 }}
         className="text-center text-xs text-hydra-muted"
       >
-        <p>All plans include access to the Kill List tracker and basic interview drills.</p>
+        <p>All plans include access to the A-List tracker and basic mock interviews.</p>
         <p className="mt-1">Cancel anytime. No questions asked.</p>
       </motion.div>
     </div>

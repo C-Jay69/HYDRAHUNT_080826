@@ -16,7 +16,7 @@ import { toast } from '@/hooks/use-toast'
 
 const fadeUp = {
   hidden: { opacity: 0, y: 20 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: 'easeOut' } },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: 'easeOut' as const } },
 }
 
 /* ------------------------------------------------------------------ */
@@ -76,7 +76,7 @@ export default function LoginPage() {
         <motion.div className="text-center mb-8" variants={fadeUp}>
           <h1 className="text-3xl font-bold gradient-text">HydraHunt</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Authenticate to access the command center
+            Sign in to your workspace
           </p>
         </motion.div>
 
@@ -95,7 +95,7 @@ export default function LoginPage() {
                     <Input
                       id="email"
                       type="email"
-                      placeholder="hunter@hydrahunt.ai"
+                      placeholder="you@example.com"
                       required
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}

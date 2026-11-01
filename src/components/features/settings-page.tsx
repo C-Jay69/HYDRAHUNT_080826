@@ -19,6 +19,7 @@ import {
   Save,
   Loader2,
   Shield,
+  Trash2,
 } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -64,6 +65,9 @@ const item = {
 }
 
 export default function SettingsPage() {
+  const [deleteConfirm, setDeleteConfirm] = useState('')
+  const [deleting, setDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
   const [profile, setProfile] = useState<UserProfile>({
     id: '',
     name: '',
@@ -404,12 +408,75 @@ export default function SettingsPage() {
                     <Moon className="w-4 h-4 text-hydra-muted" />
                     <div>
                       <p className="text-sm font-medium text-foreground">Dark Mode</p>
-                      <p className="text-xs text-hydra-muted">The hunt always happens in the dark</p>
+                      <p className="text-xs text-hydra-muted">Easy on the eyes, day or night</p>
                     </div>
                   </div>
                   <Switch checked disabled className="data-[state=checked]:bg-hydra-purple opacity-60" />
                 </div>
               </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        {/* Danger Zone */}
+        <motion.div variants={item}>
+          <Card className="border-red-500/30 bg-red-500/5">
+            <CardContent className="p-6">
+              <div className="flex items-center gap-2 mb-2">
+                <Trash2 className="w-5 h-5 text-red-400" />
+                <h2 className="text-base font-semibold text-foreground">Delete account</h2>
+              </div>
+              <p className="text-xs text-hydra-muted mb-4">
+                Permanently deletes your resumes, application kits, interview sessions, tracker entries and
+                subscription. This cannot be undone. Type DELETE to confirm.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
+                <Input
+                  value={deleteConfirm}
+                  onChange={(e) => setDeleteConfirm(e.target.value)}
+                  placeholder="DELETE"
+                  className="bg-hydra-surface border-hydra-border text-foreground max-w-[200px]"
+                />
+                <Button
+                  variant="outline"
+                  disabled={deleteConfirm !== 'DELETE' || deleting}
+                  onClick={async () => {
+                    setDeleting(true)
+                    setDeleteError(null)
+                    try {
+                      const res = await fetch('/api/account', {
+                        method: 'DELETE',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ confirm: 'DELETE' }),
+                      })
+                      if (!res.ok) {
+                        setDeleteError(`Couldn't delete your account (HTTP ${res.status}). Please contact support.`)
+                      } else {
+                        window.location.href = '/'
+                      }
+                    } catch {
+                      setDeleteError("Couldn't reach the server. Please try again.")
+                    } finally {
+                      setDeleting(false)
+                    }
+                  }}
+                  className="border-red-500/40 text-red-400 hover:bg-red-500/10 hover:text-red-300"
+                >
+                  {deleting ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Deleting...
+                    </>
+                  ) : (
+                    'Delete my account'
+                  )}
+                </Button>
+              </div>
+              {deleteError && (
+                <p role="alert" className="mt-3 text-xs text-red-400">
+                  {deleteError}
+                </p>
+              )}
             </CardContent>
           </Card>
         </motion.div>

@@ -5,10 +5,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { useAppStore } from '@/store/app-store'
 import {
-  Crosshair,
-  Zap,
+  ListChecks,
+  Package,
   FileText,
-  Swords,
+  Mic,
   Plus,
   Activity,
   ArrowRight,
@@ -25,44 +25,16 @@ const container = {
 
 const item = {
   hidden: { opacity: 0, y: 16 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.4, ease: 'easeOut' } },
+  show: { opacity: 1, y: 0, transition: { duration: 0.4, ease: 'easeOut' as const } },
 }
 
 interface MetricCard {
   label: string
-  value: number
+  value: number | string
   icon: React.ReactNode
   suffix?: string
   color: string
 }
-
-const metrics: MetricCard[] = [
-  {
-    label: 'Total Targets',
-    value: 12,
-    icon: <Crosshair className="h-5 w-5" />,
-    color: 'text-hydra-purple',
-  },
-  {
-    label: 'Active Payloads',
-    value: 8,
-    icon: <Zap className="h-5 w-5" />,
-    color: 'text-hydra-cyan',
-  },
-  {
-    label: 'Resume Score',
-    value: 87,
-    icon: <FileText className="h-5 w-5" />,
-    suffix: '%',
-    color: 'text-hydra-green',
-  },
-  {
-    label: 'Interview Prep',
-    value: 3,
-    icon: <Swords className="h-5 w-5" />,
-    color: 'text-hydra-yellow',
-  },
-]
 
 interface ActivityEntry {
   id: string
@@ -70,47 +42,143 @@ interface ActivityEntry {
   time: string
 }
 
-const mockActivity: ActivityEntry[] = [
-  { id: '1', text: 'Created resume — Senior PM', time: '2 min ago' },
-  { id: '2', text: 'Generated payload for Acme Corp', time: '15 min ago' },
-  { id: '3', text: 'Completed interview drill — Behavioral', time: '1 hr ago' },
-  { id: '4', text: 'Added target: Stripe — Staff Engineer', time: '2 hrs ago' },
-  { id: '5', text: 'Updated resume score to 87%', time: '3 hrs ago' },
-]
+function getRelativeTime(dateStr: string): string {
+  const d = new Date(dateStr)
+  const diffMins = Math.floor((Date.now() - d.getTime()) / 60000)
+  if (diffMins < 1) return 'Just now'
+  if (diffMins < 60) return `${diffMins}m ago`
+  const diffHours = Math.floor(diffMins / 60)
+  if (diffHours < 24) return `${diffHours}h ago`
+  const diffDays = Math.floor(diffHours / 24)
+  if (diffDays < 7) return `${diffDays}d ago`
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+}
 
 export default function Dashboard() {
   const { setView } = useAppStore()
-  const [counts, setCounts] = useState({ targets: 0, resumes: 0 })
+  const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState<string | null>(null)
+  const [metrics, setMetrics] = useState<MetricCard[]>([
+    {
+      label: 'Companies Tracked',
+      value: '—',
+      icon: <ListChecks className="h-5 w-5" />,
+      color: 'text-hydra-purple',
+    },
+    {
+      label: 'Applications Sent',
+      value: '—',
+      icon: <Package className="h-5 w-5" />,
+      color: 'text-hydra-cyan',
+    },
+    {
+      label: 'Resume Score',
+      value: '—',
+      icon: <FileText className="h-5 w-5" />,
+      suffix: '%',
+      color: 'text-hydra-green',
+    },
+    {
+      label: 'Interview Sessions',
+      value: '—',
+      icon: <Mic className="h-5 w-5" />,
+      color: 'text-hydra-yellow',
+    },
+  ])
+  const [activity, setActivity] = useState<ActivityEntry[]>([])
 
   useEffect(() => {
-    // Attempt to fetch real counts; fall back to demo data on error
-    Promise.all([
-      fetch('/api/job-targets').then((r) => r.json()).catch(() => null),
-      fetch('/api/resumes').then((r) => r.json()).catch(() => null),
-    ]).then(([targetsRes, resumesRes]) => {
-      setCounts({
-        targets: Array.isArray(targetsRes) ? targetsRes.length : 0,
-        resumes: Array.isArray(resumesRes) ? resumesRes.length : 0,
-      })
-    })
-  }, [])
+    let cancelled = false
 
-  // Merge real counts with demo data for display
-  const displayMetrics: MetricCard[] = metrics.map((m) => {
-    if (m.label === 'Total Targets' && counts.targets > 0) {
-      return { ...m, value: counts.targets }
+    const load = async () => {
+      setLoading(true)
+      setLoadError(null)
+      const results = await Promise.all([
+        fetch('/api/job-targets').then((r) => (r.ok ? r.json() : null)).catch(() => null),
+        fetch('/api/resumes').then((r) => (r.ok ? r.json() : null)).catch(() => null),
+        fetch('/api/analyses').then((r) => (r.ok ? r.json() : null)).catch(() => null),
+        fetch('/api/interviews').then((r) => (r.ok ? r.json() : null)).catch(() => null),
+        fetch('/api/activity-log').then((r) => (r.ok ? r.json() : null)).catch(() => null),
+      ])
+      if (cancelled) return
+
+      const [targetsRes, resumesRes, analysesRes, interviewsRes, activityRes] = results
+      const targets: Array<Record<string, unknown>> = Array.isArray(targetsRes) ? targetsRes : []
+      const resumes: Array<Record<string, unknown>> = Array.isArray(resumesRes) ? resumesRes : []
+      const analyses: Array<Record<string, unknown>> = Array.isArray(analysesRes) ? analysesRes : []
+      const sessions: Array<Record<string, unknown>> = Array.isArray(interviewsRes?.sessions)
+        ? interviewsRes.sessions
+        : []
+      const logs: Array<Record<string, unknown>> = Array.isArray(activityRes)
+        ? activityRes
+        : Array.isArray(activityRes?.logs)
+          ? activityRes.logs
+          : []
+
+      const applied = targets.filter((t) =>
+        ['payload_sent', 'interview', 'offer'].includes(String(t.status)),
+      ).length
+
+      const scores = analyses
+        .map((a) => a.atsScore)
+        .filter((s): s is number => typeof s === 'number')
+      const averageScore = scores.length
+        ? Math.round(scores.reduce((sum, s) => sum + s, 0) / scores.length)
+        : null
+
+      setMetrics([
+        {
+          label: 'Companies Tracked',
+          value: targets.length,
+          icon: <ListChecks className="h-5 w-5" />,
+          color: 'text-hydra-purple',
+        },
+        {
+          label: 'Applications Sent',
+          value: applied,
+          icon: <Package className="h-5 w-5" />,
+          color: 'text-hydra-cyan',
+        },
+        {
+          label: 'Resume Score',
+          value: averageScore ?? '—',
+          icon: <FileText className="h-5 w-5" />,
+          suffix: '%',
+          color: 'text-hydra-green',
+        },
+        {
+          label: 'Interview Sessions',
+          value: sessions.length,
+          icon: <Mic className="h-5 w-5" />,
+          color: 'text-hydra-yellow',
+        },
+      ])
+
+      setActivity(
+        logs.slice(0, 5).map((log) => ({
+          id: String(log.id),
+          text: String(log.action ?? ''),
+          time: getRelativeTime(String(log.createdAt ?? new Date().toISOString())),
+        })),
+      )
+
+      if (results.some((r) => r === null)) {
+        setLoadError("Some dashboard data couldn't be loaded. Refresh to try again.")
+      }
+      setLoading(false)
     }
-    if (m.label === 'Resume Score' && counts.resumes > 0) {
-      return { ...m, value: counts.resumes }
+
+    load()
+    return () => {
+      cancelled = true
     }
-    return m
-  })
+  }, [])
 
   const quickActions = [
     { label: 'New Resume', view: 'resume-forge' as const, icon: <FileText className="h-4 w-4" /> },
-    { label: 'Generate Payload', view: 'payload-forge' as const, icon: <Zap className="h-4 w-4" /> },
-    { label: 'Start Interview', view: 'interview-drills' as const, icon: <Swords className="h-4 w-4" /> },
-    { label: 'Add Target', view: 'kill-list' as const, icon: <Plus className="h-4 w-4" /> },
+    { label: 'Build Application Kit', view: 'payload-forge' as const, icon: <Package className="h-4 w-4" /> },
+    { label: 'Start Mock Interview', view: 'interview-drills' as const, icon: <Mic className="h-4 w-4" /> },
+    { label: 'Add Company', view: 'kill-list' as const, icon: <Plus className="h-4 w-4" /> },
   ]
 
   return (
@@ -123,16 +191,30 @@ export default function Dashboard() {
       {/* Welcome banner */}
       <motion.div variants={item}>
         <h2 className="text-2xl font-bold tracking-tight text-foreground">
-          Command Center
+          Momentum
         </h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Your career warfare dashboard. Track targets, forge payloads, and dominate.
+          Your search at a glance — targets, applications, resume strength, and interview prep.
         </p>
       </motion.div>
 
+      {loadError && (
+        <div className="flex items-center justify-between gap-3 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3">
+          <p className="text-sm text-red-300">{loadError}</p>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => window.location.reload()}
+            className="text-red-300 hover:text-red-200 shrink-0"
+          >
+            Refresh
+          </Button>
+        </div>
+      )}
+
       {/* Metric cards */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        {displayMetrics.map((metric) => (
+        {metrics.map((metric) => (
           <motion.div key={metric.label} variants={item}>
             <Card className="card-hover">
               <CardContent className="flex items-center gap-4 pt-0">
@@ -141,7 +223,8 @@ export default function Dashboard() {
                 </div>
                 <div className="min-w-0">
                   <p className="text-2xl font-bold tabular-nums text-foreground">
-                    {metric.value}{metric.suffix}
+                    {metric.value}
+                    {typeof metric.value === 'number' ? metric.suffix : ''}
                   </p>
                   <p className="text-xs text-muted-foreground">{metric.label}</p>
                 </div>
@@ -163,19 +246,31 @@ export default function Dashboard() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <ul className="flex flex-col gap-3">
-                {mockActivity.map((entry) => (
-                  <li
-                    key={entry.id}
-                    className="flex items-start justify-between gap-3"
-                  >
-                    <span className="text-sm text-foreground/80">{entry.text}</span>
-                    <span className="shrink-0 text-xs text-muted-foreground">
-                      {entry.time}
-                    </span>
-                  </li>
-                ))}
-              </ul>
+              {loading ? (
+                <div className="flex flex-col gap-3">
+                  {[1, 2, 3].map((i) => (
+                    <div key={i} className="h-4 w-full animate-pulse rounded bg-hydra-surface-2" />
+                  ))}
+                </div>
+              ) : activity.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  No activity yet. Actions you take will appear here.
+                </p>
+              ) : (
+                <ul className="flex flex-col gap-3">
+                  {activity.map((entry) => (
+                    <li
+                      key={entry.id}
+                      className="flex items-start justify-between gap-3"
+                    >
+                      <span className="text-sm text-foreground/80">{entry.text}</span>
+                      <span className="shrink-0 text-xs text-muted-foreground">
+                        {entry.time}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </CardContent>
           </Card>
         </motion.div>

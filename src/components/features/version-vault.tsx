@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
-import { Shield, Clock, Plus, ArrowUpRight, ArrowDownRight, Minus, RotateCcw, FileText } from 'lucide-react'
+import { History, Clock, Plus, ArrowUpRight, ArrowDownRight, Minus, RotateCcw, FileText } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -45,6 +45,7 @@ const item = {
 export default function VersionVault() {
   const [versions, setVersions] = useState<Version[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [restoring, setRestoring] = useState<string | null>(null)
   const [createOpen, setCreateOpen] = useState(false)
   const [newLabel, setNewLabel] = useState('')
@@ -56,58 +57,20 @@ export default function VersionVault() {
 
   const fetchVersions = async () => {
     setLoading(true)
+    setError(null)
     try {
       const res = await fetch('/api/versions')
       if (res.ok) {
         const data = await res.json()
         setVersions(Array.isArray(data) ? data : data.versions || [])
       } else {
-        // Demo data
-        setVersions([
-          {
-            id: 'v1',
-            resumeId: 'r1',
-            label: 'Initial Draft',
-            notes: 'First version created from template',
-            changes: { new: ['Summary', 'Experience', 'Education', 'Skills', 'Projects'], changed: [], deleted: [] },
-            createdAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-          },
-          {
-            id: 'v2',
-            resumeId: 'r1',
-            label: 'Added Projects Section',
-            notes: 'Added 3 new projects with descriptions',
-            changes: { new: ['Portfolio Site', 'API Gateway'], changed: ['Skills'], deleted: [] },
-            createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-          },
-          {
-            id: 'v3',
-            resumeId: 'r1',
-            label: 'ATS Optimization Pass',
-            notes: 'Rewrote bullet points with stronger action verbs and keywords',
-            changes: { new: [], changed: ['Experience', 'Summary'], deleted: ['Old References Section'] },
-            createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
-          },
-          {
-            id: 'v4',
-            resumeId: 'r1',
-            label: 'Before Interview',
-            notes: 'Final polish for Acme Corp application',
-            changes: { new: ['Certifications'], changed: ['Education', 'Skills'], deleted: [] },
-            createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
-          },
-          {
-            id: 'v5',
-            resumeId: 'r1',
-            label: 'Post-Interview Update',
-            notes: 'Added interview learnings and refined summary',
-            changes: { new: [], changed: ['Summary', 'Experience'], deleted: [] },
-            createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-          },
-        ])
+        // No invented fallback data — surface the failure and show the honest empty state.
+        setVersions([])
+        setError(`Couldn't load your saved versions (HTTP ${res.status}).`)
       }
     } catch {
       setVersions([])
+      setError("Couldn't reach the server to load your saved versions.")
     } finally {
       setLoading(false)
     }
@@ -115,13 +78,16 @@ export default function VersionVault() {
 
   const handleRestore = async (versionId: string) => {
     setRestoring(versionId)
+    setError(null)
     try {
       const res = await fetch(`/api/versions/${versionId}/restore`, { method: 'PUT' })
       if (res.ok) {
         // Success — could navigate to resume editor
+      } else {
+        setError(`Couldn't restore that version (HTTP ${res.status}).`)
       }
     } catch {
-      // silent
+      setError("Couldn't reach the server to restore that version.")
     } finally {
       setRestoring(null)
     }
@@ -129,6 +95,7 @@ export default function VersionVault() {
 
   const handleCreateVersion = async () => {
     if (!newLabel.trim()) return
+    setError(null)
     try {
       const res = await fetch('/api/versions', {
         method: 'POST',
@@ -140,9 +107,11 @@ export default function VersionVault() {
         setNewLabel('')
         setNewNotes('')
         fetchVersions()
+      } else {
+        setError(`Couldn't save this version (HTTP ${res.status}). Please try again.`)
       }
     } catch {
-      // silent
+      setError("Couldn't save this version. Check your connection and try again.")
     }
   }
 
@@ -178,10 +147,10 @@ export default function VersionVault() {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-hydra-purple/10 border border-hydra-border">
-            <Shield className="w-5 h-5 text-hydra-purple" />
+            <History className="w-5 h-5 text-hydra-purple" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-foreground">Version Vault</h1>
+            <h1 className="text-xl font-bold text-foreground">Rewind</h1>
             <p className="text-sm text-hydra-muted">Resume version history and restore points</p>
           </div>
         </div>
@@ -241,6 +210,21 @@ export default function VersionVault() {
         </div>
       )}
 
+      {/* Load / action error */}
+      {!loading && error && (
+        <div className="flex items-center justify-between gap-3 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3">
+          <p className="text-sm text-red-300">{error}</p>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => fetchVersions()}
+            className="text-red-300 hover:text-red-200 shrink-0"
+          >
+            Retry
+          </Button>
+        </div>
+      )}
+
       {/* Timeline */}
       {!loading && versions.length === 0 && (
         <motion.div
@@ -249,7 +233,7 @@ export default function VersionVault() {
           className="flex flex-col items-center justify-center py-20"
         >
           <div className="w-16 h-16 rounded-full bg-hydra-purple/10 flex items-center justify-center mb-4">
-            <Shield className="w-8 h-8 text-hydra-purple/50" />
+            <History className="w-8 h-8 text-hydra-purple/50" />
           </div>
           <h3 className="text-lg font-semibold text-foreground mb-1">No Versions Yet</h3>
           <p className="text-sm text-hydra-muted text-center max-w-md">

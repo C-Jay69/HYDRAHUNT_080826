@@ -32,12 +32,12 @@ import { useAppStore } from '@/store/app-store'
 
 const fadeUp = {
   hidden: { opacity: 0, y: 20 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: 'easeOut' } },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: 'easeOut' as const } },
 }
 
 const scaleIn = {
   hidden: { opacity: 0, scale: 0.8 },
-  visible: { opacity: 1, scale: 1, transition: { duration: 0.5, ease: 'easeOut' } },
+  visible: { opacity: 1, scale: 1, transition: { duration: 0.5, ease: 'easeOut' as const } },
 }
 
 /* ------------------------------------------------------------------ */
@@ -100,11 +100,11 @@ export default function ContactPage() {
         <motion.div className="text-center mb-10" variants={fadeUp}>
           <div className="flex items-center justify-center gap-2 mb-2">
             <Radio className="h-5 w-5 text-hydra-cyan" />
-            <h1 className="text-3xl font-bold gradient-text">Contact Command</h1>
+            <h1 className="text-3xl font-bold gradient-text">Get in Touch</h1>
             <Radio className="h-5 w-5 text-hydra-cyan" />
           </div>
           <p className="text-sm text-muted-foreground">
-            Transmit your signal — we&apos;ll decode and respond within 24-48 hours.
+            Send us a note — we&apos;ll get back to you within 24–48 hours.
           </p>
         </motion.div>
 
@@ -193,7 +193,7 @@ export default function ContactPage() {
                             <Input
                               id="contact-email"
                               type="email"
-                              placeholder="hunter@hydrahunt.ai"
+                              placeholder="you@example.com"
                               required
                               value={email}
                               onChange={(e) => setEmail(e.target.value)}

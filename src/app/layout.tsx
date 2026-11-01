@@ -3,9 +3,9 @@ import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
 
 export const metadata: Metadata = {
-  title: "HydraHunt — AI-Powered Career Warfare Platform",
+  title: "HydraHunt — Your Job-Search Workspace",
   description:
-    "Job hunting is dead. We killed it. AI-powered resumes, tailored payloads, interview drills, and job tracking from a single command center.",
+    "Apply to fewer jobs, better. AI-powered resumes, tailored application kits, mock interviews, and a job tracker in one workspace.",
   keywords: [
     "HydraHunt",
     "AI resume",

@@ -83,11 +83,13 @@ export async function POST(
     const contentLength = message.trim().split(/\s+/).length
     const heuristicScore = Math.max(0, Math.min(10, Math.round(contentLength / 40)))
 
+    // Hoisted so the stream's cancel() handler can stop the upstream reader.
+    const reader = stream.getReader()
+
     return new Response(
       new ReadableStream<Uint8Array>({
         async start(controller) {
           let full = ''
-          const reader = stream.getReader()
           try {
             while (true) {
               const { done, value } = await reader.read()
@@ -118,7 +120,7 @@ export async function POST(
           controller.close()
         },
         cancel() {
-          reader?.cancel().catch(() => {})
+          reader.cancel().catch(() => {})
         },
       }),
       {

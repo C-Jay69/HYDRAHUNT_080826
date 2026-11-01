@@ -30,16 +30,17 @@ function LoadingSpinner() {
     <div className="flex items-center justify-center min-h-[60vh]">
       <div className="flex flex-col items-center gap-4">
         <div className="w-10 h-10 border-2 border-hydra-purple/30 border-t-hydra-purple rounded-full animate-spin" />
-        <p className="text-sm text-muted-foreground">Loading systems...</p>
+        <p className="text-sm text-muted-foreground">Loading your workspace...</p>
       </div>
     </div>
   )
 }
 
-class ViewErrorBoundary extends Component<{
-  children: ReactNode
-}, { hasError: boolean }> {
-  state = { hasError: false, error: null as Error | null }
+class ViewErrorBoundary extends Component<
+  { children: ReactNode },
+  { hasError: boolean; error: Error | null }
+> {
+  state: { hasError: boolean; error: Error | null } = { hasError: false, error: null }
   static getDerivedStateFromError(error: Error) {
     return { hasError: true, error }
   }
@@ -48,7 +49,7 @@ class ViewErrorBoundary extends Component<{
       return (
         <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4 p-8">
           <div className="text-5xl mb-2 text-hydra-purple/50">⚠</div>
-          <h2 className="text-xl font-semibold text-foreground">System Malfunction</h2>
+          <h2 className="text-xl font-semibold text-foreground">Something went wrong</h2>
           <p className="text-sm text-hydra-muted max-w-md text-center">
             {this.state.error?.message || 'This module encountered an unexpected error.'}
           </p>
@@ -56,7 +57,7 @@ class ViewErrorBoundary extends Component<{
             onClick={() => this.setState({ hasError: false, error: null })}
             className="mt-4 px-6 py-2.5 bg-hydra-purple text-white rounded-lg text-sm hover:bg-hydra-purple/90 transition-colors"
           >
-            Reinitialize
+            Try again
           </button>
         </div>
       )

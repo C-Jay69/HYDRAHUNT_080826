@@ -11,7 +11,7 @@ import {
   Award,
   Plus,
   Star,
-  Zap,
+  TrendingUp,
   ChevronDown,
   ChevronRight,
   CheckCircle2,
@@ -72,80 +72,6 @@ const STATUS_CONFIG: Record<NodeStatus, { label: string; color: string; bgColor:
     borderColor: 'border-hydra-green/30',
   },
 }
-
-const DEMO_NODES: CareerNode[] = [
-  {
-    id: 'n1',
-    type: 'current_role',
-    label: 'Senior Product Manager',
-    description: 'Current role at TechCorp. Leading cross-functional team of 8 engineers and designers.',
-    status: 'completed',
-    childrenIds: ['n2', 'n3', 'n4'],
-  },
-  {
-    id: 'n2',
-    type: 'skill',
-    label: 'System Design',
-    description: 'Deepen knowledge of distributed systems, microservices architecture, and scalability patterns.',
-    status: 'in_progress',
-    parentId: 'n1',
-  },
-  {
-    id: 'n3',
-    type: 'certification',
-    label: 'AWS Solutions Architect',
-    description: 'Professional-level AWS certification for cloud infrastructure expertise.',
-    status: 'pending',
-    parentId: 'n1',
-  },
-  {
-    id: 'n4',
-    type: 'milestone',
-    label: 'Lead Product Launch',
-    description: 'Successfully lead the Q4 product launch with $2M ARR target.',
-    status: 'completed',
-    parentId: 'n1',
-  },
-  {
-    id: 'n5',
-    type: 'target_role',
-    label: 'VP of Product',
-    description: 'Target executive role leading product strategy for a Series C startup or public company.',
-    status: 'pending',
-  },
-  {
-    id: 'n6',
-    type: 'skill',
-    label: 'Executive Communication',
-    description: 'Board presentations, investor relations, and public speaking skills.',
-    status: 'pending',
-    parentId: 'n5',
-  },
-  {
-    id: 'n7',
-    type: 'skill',
-    label: 'P&L Management',
-    description: 'Financial planning, budget ownership, and revenue forecasting.',
-    status: 'in_progress',
-    parentId: 'n5',
-  },
-  {
-    id: 'n8',
-    type: 'certification',
-    label: 'MBA / Executive Program',
-    description: 'Part-time executive MBA or leadership program from top-tier business school.',
-    status: 'pending',
-    parentId: 'n5',
-  },
-  {
-    id: 'n9',
-    type: 'milestone',
-    label: 'Build 50-Person Org',
-    description: 'Scale product organization from current team to 50+ across multiple product lines.',
-    status: 'pending',
-    parentId: 'n5',
-  },
-]
 
 const container = {
   hidden: { opacity: 0 },
@@ -276,6 +202,7 @@ function NodeCard({
 export default function CareerMap() {
   const [nodes, setNodes] = useState<CareerNode[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [addOpen, setAddOpen] = useState(false)
   const [newLabel, setNewLabel] = useState('')
   const [newDesc, setNewDesc] = useState('')
@@ -289,38 +216,43 @@ export default function CareerMap() {
 
   const fetchMap = async () => {
     setLoading(true)
+    setError(null)
     try {
       const res = await fetch('/api/career-map')
       if (res.ok) {
         const data = await res.json()
         setNodes(Array.isArray(data) ? data : data.nodes || [])
       } else {
-        setNodes(DEMO_NODES)
+        // No invented fallback data — surface the failure and show the honest empty state.
+        setNodes([])
+        setError(`Couldn't load your trajectory (HTTP ${res.status}).`)
       }
     } catch {
-      setNodes(DEMO_NODES)
+      setNodes([])
+      setError("Couldn't reach the server to load your trajectory.")
     } finally {
       setLoading(false)
     }
   }
 
   const handleStatusChange = async (id: string, status: NodeStatus) => {
+    setError(null)
     try {
-      await fetch(`/api/career-map`, {
+      const res = await fetch(`/api/career-map`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id, status }),
       })
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      setNodes((prev) => prev.map((n) => (n.id === id ? { ...n, status } : n)))
     } catch {
-      // silent
+      setError("Couldn't save that status change. Check your connection and try again.")
     }
-    setNodes((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, status } : n))
-    )
   }
 
   const handleAddNode = async () => {
     if (!newLabel.trim()) return
+    setError(null)
     try {
       const res = await fetch('/api/career-map', {
         method: 'POST',
@@ -338,22 +270,12 @@ export default function CareerMap() {
         setNewDesc('')
         setNewParent('')
         fetchMap()
+      } else {
+        setError(`Couldn't save this node (HTTP ${res.status}). Please try again.`)
       }
     } catch {
-      // silent fallback
-      const newNode: CareerNode = {
-        id: `n-${Date.now()}`,
-        type: newType,
-        label: newLabel,
-        description: newDesc,
-        status: 'pending',
-        parentId: newParent || undefined,
-      }
-      setNodes((prev) => [...prev, newNode])
-      setAddOpen(false)
-      setNewLabel('')
-      setNewDesc('')
-      setNewParent('')
+      // No silent local-only node — tell the user the save failed.
+      setError("Couldn't save this node. Check your connection and try again.")
     }
   }
 
@@ -410,10 +332,10 @@ export default function CareerMap() {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-hydra-cyan/10 border border-hydra-border-cyan">
-            <Zap className="w-5 h-5 text-hydra-cyan" />
+            <TrendingUp className="w-5 h-5 text-hydra-cyan" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-foreground">Career Map</h1>
+            <h1 className="text-xl font-bold text-foreground">Trajectory</h1>
             <p className="text-sm text-hydra-muted">Your career roadmap — plan, track, and level up</p>
           </div>
         </div>
@@ -531,6 +453,21 @@ export default function CareerMap() {
         </div>
       )}
 
+      {/* Load / save error */}
+      {!loading && error && (
+        <div className="flex items-center justify-between gap-3 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3">
+          <p className="text-sm text-red-300">{error}</p>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => fetchMap()}
+            className="text-red-300 hover:text-red-200 shrink-0"
+          >
+            Retry
+          </Button>
+        </div>
+      )}
+
       {/* Tree Map */}
       {!loading && nodes.length === 0 && (
         <motion.div
@@ -539,7 +476,7 @@ export default function CareerMap() {
           className="flex flex-col items-center justify-center py-20"
         >
           <div className="w-16 h-16 rounded-full bg-hydra-cyan/10 flex items-center justify-center mb-4">
-            <Zap className="w-8 h-8 text-hydra-cyan/50" />
+            <TrendingUp className="w-8 h-8 text-hydra-cyan/50" />
           </div>
           <h3 className="text-lg font-semibold text-foreground mb-1">No Career Nodes Yet</h3>
           <p className="text-sm text-hydra-muted text-center max-w-md">

@@ -98,7 +98,7 @@ const container = {
 
 const item = {
   hidden: { opacity: 0, y: 16 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.35, ease: 'easeOut' } },
+  show: { opacity: 1, y: 0, transition: { duration: 0.35, ease: 'easeOut' as const } },
 }
 
 function JobCard({
@@ -160,7 +160,7 @@ function JobCard({
                 onClick={(e) => {
                   e.preventDefault()
                   e.stopPropagation()
-                  window.open(job.jobUrl, '_blank')
+                  window.open(job.jobUrl || '', '_blank')
                 }}
               >
                 {job.title}

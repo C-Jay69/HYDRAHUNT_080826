@@ -196,7 +196,7 @@ ${resumeText}
 ---`
 }
 
-/* ------------------------------- Payload forge ------------------------------- */
+/* ----------------------------------- Tailor ---------------------------------- */
 
 export interface PayloadTab {
   key: string
@@ -213,7 +213,7 @@ export const PAYLOAD_TABS: PayloadTab[] = [
 ]
 
 export const PAYLOAD_SYSTEM_PROMPT =
-  'You are HydraHunt Payload Forge AI. Generate career application materials. Output only the requested content with proper ---TAB: delimiters. No preamble.'
+  'You are HydraHunt Tailor AI. Generate career application materials. Output only the requested content with proper ---TAB: delimiters. No preamble.'
 
 export function buildPayloadPrompt(
   resumeText: string,
@@ -226,7 +226,7 @@ export function buildPayloadPrompt(
     return `${isFirst ? 'START with' : 'Then output'} exactly: ---TAB:${s.key}\nFollowed by the ${s.label}: ${s.description}.`
   }).join('\n\n')
 
-  return `You are an elite career strategist AI for HydraHunt, a cyberpunk-themed career platform. Generate highly tailored application materials for a job applicant.
+  return `You are a career strategist AI for HydraHunt, a career workspace. Generate highly tailored application materials for a job applicant.
 
 ## TONE: ${tone}
 Use a ${tone.toLowerCase()} tone throughout all generated content. Be specific, actionable, and compelling.

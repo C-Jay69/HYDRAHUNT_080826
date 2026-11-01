@@ -42,9 +42,10 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
-  Crosshair,
-  Zap,
-  Swords,
+  Bookmark,
+  Archive,
+  Package,
+  Mic,
   Trophy,
   Plus,
   Search,
@@ -57,7 +58,6 @@ import {
   Send,
   MessageSquare,
   Gift,
-  Skull,
   X,
 } from 'lucide-react'
 
@@ -102,19 +102,19 @@ interface ColumnDef {
 /* -------------------------------------------------------------------------- */
 
 const COLUMNS: ColumnDef[] = [
-  { id: 'intel', label: 'Intel Gathered', color: 'text-hydra-cyan', borderColor: 'border-t-hydra-cyan', icon: <Radar className="h-3.5 w-3.5" /> },
-  { id: 'acquired', label: 'Target Acquired', color: 'text-hydra-purple', borderColor: 'border-t-hydra-purple', icon: <Target className="h-3.5 w-3.5" /> },
-  { id: 'payload_sent', label: 'Payload Sent', color: 'text-hydra-green', borderColor: 'border-t-hydra-green', icon: <Send className="h-3.5 w-3.5" /> },
-  { id: 'interview', label: 'Interview', color: 'text-hydra-yellow', borderColor: 'border-t-hydra-yellow', icon: <MessageSquare className="h-3.5 w-3.5" /> },
+  { id: 'intel', label: 'Researched', color: 'text-hydra-cyan', borderColor: 'border-t-hydra-cyan', icon: <Radar className="h-3.5 w-3.5" /> },
+  { id: 'acquired', label: 'Shortlisted', color: 'text-hydra-purple', borderColor: 'border-t-hydra-purple', icon: <Bookmark className="h-3.5 w-3.5" /> },
+  { id: 'payload_sent', label: 'Applied', color: 'text-hydra-green', borderColor: 'border-t-hydra-green', icon: <Send className="h-3.5 w-3.5" /> },
+  { id: 'interview', label: 'Interviewing', color: 'text-hydra-yellow', borderColor: 'border-t-hydra-yellow', icon: <MessageSquare className="h-3.5 w-3.5" /> },
   { id: 'offer', label: 'Offer', color: 'text-emerald-400', borderColor: 'border-t-emerald-400', icon: <Gift className="h-3.5 w-3.5" /> },
-  { id: 'eliminated', label: 'Eliminated', color: 'text-hydra-red', borderColor: 'border-t-hydra-red', icon: <Skull className="h-3.5 w-3.5" /> },
+  { id: 'eliminated', label: 'Closed', color: 'text-hydra-red', borderColor: 'border-t-hydra-red', icon: <Archive className="h-3.5 w-3.5" /> },
 ]
 
 const PRIORITY_CONFIG: Record<Priority, { label: string; color: string }> = {
   low: { label: 'Low', color: 'bg-gray-500/20 text-gray-400 border-gray-500/30' },
   medium: { label: 'Medium', color: 'bg-hydra-yellow/15 text-hydra-yellow border-hydra-yellow/30' },
   high: { label: 'High', color: 'bg-hydra-orange/15 text-hydra-orange border-hydra-orange/30' },
-  critical: { label: 'Critical', color: 'bg-hydra-red/15 text-hydra-red border-hydra-red/30' },
+  critical: { label: 'Top', color: 'bg-hydra-red/15 text-hydra-red border-hydra-red/30' },
 }
 
 const container = {
@@ -127,12 +127,12 @@ const container = {
 
 const item = {
   hidden: { opacity: 0, y: 12 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.35, ease: 'easeOut' } },
+  show: { opacity: 1, y: 0, transition: { duration: 0.35, ease: 'easeOut' as const } },
 }
 
 const cardVariant = {
   hidden: { opacity: 0, scale: 0.95 },
-  visible: { opacity: 1, scale: 1, transition: { duration: 0.25, ease: 'easeOut' } },
+  visible: { opacity: 1, scale: 1, transition: { duration: 0.25, ease: 'easeOut' as const } },
   exit: { opacity: 0, scale: 0.95, transition: { duration: 0.15 } },
 }
 
@@ -291,7 +291,7 @@ function KanbanColumn({
               <Target className="mx-auto h-6 w-6" />
             </div>
             <p className="mt-2 text-[11px] text-muted-foreground/40">
-              No targets here
+              No companies here
             </p>
           </div>
         )}
@@ -307,7 +307,7 @@ function KanbanColumn({
 function AddTargetDialog({
   onAdd,
 }: {
-  onAdd: (target: Omit<JobTarget, 'id' | 'createdAt' | 'updatedAt'>) => void
+  onAdd: (target: JobTarget) => void
 }) {
   const [open, setOpen] = useState(false)
   const [form, setForm] = useState({
@@ -320,10 +320,12 @@ function AddTargetDialog({
     notes: '',
   })
   const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const handleSubmit = async () => {
     if (!form.company.trim() || !form.role.trim()) return
     setSubmitting(true)
+    setError(null)
     try {
       const res = await fetch('/api/job-targets', {
         method: 'POST',
@@ -335,6 +337,7 @@ function AddTargetDialog({
           location: form.location.trim() || null,
           priority: form.priority,
           jobUrl: form.jobUrl.trim() || null,
+          notes: form.notes.trim() || null,
         }),
       })
       if (res.ok) {
@@ -352,7 +355,11 @@ function AddTargetDialog({
           notes: '',
         })
         setOpen(false)
+      } else {
+        setError(`Couldn't add this company (HTTP ${res.status}). Please try again.`)
       }
+    } catch {
+      setError("Couldn't add this company. Check your connection and try again.")
     } finally {
       setSubmitting(false)
     }
@@ -363,14 +370,14 @@ function AddTargetDialog({
       <DialogTrigger asChild>
         <Button className="gap-2 bg-hydra-purple hover:bg-hydra-purple/90">
           <Plus className="h-4 w-4" />
-          Add Target
+          Add Company
         </Button>
       </DialogTrigger>
       <DialogContent className="border-hydra-border bg-hydra-surface sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="text-foreground">
-            <Crosshair className="mr-2 inline h-4 w-4 text-hydra-purple" />
-            New Target
+            <Bookmark className="mr-2 inline h-4 w-4 text-hydra-purple" />
+            New Company
           </DialogTitle>
         </DialogHeader>
 
@@ -445,7 +452,7 @@ function AddTargetDialog({
                   <SelectItem value="low">Low</SelectItem>
                   <SelectItem value="medium">Medium</SelectItem>
                   <SelectItem value="high">High</SelectItem>
-                  <SelectItem value="critical">Critical</SelectItem>
+                  <SelectItem value="critical">Top</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -469,12 +476,18 @@ function AddTargetDialog({
             </Label>
             <Textarea
               id="notes"
-              placeholder="Any intel about this target..."
+              placeholder="Notes about this company..."
               value={form.notes}
               onChange={(e) => setForm({ ...form, notes: e.target.value })}
               className="min-h-[72px] border-hydra-border bg-hydra-surface-2 resize-none"
             />
           </div>
+
+          {error && (
+            <p className="text-sm text-red-400" role="alert">
+              {error}
+            </p>
+          )}
 
           <div className="flex justify-end gap-2 pt-2">
             <Button
@@ -489,7 +502,7 @@ function AddTargetDialog({
               disabled={submitting || !form.company.trim() || !form.role.trim()}
               className="bg-hydra-purple hover:bg-hydra-purple/90"
             >
-              {submitting ? 'Locking Target...' : 'Lock Target'}
+              {submitting ? 'Adding...' : 'Add Company'}
             </Button>
           </div>
         </div>
@@ -515,23 +528,23 @@ function MetricSummary({ targets }: { targets: JobTarget[] }) {
 
   const metrics = [
     {
-      label: 'Total Targets',
+      label: 'Companies',
       value: totalTargets,
-      icon: <Crosshair className="h-4 w-4" />,
+      icon: <Bookmark className="h-4 w-4" />,
       color: 'text-hydra-purple',
       bg: 'bg-hydra-purple/10',
     },
     {
       label: 'In Pipeline',
       value: inPipeline,
-      icon: <Zap className="h-4 w-4" />,
+      icon: <Package className="h-4 w-4" />,
       color: 'text-hydra-cyan',
       bg: 'bg-hydra-cyan/10',
     },
     {
       label: 'Interviews',
       value: interviews,
-      icon: <Swords className="h-4 w-4" />,
+      icon: <Mic className="h-4 w-4" />,
       color: 'text-hydra-yellow',
       bg: 'bg-hydra-yellow/10',
     },
@@ -572,13 +585,14 @@ function MetricSummary({ targets }: { targets: JobTarget[] }) {
 }
 
 /* -------------------------------------------------------------------------- */
-/*  Main Kill List Component                                                  */
+/*  Main A-List Component                                                      */
 /* -------------------------------------------------------------------------- */
 
 export default function KillList() {
   const { setView } = useAppStore()
   const [targets, setTargets] = useState<JobTarget[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState<string | null>(null)
   const [filterText, setFilterText] = useState('')
   const [activeId, setActiveId] = useState<string | null>(null)
   const [priorityFilter, setPriorityFilter] = useState<string>('all')
@@ -591,12 +605,20 @@ export default function KillList() {
 
   // Fetch targets from API
   useEffect(() => {
+    setLoading(true)
+    setLoadError(null)
     fetch('/api/job-targets')
-      .then((r) => r.json())
+      .then(async (r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`)
+        return r.json()
+      })
       .then((data: JobTarget[]) => {
         setTargets(Array.isArray(data) ? data : [])
       })
-      .catch(() => setTargets([]))
+      .catch(() => {
+        setTargets([])
+        setLoadError("Couldn't load your A-List. Check your connection and try again.")
+      })
       .finally(() => setLoading(false))
   }, [])
 
@@ -732,7 +754,7 @@ export default function KillList() {
     return (
       <div className="flex h-64 items-center justify-center">
         <div className="text-muted-foreground animate-pulse text-sm">
-          Scanning targets...
+          Loading your A-List...
         </div>
       </div>
     )
@@ -748,12 +770,26 @@ export default function KillList() {
       {/* Header */}
       <motion.div variants={item} className="flex flex-col gap-1">
         <h2 className="text-2xl font-bold tracking-tight text-foreground">
-          Kill List
+          A-List
         </h2>
         <p className="text-sm text-muted-foreground">
-          Track your job targets through the elimination pipeline.
+          Track the companies you actually want, from first look to offer.
         </p>
       </motion.div>
+
+      {loadError && (
+        <div className="flex items-center justify-between gap-3 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3">
+          <p className="text-sm text-red-300">{loadError}</p>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => window.location.reload()}
+            className="shrink-0 text-red-300 hover:text-red-200"
+          >
+            Retry
+          </Button>
+        </div>
+      )}
 
       {/* Metric Summary */}
       <motion.div variants={item}>

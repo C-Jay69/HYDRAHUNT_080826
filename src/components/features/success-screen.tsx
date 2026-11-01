@@ -2,7 +2,7 @@
 
 import { useEffect, useState, type ReactNode } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { CheckCircle2, Crosshair, ArrowRight, RotateCcw, Download, Share2 } from 'lucide-react'
+import { CheckCircle2, ArrowRight, RotateCcw, Download, Share2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useAppStore } from '@/store/app-store'
 
@@ -15,13 +15,13 @@ interface TargetDownScreenProps {
 }
 
 /**
- * Success / "Target Down" screen shown after successful actions.
+ * Success screen shown after successful actions.
  * Includes animated success state and confetti (respects reduced motion).
  */
 export default function TargetDownScreen({
-  title = 'Target Down.',
-  subtitle = 'Operation successful. The system has been updated.',
-  primaryCta = { label: 'Return to Dashboard', view: 'dashboard' },
+  title = 'Application Sent.',
+  subtitle = 'Done — your workspace is up to date.',
+  primaryCta = { label: 'Back to Momentum', view: 'dashboard' },
   secondaryCta,
   children,
 }: TargetDownScreenProps) {
@@ -65,7 +65,7 @@ export default function TargetDownScreen({
             style={{ left: `${p.x}%`, width: p.r, height: p.r * 1.6, backgroundColor: p.color }}
             initial={{ y: -20, opacity: 1, rotate: 0 }}
             animate={{ y: `${p.y}vh`, opacity: [1, 1, 0], rotate: 360 + Math.random() * 360 }}
-            transition={{ duration: 2.4 + Math.random() * 1.5, delay: p.delay, ease: 'easeOut' }}
+            transition={{ duration: 2.4 + Math.random() * 1.5, delay: p.delay, ease: 'easeOut' as const }}
             exit={{ opacity: 0 }}
           />
         ))}
@@ -80,12 +80,12 @@ export default function TargetDownScreen({
       >
         <div className="absolute inset-0 rounded-full bg-hydra-green/30 blur-2xl" />
         <div className="relative w-24 h-24 rounded-full bg-hydra-green/15 border-2 border-hydra-green flex items-center justify-center">
-          <Crosshair className="w-12 h-12 text-hydra-green" />
+          <CheckCircle2 className="w-12 h-12 text-hydra-green" />
         </div>
         <motion.div
           className="absolute -inset-2 rounded-full border-2 border-dashed border-hydra-green/30"
           animate={{ rotate: 360 }}
-          transition={{ duration: 12, repeat: Infinity, ease: 'linear' }}
+          transition={{ duration: 12, repeat: Infinity, ease: 'linear' as const }}
         />
       </motion.div>
 
@@ -143,7 +143,7 @@ export function SuccessActions() {
         <Download className="w-4 h-4 text-hydra-cyan" /> Export Resume
       </Button>
       <Button variant="outline" className="border-hydra-border justify-start gap-2" onClick={() => setView('payload-forge')}>
-        <Share2 className="w-4 h-4 text-hydra-purple" /> Generate Payload
+        <Share2 className="w-4 h-4 text-hydra-purple" /> Build Application Kit
       </Button>
       <Button variant="outline" className="border-hydra-border justify-start gap-2" onClick={() => setView('interview-drills')}>
         <CheckCircle2 className="w-4 h-4 text-hydra-green" /> Start Interview

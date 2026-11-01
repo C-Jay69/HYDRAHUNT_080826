@@ -16,7 +16,7 @@ import { toast } from '@/hooks/use-toast'
 
 const fadeUp = {
   hidden: { opacity: 0, y: 20 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: 'easeOut' } },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: 'easeOut' as const } },
 }
 
 /* ------------------------------------------------------------------ */
@@ -44,7 +44,7 @@ export default function SignupPage() {
     }
 
     if (password.length < 6) {
-      toast({ title: 'Weak Payload', description: 'Password must be at least 6 characters.', variant: 'destructive' })
+      toast({ title: 'Weak Password', description: 'Password must be at least 6 characters.', variant: 'destructive' })
       return
     }
 
@@ -90,7 +90,7 @@ export default function SignupPage() {
         <motion.div className="text-center mb-8" variants={fadeUp}>
           <h1 className="text-3xl font-bold gradient-text">HydraHunt</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Initialize your hunter profile
+            Create your profile
           </p>
         </motion.div>
 
@@ -109,7 +109,7 @@ export default function SignupPage() {
                     <Input
                       id="name"
                       type="text"
-                      placeholder="Hunter alias"
+                      placeholder="Your name"
                       required
                       value={name}
                       onChange={(e) => setName(e.target.value)}
@@ -128,7 +128,7 @@ export default function SignupPage() {
                     <Input
                       id="signup-email"
                       type="email"
-                      placeholder="hunter@hydrahunt.ai"
+                      placeholder="you@example.com"
                       required
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}

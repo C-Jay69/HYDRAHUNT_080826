@@ -3,20 +3,20 @@
 import { useAppStore, type AppView } from '@/store/app-store'
 import {
   LayoutDashboard,
-  Crosshair,
+  ListChecks,
   FileText,
-  Zap,
-  Swords,
-  Target,
-  Shield,
-  Map,
-  ScrollText,
+  Package,
+  Mic,
+  ScanSearch,
+  History,
+  Route,
   Settings,
   CreditCard,
   LogOut,
   ChevronLeft,
   Gauge,
-  Search,
+  Radar,
+  TrendingUp,
   type LucideIcon,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -28,16 +28,16 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
-  { label: 'Dashboard', view: 'dashboard', icon: LayoutDashboard },
-  { label: 'Kill List', view: 'kill-list', icon: Crosshair },
-  { label: 'Job Opportunities', view: 'job-opportunities', icon: Search },
-  { label: 'Resume Forge', view: 'resume-forge', icon: FileText },
-  { label: 'Payload Forge', view: 'payload-forge', icon: Zap },
-  { label: 'Interview Drills', view: 'interview-drills', icon: Swords },
-  { label: 'Strike Analysis', view: 'analysis', icon: Target },
-  { label: 'Version Vault', view: 'version-vault', icon: Shield },
-  { label: 'Mission Log', view: 'mission-log', icon: ScrollText },
-  { label: 'Career Map', view: 'career-map', icon: Map },
+  { label: 'Momentum', view: 'dashboard', icon: LayoutDashboard },
+  { label: 'A-List', view: 'kill-list', icon: ListChecks },
+  { label: 'Radar', view: 'job-opportunities', icon: Radar },
+  { label: 'Resume Studio', view: 'resume-forge', icon: FileText },
+  { label: 'Tailor', view: 'payload-forge', icon: Package },
+  { label: 'Mock Room', view: 'interview-drills', icon: Mic },
+  { label: 'Fit Check', view: 'analysis', icon: ScanSearch },
+  { label: 'Rewind', view: 'version-vault', icon: History },
+  { label: 'Trail', view: 'mission-log', icon: Route },
+  { label: 'Trajectory', view: 'career-map', icon: TrendingUp },
   { label: 'Settings', view: 'settings', icon: Settings },
   { label: 'Billing', view: 'billing', icon: CreditCard },
 ]
@@ -134,7 +134,7 @@ export default function Sidebar() {
             {sidebarOpen && (
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-medium text-foreground">
-                  {user.name || 'Hunter'}
+                  {user.name || 'Member'}
                 </p>
                 <p className="truncate text-xs text-muted-foreground">
                   {user.email}

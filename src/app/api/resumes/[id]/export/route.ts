@@ -57,7 +57,7 @@ export async function GET(
     if (format === 'docx') {
       if (!canDocx) {
         return NextResponse.json(
-          { error: 'DOCX export requires the Hunter or Beastmaster plan' },
+          { error: 'DOCX export requires the Stride or Apex plan' },
           { status: 403 },
         )
       }

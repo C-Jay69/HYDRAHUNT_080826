@@ -8,11 +8,11 @@ import {
   Activity,
   FileText,
   Zap,
-  Target,
-  Swords,
+  Bookmark,
+  Mic,
   Crown,
   Wallet,
-  Map,
+  TrendingUp,
   BarChart3,
   RefreshCw,
   Shield,
@@ -31,6 +31,13 @@ import { useAppStore } from '@/store/app-store'
 import { cn } from '@/lib/utils'
 
 const PLANS = ['free', 'mission_pack', 'hunter', 'beastmaster'] as const
+
+const PLAN_LABELS: Record<(typeof PLANS)[number], string> = {
+  free: 'Free',
+  mission_pack: 'Boost Pack',
+  hunter: 'Stride',
+  beastmaster: 'Apex',
+}
 
 interface AdminStats {
   totalUsers: number
@@ -224,7 +231,7 @@ export default function AdminPanel() {
         <div>
           <div className="flex items-center gap-2 mb-1">
             <ShieldCheck className="w-5 h-5 text-hydra-purple" />
-            <h2 className="text-lg font-bold text-foreground">Admin Control Center</h2>
+            <h2 className="text-lg font-bold text-foreground">Admin Overview</h2>
           </div>
           <p className="text-sm text-hydra-muted">
             Platform analytics and maintenance — signed in as{' '}
@@ -255,7 +262,7 @@ export default function AdminPanel() {
       {loading && !stats ? (
         <div className="flex flex-col items-center justify-center gap-4 min-h-[40vh]">
           <Loader2 className="w-8 h-8 text-hydra-purple animate-spin" />
-          <p className="text-sm text-hydra-muted">Pulling platform intel...</p>
+          <p className="text-sm text-hydra-muted">Loading platform data...</p>
         </div>
       ) : stats ? (
         <>
@@ -294,13 +301,13 @@ export default function AdminPanel() {
                 color="bg-hydra-purple/15 text-hydra-purple"
               />
               <MetricCard
-                label="AI Payloads"
+                label="AI Kits"
                 value={stats.totalPayloads}
                 icon={Zap}
                 color="bg-hydra-cyan/15 text-hydra-cyan"
               />
               <MetricCard
-                label="Analyses"
+                label="Fit Checks"
                 value={stats.totalAnalyses}
                 icon={BarChart3}
                 color="bg-hydra-green/15 text-hydra-green"
@@ -308,19 +315,19 @@ export default function AdminPanel() {
               <MetricCard
                 label="Interview Sessions"
                 value={stats.totalInterviews}
-                icon={Swords}
+                icon={Mic}
                 color="bg-hydra-yellow/15 text-hydra-yellow"
               />
               <MetricCard
-                label="Job Targets"
+                label="Companies"
                 value={stats.totalJobTargets}
-                icon={Target}
+                icon={Bookmark}
                 color="bg-hydra-red/15 text-hydra-red"
               />
               <MetricCard
-                label="Career Maps"
+                label="Career Trajectories"
                 value={stats.totalCareerMaps}
-                icon={Map}
+                icon={TrendingUp}
                 color="bg-hydra-purple/15 text-hydra-purple"
               />
               <MetricCard
@@ -349,7 +356,7 @@ export default function AdminPanel() {
                   <div key={plan} className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <Badge className={cn('border', PLAN_COLORS[plan] || PLAN_COLORS.free)}>
-                        {plan.replace(/_/g, ' ').toUpperCase()}
+                        {PLAN_LABELS[plan as (typeof PLANS)[number]] || plan}
                       </Badge>
                     </div>
                     <span className="text-sm font-semibold text-foreground">{count}</span>
@@ -383,7 +390,7 @@ export default function AdminPanel() {
                       </div>
                       <div className="min-w-0">
                         <p className="text-sm text-foreground truncate">
-                          {u.name || 'Hunter'}
+                          {u.name || 'Member'}
                           <span className="text-hydra-muted text-xs ml-1">{u.email}</span>
                         </p>
                       </div>
@@ -464,7 +471,7 @@ export default function AdminPanel() {
                   >
                     <div className="min-w-0 flex-1">
                       <p className="text-sm text-foreground truncate">
-                        {u.name || 'Hunter'}
+                        {u.name || 'Member'}
                         <span className="text-hydra-muted text-xs ml-1">{u.email}</span>
                       </p>
                       <p className="text-xs text-hydra-muted">Joined {formatDate(u.createdAt)}</p>
@@ -477,7 +484,7 @@ export default function AdminPanel() {
                       >
                         {PLANS.map((p) => (
                           <option key={p} value={p}>
-                            {p.replace(/_/g, ' ')}
+                            {PLAN_LABELS[p]}
                           </option>
                         ))}
                       </select>

@@ -169,7 +169,7 @@ function CircularGauge({ score }: { score: number }) {
           strokeDasharray={circumference}
           initial={{ strokeDashoffset: circumference }}
           animate={{ strokeDashoffset: offset }}
-          transition={{ duration: 1.5, ease: 'easeOut' }}
+          transition={{ duration: 1.5, ease: 'easeOut' as const }}
         />
       </svg>
       <div className="absolute flex flex-col items-center">
@@ -234,13 +234,13 @@ function ProcessingView({ analysis }: { analysis: Analysis }) {
               strokeDashoffset:
                 2 * Math.PI * 50 - (progress / 100) * 2 * Math.PI * 50,
             }}
-            transition={{ duration: 0.5, ease: 'easeOut' }}
+            transition={{ duration: 0.5, ease: 'easeOut' as const }}
           />
         </svg>
         <motion.div
           className="absolute"
           animate={{ rotate: 360 }}
-          transition={{ duration: 3, repeat: Infinity, ease: 'linear' }}
+          transition={{ duration: 3, repeat: Infinity, ease: 'linear' as const }}
         >
           <Loader2 className="h-8 w-8 text-hydra-purple" />
         </motion.div>
@@ -251,7 +251,7 @@ function ProcessingView({ analysis }: { analysis: Analysis }) {
           Analyzing Resume...
         </h3>
         <p className="text-sm text-hydra-muted">
-          Target Role: {analysis.targetRole || 'General'}
+          Role: {analysis.targetRole || 'General'}
         </p>
       </div>
 
@@ -283,7 +283,7 @@ function ProcessingView({ analysis }: { analysis: Analysis }) {
                 <div className="flex-shrink-0 w-8 h-8 rounded-full bg-hydra-purple/20 flex items-center justify-center">
                   <motion.div
                     animate={{ rotate: 360 }}
-                    transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+                    transition={{ duration: 1, repeat: Infinity, ease: 'linear' as const }}
                   >
                     <StepIcon className="w-4 h-4 text-hydra-purple" />
                   </motion.div>
@@ -322,7 +322,7 @@ function ProcessingView({ analysis }: { analysis: Analysis }) {
             className="h-full bg-gradient-to-r from-hydra-purple to-hydra-cyan rounded-full"
             initial={{ width: 0 }}
             animate={{ width: `${progress}%` }}
-            transition={{ duration: 0.5, ease: 'easeOut' }}
+            transition={{ duration: 0.5, ease: 'easeOut' as const }}
           />
         </div>
         <p className="text-xs text-hydra-muted mt-2 text-center">
@@ -464,7 +464,7 @@ function DetailView({
             {analysis.resumeTitle || 'Resume'} Analysis
           </h2>
           <p className="text-sm text-hydra-muted">
-            Target: {analysis.targetRole || 'General'} &middot;{' '}
+            Role: {analysis.targetRole || 'General'} &middot;{' '}
             {formatDate(analysis.createdAt)}
           </p>
         </div>
@@ -485,6 +485,9 @@ function DetailView({
               : score >= 60
                 ? 'Good Potential'
                 : 'Needs Improvement'}
+          </p>
+          <p className="text-xs text-hydra-muted mt-1">
+            Scored against the role you entered, not a generic checklist.
           </p>
         </div>
       </motion.div>
@@ -886,7 +889,7 @@ export default function StrikeAnalysis() {
           </div>
           <div>
             <h1 className="text-2xl font-bold text-foreground">
-              Strike Analysis
+              Fit Check
             </h1>
             <p className="text-sm text-hydra-muted">
               AI-powered resume analysis and ATS optimization
@@ -905,7 +908,7 @@ export default function StrikeAnalysis() {
             <DialogHeader>
               <DialogTitle className="text-foreground flex items-center gap-2">
                 <Zap className="w-5 h-5 text-hydra-purple" />
-                New Strike Analysis
+                New Fit Check
               </DialogTitle>
             </DialogHeader>
             <div className="space-y-5 pt-2">
@@ -1005,10 +1008,10 @@ export default function StrikeAnalysis() {
             <Target className="w-8 h-8 text-hydra-purple/50" />
           </div>
           <h3 className="text-lg font-semibold text-foreground">
-            No Analyses Yet
+            No Fit Checks Yet
           </h3>
           <p className="text-sm text-hydra-muted text-center max-w-sm">
-            Run your first strike analysis to get AI-powered feedback on your
+            Run your first fit check to get AI-powered feedback on your
             resume&apos;s ATS compatibility.
           </p>
         </motion.div>

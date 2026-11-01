@@ -1,0 +1,464 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>HydraHunt Launch Brief</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  /* Layout concept: a field memo — one narrow reading column, real phase numbers, margin rules instead of cards. */
+  :root {
+    --ink: #0c0f14;
+    --ink-2: #141922;
+    --paper: #f4f1ea;
+    --paper-2: #e9e4d9;
+    --fg: #ece8df;
+    --muted: #9aa3b2;
+    --line: #2a3140;
+    --accent: #9b8cff;
+    --accent-2: #63d6c6;
+    --warn: #f0b45e;
+    --good: #79d69a;
+    --bad: #f07f7f;
+    --font-display: "Instrument Serif", Georgia, "Times New Roman", serif;
+    --font-body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+    --font-mono: "IBM Plex Mono", "SFMono-Regular", Consolas, monospace;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--ink);
+    color: var(--fg);
+    font-family: var(--font-body);
+    font-size: 16px;
+    line-height: 1.6;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+    padding-block: 0;
+    -webkit-font-smoothing: antialiased;
+  }
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0 0 auto;
+    height: env(safe-area-inset-top, 0px);
+    z-index: 10;
+    background: var(--ink);
+  }
+  .page {
+    max-width: 820px;
+    margin: 0 auto;
+    padding-block: 56px 80px;
+  }
+  .masthead {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px 24px;
+    border-bottom: 2px solid var(--line);
+    padding-bottom: 18px;
+  }
+  .brand {
+    font-family: var(--font-display);
+    font-size: 1.55rem;
+    letter-spacing: 0.01em;
+  }
+  .brand span { color: var(--accent); }
+  .masthead .meta {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .eyebrow {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--accent-2);
+    margin-top: 44px;
+  }
+  h1 {
+    font-family: var(--font-display);
+    font-weight: 400;
+    font-size: clamp(2.3rem, 6vw, 3.7rem);
+    line-height: 1.04;
+    letter-spacing: -0.015em;
+    margin: 10px 0 0;
+    text-wrap: balance;
+  }
+  h1 em { color: var(--accent); font-style: italic; }
+  .standfirst {
+    font-size: 1.08rem;
+    color: #c6ccd7;
+    max-width: 62ch;
+    margin: 18px 0 0;
+  }
+  .rule {
+    height: 1px;
+    background: var(--line);
+    margin: 40px 0;
+  }
+  section { margin-top: 40px; }
+  .section-head {
+    display: flex;
+    align-items: baseline;
+    gap: 14px;
+    margin-bottom: 14px;
+  }
+  .phase {
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    color: var(--accent);
+    border: 1px solid var(--line);
+    border-radius: 3px;
+    padding: 1px 7px;
+    white-space: nowrap;
+  }
+  h2 {
+    font-family: var(--font-display);
+    font-weight: 400;
+    font-size: clamp(1.55rem, 3.4vw, 2.05rem);
+    line-height: 1.15;
+    margin: 0;
+    text-wrap: balance;
+  }
+  h3 {
+    font-size: 0.98rem;
+    font-weight: 600;
+    margin: 0 0 4px;
+  }
+  p { margin: 0 0 12px; max-width: 66ch; }
+  .lede { color: #c6ccd7; }
+  ul { margin: 0; padding-left: 20px; max-width: 66ch; }
+  li { margin-bottom: 7px; }
+  li::marker { color: var(--accent-2); }
+  .cols {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 28px 36px;
+  }
+  .cols > * { min-width: 0; }
+  .stat-row {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 20px;
+    border-top: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+    padding: 22px 0;
+    margin-top: 34px;
+  }
+  .stat { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .stat b {
+    font-family: var(--font-display);
+    font-size: 2.35rem;
+    font-weight: 400;
+    line-height: 1;
+    color: var(--accent-2);
+    font-variant-numeric: tabular-nums;
+  }
+  .stat span { font-size: 0.78rem; color: var(--muted); }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.92rem;
+    margin-top: 6px;
+  }
+  th {
+    text-align: left;
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    font-weight: 500;
+    border-bottom: 1px solid var(--line);
+    padding: 8px 12px 8px 0;
+  }
+  td {
+    border-bottom: 1px solid var(--line);
+    padding: 9px 12px 9px 0;
+    vertical-align: top;
+  }
+  td:last-child, th:last-child { padding-right: 0; }
+  .old { color: var(--muted); text-decoration: line-through; text-decoration-color: #4a5264; }
+  .new { color: var(--fg); font-weight: 500; }
+  .mono { font-family: var(--font-mono); font-size: 0.85em; }
+  .callout {
+    border-left: 3px solid var(--accent);
+    background: var(--ink-2);
+    padding: 16px 20px;
+    margin: 18px 0;
+    max-width: 68ch;
+  }
+  .callout p:last-child { margin-bottom: 0; }
+  .callout .label {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.11em;
+    text-transform: uppercase;
+    color: var(--accent);
+    display: block;
+    margin-bottom: 5px;
+  }
+  .checklist { list-style: none; padding-left: 0; }
+  .checklist li {
+    position: relative;
+    padding-left: 26px;
+    margin-bottom: 10px;
+  }
+  .checklist li::before {
+    content: "→";
+    position: absolute;
+    left: 0;
+    color: var(--accent-2);
+    font-family: var(--font-mono);
+  }
+  .done li::before { content: "✓"; color: var(--good); }
+  .open li::before { content: "○"; color: var(--warn); }
+  .pill {
+    display: inline-block;
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 2px 9px;
+    color: var(--muted);
+    margin-left: 8px;
+    vertical-align: 2px;
+  }
+  .pill.done { border-color: #2d4a3a; color: var(--good); }
+  .pill.open { border-color: #4d3f26; color: var(--warn); }
+  .quote {
+    font-family: var(--font-display);
+    font-size: clamp(1.35rem, 3.2vw, 1.8rem);
+    line-height: 1.3;
+    color: var(--fg);
+    border-top: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+    padding: 24px 0;
+    margin: 36px 0;
+    max-width: 30ch;
+  }
+  .quote em { color: var(--accent); }
+  .footer {
+    margin-top: 56px;
+    border-top: 2px solid var(--line);
+    padding-top: 18px;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 10px;
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    color: var(--muted);
+  }
+  a { color: var(--accent-2); }
+  a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+  @media (max-width: 620px) {
+    .cols { grid-template-columns: 1fr; }
+    .stat-row { grid-template-columns: 1fr; gap: 14px; }
+    .stat { flex-direction: row; align-items: baseline; gap: 10px; }
+    .stat b { font-size: 1.8rem; }
+    table { font-size: 0.86rem; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+  }
+</style>
+
+</head>
+<body>
+<div class="page">
+  <header class="masthead">
+    <div class="brand">Hydra<span>Hunt</span></div>
+    <div class="meta">Launch brief · 31 October 2026</div>
+  </header>
+
+  <p class="eyebrow">Readiness review</p>
+  <h1>Fewer applications.<br><em>Better</em> ones.</h1>
+  <p class="standfirst">
+    A candid pass over the product before launch: what was fabricated, what was broken, what changed,
+    and what I would do next if this were my name on the door.
+  </p>
+
+  <div class="stat-row">
+    <div class="stat"><b>0</b><span>TypeScript errors after the build gate</span></div>
+    <div class="stat"><b>53</b><span>Pre-existing type errors cleared</span></div>
+    <div class="stat"><b>5</b><span>Application-kit outputs now generated</span></div>
+  </div>
+
+  <div class="callout">
+    <span class="label">The core problem</span>
+    <p>
+      The app looked finished but several screens invented their own data. A dashboard with hardcoded
+      metrics, a vault with fake saved versions, a career map with demo nodes. Any new user would have
+      been looking at someone else's numbers. That is the fastest way to lose trust on day one.
+    </p>
+  </div>
+
+  <section>
+    <div class="section-head"><span class="phase">01</span><h2>What shipped in this pass</h2></div>
+    <ul class="checklist done">
+      <li><strong>Dashboard reads real records.</strong> Companies tracked, applications sent, average resume score and interview sessions come from the user's own tables. Loading, empty and error states are explicit.</li>
+      <li><strong>No invented fallbacks.</strong> Version Vault, Career Map, Mission Log and the dashboard no longer substitute demo data when an API call fails. They say what failed and offer Retry.</li>
+      <li><strong>Mission Log actually shows activity.</strong> The screen was reading the wrong response key, so real events never appeared. It now reads the API's <span class="mono">logs</span> array.</li>
+      <li><strong>Application Kit produces all five outputs.</strong> Summary, cover letter, outreach email, LinkedIn message and talking points generate in one pass.</li>
+      <li><strong>ATS scores agree between the list and the editor.</strong> The resume list now uses the same shared heuristic as the detail view, so no more "No ATS score" on a resume that has one.</li>
+      <li><strong>A-List notes are saved.</strong> The add-company dialog was dropping the notes field; it now persists and surfaces failures instead of closing silently.</li>
+      <li><strong>Rewind restores honestly.</strong> Create and restore actions report errors rather than pretending a snapshot saved.</li>
+      <li><strong>Interview streaming cancel bug fixed.</strong> The stream reader is now reachable from the cancel handler.</li>
+    </ul>
+  </section>
+
+  <section>
+    <div class="section-head"><span class="phase">02</span><h2>The naming system</h2></div>
+    <p class="lede">
+      The old labels were memorable to the team and opaque to a first-time user. The replacement set is
+      plainer while keeping some edge. Internal identifiers, routes, database keys and plan keys did not change.
+    </p>
+    <table>
+      <thead><tr><th>Was</th><th>Now</th><th>What it does</th></tr></thead>
+      <tbody>
+        <tr><td class="old">Kill List</td><td class="new">A-List</td><td>Companies you actually want, tracked from first look to offer.</td></tr>
+        <tr><td class="old">Payload Forge</td><td class="new">Tailor</td><td>Builds the five-piece application kit for one job.</td></tr>
+        <tr><td class="old">Resume Forge</td><td class="new">Resume Studio</td><td>Build, score and export resumes.</td></tr>
+        <tr><td class="old">Strike Analysis</td><td class="new">Fit Check</td><td>AI review of a resume against a specific role.</td></tr>
+        <tr><td class="old">Interview Drills</td><td class="new">Mock Room</td><td>Practice interviews with feedback and scoring.</td></tr>
+        <tr><td class="old">Version Vault</td><td class="new">Rewind</td><td>Snapshot and restore resume versions.</td></tr>
+        <tr><td class="old">Mission Log</td><td class="new">Trail</td><td>Every action, timestamped and filterable.</td></tr>
+        <tr><td class="old">Career Map</td><td class="new">Trajectory</td><td>Plan the next role and the skills that bridge the gap.</td></tr>
+        <tr><td class="old">Job Opportunities</td><td class="new">Radar</td><td>Scraped job listings, filtered and saved.</td></tr>
+        <tr><td class="old">Dashboard</td><td class="new">Momentum</td><td>Your search at a glance.</td></tr>
+      </tbody>
+    </table>
+    <p style="margin-top:14px" class="mono">
+      Plans: Free → Boost Pack → Stride → Apex. Stripe price keys unchanged.
+    </p>
+  </section>
+
+  <section>
+    <div class="section-head"><span class="phase">03</span><h2>The build gate</h2></div>
+    <div class="cols">
+      <div>
+        <h3>Type safety restored</h3>
+        <p class="lede">
+          <span class="mono">typescript.ignoreBuildErrors</span> is gone. The 53 errors it hid are fixed,
+          and <span class="mono">bun run typecheck</span> now exists as a script.
+        </p>
+      </div>
+      <div>
+        <h3>CI added</h3>
+        <p class="lede">
+          A GitHub Actions workflow runs typecheck on every push and pull request, then a production build.
+          Placeholder database credentials let the build import route modules without a live database.
+        </p>
+      </div>
+      <div>
+        <h3>AI calls are bounded</h3>
+        <p class="lede">
+          Timeouts, bounded retries and an optional fallback model now wrap every completion. Slow calls log a
+          warning; failures log the model and attempt number.
+        </p>
+      </div>
+      <div>
+        <h3>Privacy and control</h3>
+        <p class="lede">
+          A standalone privacy page discloses storage, processors and retention. Settings now includes a typed-
+          confirmation account deletion that cascades through every record and clears the session.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <div class="quote">
+    The product does not need more features. It needs the first ten minutes to feel <em>honest</em>,
+    specific and fast.
+  </div>
+
+  <section>
+    <div class="section-head"><span class="phase">04</span><h2>What I would do next</h2></div>
+    <div class="cols">
+      <div>
+        <h3>1. Pick one wedge</h3>
+        <p class="lede">
+          "Job search workspace" is a category, not a promise. The sharpest wedge here is the five-piece kit:
+          one resume plus one job description, turned into a complete outreach package in a single pass. Lead
+          with that in every channel and put the other tools behind it.
+        </p>
+      </div>
+      <div>
+        <h3>2. Make activation measurable</h3>
+        <p class="lede">
+          Define activation as "first application kit generated." Track signup → resume → kit → copy. Until that
+          funnel is instrumented, no marketing spend can be judged.
+        </p>
+      </div>
+      <div>
+        <h3>3. Sell the outcome, not the armoury</h3>
+        <p class="lede">
+          People do not buy "AI payload forges." They buy fewer wasted applications. Rewrite pricing and
+          landing copy around time saved and interviews booked. Keep the tool names as navigation, not as the pitch.
+        </p>
+      </div>
+      <div>
+        <h3>4. Build in public</h3>
+        <p class="lede">
+          Short screen recordings of one real job turning into a kit will outperform feature lists. Post them
+          where job seekers already are, then let the product do the demo.
+        </p>
+      </div>
+      <div>
+        <h3>5. Earn the privacy story</h3>
+        <p class="lede">
+          Career data is sensitive. Say plainly which provider sees resume text, what is retained and how to
+          delete it. Trust is a conversion lever in this category, not a legal checkbox.
+        </p>
+      </div>
+      <div>
+        <h3>6. Keep the free door closed for now</h3>
+        <p class="lede">
+          A public ATS checker is a strong acquisition asset, but it is a second product to build and support.
+          Defer it until activation and retention are understood. Spend the first cycle on the paid core.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-head"><span class="phase">05</span><h2>First 90 days, in order</h2></div>
+    <ul class="checklist">
+      <li><strong>Weeks 1–2:</strong> instrument the activation funnel and watch ten real users go through signup to first kit. Fix the first place they stall.</li>
+      <li><strong>Weeks 3–4:</strong> rewrite the landing page around the kit outcome. Publish three proof-of-work walkthroughs.</li>
+      <li><strong>Weeks 5–8:</strong> founder-led outreach to career switchers and laid-off tech workers. Offer a hands-on onboarding call in exchange for feedback.</li>
+      <li><strong>Weeks 9–12:</strong> price test Stride against Apex with real usage data. Only then consider a free public checker.</li>
+    </ul>
+  </section>
+
+  <section>
+    <div class="section-head"><span class="phase">06</span><h2>Still open</h2></div>
+    <ul class="checklist open">
+      <li><strong>Public ATS checker</strong> deferred by decision. Revisit after activation is measured.</li>
+      <li><strong>Sample onboarding data</strong> not seeded. Empty states now name the next action, but a one-click sample resume would shorten time-to-first-kit.</li>
+      <li><strong>ATS meaning</strong> clarified in the UI: Resume Studio estimates content completeness; Fit Check scores against a specific role. The two are not merged.</li>
+      <li><strong>Per-module URLs</strong> still unavailable in the SPA. The Field Guide now has a shareable redirect at <span class="mono">/field-guide</span>; deeper linking is future work.</li>
+    </ul>
+  </section>
+
+  <footer class="footer">
+    <span>HydraHunt launch brief</span>
+    <span>Prepared 31 Oct 2026</span>
+  </footer>
+</div>
+
+
+</body>
+</html>

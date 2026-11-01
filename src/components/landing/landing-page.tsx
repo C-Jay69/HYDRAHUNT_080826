@@ -4,11 +4,11 @@ import { useEffect, useRef, useState } from 'react'
 import { motion, type Variants } from 'framer-motion'
 import {
   Wrench,
-  Zap,
-  Swords,
-  Crosshair,
-  Target,
-  Map,
+  Package,
+  Mic,
+  Bookmark,
+  ScanSearch,
+  TrendingUp,
   ChevronRight,
   Menu,
   X,
@@ -16,9 +16,10 @@ import {
   FileText,
   BarChart3,
   Shield,
-  Cpu,
+  History,
   Radio,
   LayoutDashboard,
+  CheckCircle2,
   Search,
   ScrollText,
   Settings,
@@ -36,7 +37,7 @@ const fadeUp: Variants = {
   visible: (i: number) => ({
     opacity: 1,
     y: 0,
-    transition: { delay: i * 0.1, duration: 0.6, ease: 'easeOut' },
+    transition: { delay: i * 0.1, duration: 0.6, ease: 'easeOut' as const },
   }),
 }
 
@@ -89,48 +90,48 @@ function useCountUp(target: number, duration = 2000) {
 const features = [
   {
     icon: Wrench,
-    title: 'Resume Forge',
-    desc: 'AI-crafted resumes weaponized for each target role and ATS system.',
+    title: 'Resume Studio',
+    desc: 'AI-crafted resumes tuned for each role and ATS system.',
   },
   {
-    icon: Zap,
-    title: 'AI Payload Forge',
-    desc: 'Generate tailored cover letters and outreach messages in seconds.',
+    icon: Package,
+    title: 'Tailor',
+    desc: 'Build a full application kit — cover letter, outreach, LinkedIn, talking points — in seconds.',
   },
   {
-    icon: Swords,
-    title: 'Interview Drills',
-    desc: 'Practice with AI opponents that simulate real interview combat.',
+    icon: Mic,
+    title: 'Mock Room',
+    desc: 'Practice with an AI interviewer that simulates the real thing.',
   },
   {
-    icon: Crosshair,
-    title: 'Kill List Tracker',
-    desc: 'Track every application status from pipeline to offer accepted.',
+    icon: CheckCircle2,
+    title: 'A-List Tracker',
+    desc: 'Track the companies you want, from first look to offer.',
   },
   {
-    icon: Target,
-    title: 'Strike Analysis',
-    desc: 'Deep analytics on your hit rate, response times, and patterns.',
+    icon: History,
+    title: 'Fit Check',
+    desc: 'See how your resume scores against each role before you apply.',
   },
   {
-    icon: Map,
-    title: 'Career Map',
-    desc: 'Visualize your career trajectory and plot your next strategic move.',
+    icon: Bookmark,
+    title: 'Trajectory',
+    desc: 'Map where you are, where you want to go, and the skills that close the gap.',
   },
 ]
 
 /* ------------------------------------------------------------------ */
-/*  Field Manual data                                                  */
+/*  Field Guide data                                                   */
 /* ------------------------------------------------------------------ */
 
 /** The order a new user should work through the modules. */
 const recommendedFlow = [
   'Search jobs',
-  'Add to Kill List',
+  'Add to A-List',
   'Tailor resume',
-  'Generate payload',
-  'Run analysis',
-  'Drill interview',
+  'Build application kit',
+  'Run fit check',
+  'Practice interview',
 ]
 
 interface ManualItem {
@@ -147,30 +148,30 @@ const manualGroups: { title: string; blurb: string; items: ManualItem[] }[] = [
     items: [
       {
         icon: LayoutDashboard,
-        name: 'Dashboard',
-        tagline: 'Your mission overview',
+        name: 'Momentum',
+        tagline: 'Your search overview',
         steps: [
-          'Start here after login: four tiles show Total Targets, Active Payloads, Resume Score and Interview Prep.',
-          'Use Quick Actions to jump straight into a workflow without hunting through the sidebar.',
+          'Start here after login: four tiles show Companies Tracked, Applications Sent, Resume Score and Interview Sessions.',
+          'Use Quick Actions to jump straight into a workflow without digging through the sidebar.',
         ],
       },
       {
         icon: Search,
-        name: 'Job Opportunities',
+        name: 'Radar',
         tagline: 'One search across nine job boards',
         steps: [
           'Enter a keyword and location, choose a source — LinkedIn, Indeed, Glassdoor, ZipRecruiter, Google, WeWorkRemotely, RemoteOK, Remotive or Dice — then run the search.',
           'Open a posting to preview it, attach the resume you want to use, and send the application. Auto-apply can submit it for you.',
-          'Every application you send becomes a target in your Kill List.',
+          'Every application you send becomes a card in your A-List.',
         ],
       },
       {
-        icon: Crosshair,
-        name: 'Kill List',
+        icon: CheckCircle2,
+        name: 'A-List',
         tagline: 'Your application pipeline',
         steps: [
-          'Add a target with company, role, salary, location, priority and notes.',
-          'Drag cards between stages as things move: Intel Gathered, Target Acquired, Payload Sent, Interview, Offer — or Eliminated.',
+          'Add a company with role, salary, location, priority and notes.',
+          'Drag cards between stages as things move: Researched, Shortlisted, Applied, Interviewing, Offer — or Closed.',
           'This board is the single source of truth for where every application stands.',
         ],
       },
@@ -182,28 +183,28 @@ const manualGroups: { title: string; blurb: string; items: ManualItem[] }[] = [
     items: [
       {
         icon: FileText,
-        name: 'Resume Forge',
+        name: 'Resume Studio',
         tagline: 'Build, score and export your resume',
         steps: [
           'Import an existing resume (PDF, DOCX, TXT or MD) or start from scratch.',
           'Fill in summary, experience, education, skills and projects — drag sections to reorder them.',
           'Watch the ATS meter update as you type, then export an ATS-friendly PDF.',
-          'Mark one resume as Default so Payload Forge, Strike Analysis and applications preselect it.',
+          'Mark one resume as Default so Tailor, Fit Check and applications preselect it.',
         ],
       },
       {
-        icon: Zap,
-        name: 'Payload Forge',
-        tagline: 'Generate the outreach material',
+        icon: Package,
+        name: 'Tailor',
+        tagline: 'Build the outreach kit',
         steps: [
-          'Pick a resume, paste the job description, add the company and choose a tone: Confident, Professional, Casual or Aggressive.',
+          'Pick a resume, paste the job description, add the company and choose a tone: Confident, Professional, Casual or Bold.',
           'Generate once to fill five tabs — Summary, Cover Letter, Outreach Email, LinkedIn message and Talking Points.',
           'Copy any tab, or regenerate with a different tone and compare.',
         ],
       },
       {
         icon: Shield,
-        name: 'Version Vault',
+        name: 'Rewind',
         tagline: 'Snapshot and restore resumes',
         steps: [
           'Save a snapshot before any large edit so you can always roll back.',
@@ -218,18 +219,18 @@ const manualGroups: { title: string; blurb: string; items: ManualItem[] }[] = [
     blurb: 'Sharpen the story and see what is actually working.',
     items: [
       {
-        icon: Target,
-        name: 'Strike Analysis',
+        icon: History,
+        name: 'Fit Check',
         tagline: 'Deep AI resume review',
         steps: [
-          'Choose a resume and the role you are targeting, then run the analysis.',
+          'Choose a resume and the role you are targeting, then run the fit check.',
           'Read six outputs: ATS score, strengths, weaknesses, missing keywords, rewritten bullets and a role-fit assessment.',
           'Hit Apply improvements to write the suggested rewrites back into the resume.',
         ],
       },
       {
-        icon: Swords,
-        name: 'Interview Drills',
+        icon: Mic,
+        name: 'Mock Room',
         tagline: 'AI mock interviews',
         steps: [
           'Start a session and pick a type — Behavioral, Technical or Role-Specific — plus the role and company.',
@@ -239,16 +240,16 @@ const manualGroups: { title: string; blurb: string; items: ManualItem[] }[] = [
       },
       {
         icon: ScrollText,
-        name: 'Mission Log',
+        name: 'Trail',
         tagline: 'Everything you have done, timestamped',
         steps: [
-          'Review the activity feed covering resumes, payloads, applications, interviews, analyses and billing.',
+          'Review the activity feed covering resumes, kits, applications, interviews, fit checks and billing.',
           'Filter by category to reconstruct what you sent, and when.',
         ],
       },
       {
-        icon: Map,
-        name: 'Career Map',
+        icon: TrendingUp,
+        name: 'Trajectory',
         tagline: 'Plan the next move',
         steps: [
           'Map your current role against the role you want next.',
@@ -287,10 +288,11 @@ const manualGroups: { title: string; blurb: string; items: ManualItem[] }[] = [
 /*  Stats data                                                         */
 /* ------------------------------------------------------------------ */
 
+// Honest capability counts — no invented user numbers or success rates.
 const stats = [
-  { value: 10000, suffix: '+', label: 'Hunters' },
-  { value: 50000, suffix: '+', label: 'Payloads Generated' },
-  { value: 92, suffix: '%', label: 'Interview Success Rate' },
+  { value: 9, suffix: '', label: 'Job boards in one search' },
+  { value: 5, suffix: '', label: 'Application assets per generation' },
+  { value: 12, suffix: '', label: 'Modules in one workspace' },
 ]
 
 /* ------------------------------------------------------------------ */
@@ -318,7 +320,7 @@ function HeroTerminal() {
             <span className="w-2.5 h-2.5 rounded-full bg-hydra-green/80" />
           </div>
           <span className="text-[10px] text-muted-foreground font-mono ml-2">
-            hydra://terminal — session active
+            hydra://workspace — preview
           </span>
         </div>
 
@@ -328,15 +330,15 @@ function HeroTerminal() {
           <div className="flex items-center gap-2">
             <span className="text-hydra-cyan">❯</span>
             <span className="text-hydra-green">hydra</span>
-            <span className="text-muted-foreground">--mode hunt --target &quot;Senior Engineer&quot;</span>
+            <span className="text-muted-foreground">--role &quot;Senior Engineer&quot;</span>
           </div>
 
           {/* Status bar */}
           <div className="grid grid-cols-3 gap-2 py-2">
             {[
-              { label: 'Resumes', val: '12', icon: FileText, color: 'text-hydra-purple' },
-              { label: 'Payloads', val: '48', icon: Cpu, color: 'text-hydra-cyan' },
-              { label: 'Strike Rate', val: '94%', icon: Target, color: 'text-hydra-green' },
+              { label: 'Resume Studio', val: 'Ready', icon: FileText, color: 'text-hydra-purple' },
+              { label: 'Application Kit', val: '5 assets', icon: Package, color: 'text-hydra-cyan' },
+              { label: 'Fit Check', val: 'On demand', icon: ScanSearch, color: 'text-hydra-green' },
             ].map((item) => (
               <div
                 key={item.label}
@@ -349,45 +351,19 @@ function HeroTerminal() {
             ))}
           </div>
 
-          {/* Progress bars */}
+          {/* Workflow steps */}
           <div className="space-y-2 pt-1">
-            <div className="flex justify-between text-[10px] text-muted-foreground">
-              <span>⬡ Resume Optimization</span>
-              <span className="text-hydra-green">Complete</span>
+            <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+              <CheckCircle2 className="w-3 h-3 text-hydra-green" />
+              <span>Resume tailored to the role</span>
             </div>
-            <div className="h-1.5 rounded-full bg-hydra-surface-2 overflow-hidden">
-              <motion.div
-                className="h-full rounded-full bg-gradient-to-r from-hydra-purple to-hydra-cyan"
-                initial={{ width: 0 }}
-                animate={{ width: '100%' }}
-                transition={{ duration: 2, delay: 1, ease: 'easeOut' }}
-              />
+            <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+              <CheckCircle2 className="w-3 h-3 text-hydra-cyan" />
+              <span>Application kit built — summary, cover letter, outreach, LinkedIn, talking points</span>
             </div>
-
-            <div className="flex justify-between text-[10px] text-muted-foreground">
-              <span>⬡ Payload Deployment</span>
-              <span className="text-hydra-cyan">87%</span>
-            </div>
-            <div className="h-1.5 rounded-full bg-hydra-surface-2 overflow-hidden">
-              <motion.div
-                className="h-full rounded-full bg-gradient-to-r from-hydra-cyan to-hydra-green"
-                initial={{ width: 0 }}
-                animate={{ width: '87%' }}
-                transition={{ duration: 2, delay: 1.3, ease: 'easeOut' }}
-              />
-            </div>
-
-            <div className="flex justify-between text-[10px] text-muted-foreground">
-              <span>⬡ Interview Prep</span>
-              <span className="text-hydra-purple">62%</span>
-            </div>
-            <div className="h-1.5 rounded-full bg-hydra-surface-2 overflow-hidden">
-              <motion.div
-                className="h-full rounded-full bg-gradient-to-r from-hydra-purple to-hydra-purple/60"
-                initial={{ width: 0 }}
-                animate={{ width: '62%' }}
-                transition={{ duration: 2, delay: 1.6, ease: 'easeOut' }}
-              />
+            <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+              <CheckCircle2 className="w-3 h-3 text-hydra-purple" />
+              <span>Fit check ready when you are</span>
             </div>
           </div>
 
@@ -395,7 +371,7 @@ function HeroTerminal() {
           <div className="flex items-center justify-between pt-2 border-t border-hydra-border">
             <div className="flex items-center gap-1.5">
               <Radio className="w-3 h-3 text-hydra-green pulse-glow" />
-              <span className="text-[10px] text-hydra-green">Systems Online</span>
+              <span className="text-[10px] text-hydra-green">Ready when you are</span>
             </div>
             <div className="flex items-center gap-1.5">
               <Shield className="w-3 h-3 text-hydra-purple" />
@@ -419,14 +395,14 @@ export default function LandingPage() {
   const setView = useAppStore((s) => s.setView)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
-  const stat1 = useCountUp(10000, 2200)
-  const stat2 = useCountUp(50000, 2400)
-  const stat3 = useCountUp(92, 1800)
+  const stat1 = useCountUp(stats[0].value, 2200)
+  const stat2 = useCountUp(stats[1].value, 2400)
+  const stat3 = useCountUp(stats[2].value, 1800)
   const statRefs = [stat1, stat2, stat3]
 
   const navItems = [
     { label: 'Features', view: 'features' as const, id: 'features' },
-    { label: 'Field Manual', view: 'features' as const, id: 'field-manual' },
+    { label: 'Field Guide', view: 'features' as const, id: 'field-manual' },
     { label: 'Pricing', view: 'pricing' as const, id: 'pricing-teaser' },
   ]
 
@@ -557,7 +533,7 @@ export default function LandingPage() {
                 <motion.div variants={fadeUp} custom={0}>
                   <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-hydra-border bg-hydra-surface text-xs text-hydra-cyan font-medium mb-6">
                     <Terminal className="w-3 h-3" />
-                    Tactical Career Intelligence
+                    Career Intelligence, One Workspace
                   </span>
                 </motion.div>
 
@@ -566,7 +542,7 @@ export default function LandingPage() {
                   custom={1}
                   className="text-4xl sm:text-5xl lg:text-6xl font-bold leading-[1.1] tracking-tight"
                 >
-                  <span className="gradient-text">Job hunting is dead. We killed it.</span>
+                  <span className="gradient-text">Apply to fewer jobs, better.</span>
                 </motion.h1>
 
                 <motion.p
@@ -574,7 +550,7 @@ export default function LandingPage() {
                   custom={2}
                   className="mt-5 text-base sm:text-lg text-muted-foreground max-w-xl mx-auto lg:mx-0 leading-relaxed"
                 >
-                  AI-powered resumes, tailored payloads, interview drills, and job tracking — all from one tactical command center.
+                  AI-powered resumes, tailored application kits, mock interviews, and a job tracker — all in one calm workspace.
                 </motion.p>
 
                 <motion.div
@@ -587,7 +563,7 @@ export default function LandingPage() {
                     className="bg-hydra-purple hover:bg-hydra-purple/80 text-white font-semibold px-6"
                     onClick={() => setView('signup')}
                   >
-                    Enter the Hunt
+                    Find Your Fit
                     <ChevronRight className="w-4 h-4 ml-1" />
                   </Button>
                   <Button
@@ -599,6 +575,23 @@ export default function LandingPage() {
                     See Plans
                   </Button>
                 </motion.div>
+
+                <motion.button
+                  variants={fadeUp}
+                  custom={4}
+                  onClick={() => scrollTo('field-manual')}
+                  className="mt-6 inline-flex items-start sm:items-center gap-2 text-sm text-hydra-cyan hover:text-hydra-purple transition-colors text-left"
+                >
+                  <ScrollText className="w-4 h-4 mt-0.5 sm:mt-0 shrink-0" />
+                  <span>
+                    Start with our{' '}
+                    <span className="underline underline-offset-2 decoration-hydra-cyan/40">
+                      Field Guide
+                    </span>{' '}
+                    — the 411 on how to get the most out of your workspace.
+                  </span>
+                  <ChevronRight className="w-3.5 h-3.5 mt-0.5 sm:mt-0 shrink-0" />
+                </motion.button>
               </motion.div>
 
               {/* Terminal graphic side */}
@@ -624,10 +617,10 @@ export default function LandingPage() {
                 custom={0}
                 className="text-3xl sm:text-4xl font-bold tracking-tight"
               >
-                Your <span className="gradient-text">Arsenal</span>
+                Your <span className="gradient-text">Toolkit</span>
               </motion.h2>
               <motion.p variants={fadeUp} custom={1} className="mt-3 text-muted-foreground max-w-md mx-auto">
-                Six tactical modules designed to dominate every stage of the job hunt.
+                Six focused tools for every stage of the search.
               </motion.p>
             </motion.div>
 
@@ -676,7 +669,7 @@ export default function LandingPage() {
                 custom={0}
                 className="text-3xl sm:text-4xl font-bold tracking-tight"
               >
-                The <span className="gradient-text">Field Manual</span>
+                The <span className="gradient-text">Field Guide</span>
               </motion.h2>
               <motion.p
                 variants={fadeUp}
@@ -684,7 +677,7 @@ export default function LandingPage() {
                 className="mt-3 text-muted-foreground max-w-xl mx-auto"
               >
                 Every module in the sidebar, what it is for and how to use it. No
-                hunting through menus wondering what a name means.
+                guessing what a name means.
               </motion.p>
             </motion.div>
 
@@ -816,10 +809,10 @@ export default function LandingPage() {
               custom={0}
               className="text-3xl sm:text-4xl font-bold tracking-tight"
             >
-              Choose Your <span className="gradient-text">Weapon</span>
+              Choose Your <span className="gradient-text">Plan</span>
             </motion.h2>
             <motion.p variants={fadeUp} custom={1} className="mt-3 text-muted-foreground max-w-md mx-auto">
-              From solo operatives to full squads — pick the plan that fits your mission.
+              From a first search to a full career switch — pick the plan that fits your pace.
             </motion.p>
             <motion.div variants={fadeUp} custom={2} className="mt-8">
               <Button
@@ -856,7 +849,7 @@ export default function LandingPage() {
                 onClick={() => scrollTo('field-manual')}
                 className="text-sm text-muted-foreground hover:text-hydra-purple transition-colors"
               >
-                Field Manual
+                Field Guide
               </button>
               <button
                 onClick={() => setView('pricing')}
@@ -870,6 +863,12 @@ export default function LandingPage() {
               >
                 Contact
               </button>
+              <a
+                href="/privacy"
+                className="text-sm text-muted-foreground hover:text-hydra-purple transition-colors"
+              >
+                Privacy
+              </a>
             </nav>
 
             {/* Copyright */}

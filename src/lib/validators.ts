@@ -62,7 +62,7 @@ export const generatePayloadSchema = z.object({
   resumeId: z.string().min(1),
   jobDescription: z.string().trim().min(1).max(20000),
   company: z.string().trim().max(200).optional(),
-  tone: z.enum(['confident', 'professional', 'casual', 'aggressive']).default('professional'),
+  tone: z.enum(['confident', 'professional', 'casual', 'bold', 'aggressive']).default('professional'),
 })
 
 export const interviewSessionCreateSchema = z.object({

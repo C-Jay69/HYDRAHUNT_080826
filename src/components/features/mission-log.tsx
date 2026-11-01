@@ -4,16 +4,17 @@ import { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   FileText,
-  Zap,
-  Crosshair,
-  Swords,
-  Target,
+  Package,
+  Send,
+  Mic,
+  ScanSearch,
   CreditCard,
   ScrollText,
   ChevronDown,
   ChevronUp,
 } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { ScrollArea } from '@/components/ui/scroll-area'
 
@@ -29,17 +30,17 @@ interface ActivityItem {
 
 const CATEGORY_CONFIG: Record<string, { icon: typeof FileText; color: string; bgColor: string; label: string }> = {
   resume: { icon: FileText, color: 'text-hydra-purple', bgColor: 'bg-hydra-purple/10 border-hydra-purple/30', label: 'Resume' },
-  payload: { icon: Zap, color: 'text-hydra-yellow', bgColor: 'bg-hydra-yellow/10 border-hydra-yellow/30', label: 'Payload' },
-  application: { icon: Crosshair, color: 'text-hydra-cyan', bgColor: 'bg-hydra-cyan/10 border-hydra-cyan/30', label: 'Application' },
-  interview: { icon: Swords, color: 'text-hydra-orange', bgColor: 'bg-hydra-orange/10 border-hydra-orange/30', label: 'Interview' },
-  analysis: { icon: Target, color: 'text-hydra-green', bgColor: 'bg-hydra-green/10 border-hydra-green/30', label: 'Analysis' },
+  payload: { icon: Package, color: 'text-hydra-yellow', bgColor: 'bg-hydra-yellow/10 border-hydra-yellow/30', label: 'Kit' },
+  application: { icon: Send, color: 'text-hydra-cyan', bgColor: 'bg-hydra-cyan/10 border-hydra-cyan/30', label: 'Application' },
+  interview: { icon: Mic, color: 'text-hydra-orange', bgColor: 'bg-hydra-orange/10 border-hydra-orange/30', label: 'Interview' },
+  analysis: { icon: ScanSearch, color: 'text-hydra-green', bgColor: 'bg-hydra-green/10 border-hydra-green/30', label: 'Analysis' },
   billing: { icon: CreditCard, color: 'text-hydra-red', bgColor: 'bg-hydra-red/10 border-hydra-red/30', label: 'Billing' },
 }
 
 const FILTER_TABS: { key: ActivityCategory; label: string }[] = [
   { key: 'all', label: 'All' },
   { key: 'resume', label: 'Resume' },
-  { key: 'payload', label: 'Payload' },
+  { key: 'payload', label: 'Kit' },
   { key: 'application', label: 'Application' },
   { key: 'interview', label: 'Interview' },
   { key: 'analysis', label: 'Analysis' },
@@ -64,79 +65,6 @@ function getRelativeTime(dateStr: string): string {
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }
 
-const DEMO_ACTIVITIES: ActivityItem[] = [
-  {
-    id: 'a1',
-    category: 'resume',
-    action: 'Created new resume "Senior Product Manager"',
-    details: 'Initialized with template sections: Summary, Experience, Education, Skills, Projects. ATS score baseline: 45%.',
-    timestamp: new Date(Date.now() - 15 * 60 * 1000).toISOString(),
-  },
-  {
-    id: 'a2',
-    category: 'payload',
-    action: 'Generated AI payload for Acme Corp',
-    details: 'Created cover letter, outreach email, LinkedIn summary, and talking points tailored to "Senior PM" role. Tone: Confident.',
-    timestamp: new Date(Date.now() - 2 * 3600 * 1000).toISOString(),
-  },
-  {
-    id: 'a3',
-    category: 'application',
-    action: 'Added new target: Google — Staff PM',
-    details: 'Priority set to Critical. Location: Mountain View, CA. Salary range: $250K-$350K.',
-    timestamp: new Date(Date.now() - 5 * 3600 * 1000).toISOString(),
-  },
-  {
-    id: 'a4',
-    category: 'interview',
-    action: 'Completed behavioral interview drill',
-    details: 'Role: Senior PM at Meta. Score: 34/40. Strengths: Communication, Structure. Weakness: Technical depth.',
-    timestamp: new Date(Date.now() - 1 * 24 * 3600 * 1000).toISOString(),
-  },
-  {
-    id: 'a5',
-    category: 'analysis',
-    action: 'Resume analysis completed — ATS Score: 87',
-    details: 'Analysis for "Senior PM" target. Strengths: Strong action verbs, relevant keywords. Missing: Cloud certifications, agile metrics.',
-    timestamp: new Date(Date.now() - 1.5 * 24 * 3600 * 1000).toISOString(),
-  },
-  {
-    id: 'a6',
-    category: 'resume',
-    action: 'Updated resume "Senior Product Manager"',
-    details: 'Revised experience section with stronger bullet points. Added 2 new projects. Removed outdated skills.',
-    timestamp: new Date(Date.now() - 2 * 24 * 3600 * 1000).toISOString(),
-  },
-  {
-    id: 'a7',
-    category: 'payload',
-    action: 'Generated payload for Stripe — Product Lead',
-    details: 'Created tailored materials for fintech-focused product leadership role. Emphasized payments and API experience.',
-    timestamp: new Date(Date.now() - 3 * 24 * 3600 * 1000).toISOString(),
-  },
-  {
-    id: 'a8',
-    category: 'application',
-    action: 'Moved Google target to "Interview" stage',
-    details: 'Advanced from Payload Sent. Scheduled phone screen for next Tuesday.',
-    timestamp: new Date(Date.now() - 4 * 24 * 3600 * 1000).toISOString(),
-  },
-  {
-    id: 'a9',
-    category: 'billing',
-    action: 'Upgraded to Hunter plan',
-    details: 'Monthly subscription activated. Unlocked 100 AI generations/month, 10 analyses, 20 interview sessions.',
-    timestamp: new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString(),
-  },
-  {
-    id: 'a10',
-    category: 'interview',
-    action: 'Started technical interview drill',
-    details: 'Practicing system design questions for Staff PM role. Focused on scalability tradeoffs.',
-    timestamp: new Date(Date.now() - 10 * 24 * 3600 * 1000).toISOString(),
-  },
-]
-
 const container = {
   hidden: { opacity: 0 },
   show: {
@@ -153,6 +81,7 @@ const item = {
 export default function MissionLog() {
   const [activities, setActivities] = useState<ActivityItem[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [activeFilter, setActiveFilter] = useState<ActivityCategory>('all')
   const [expandedId, setExpandedId] = useState<string | null>(null)
 
@@ -162,16 +91,31 @@ export default function MissionLog() {
 
   const fetchActivities = async () => {
     setLoading(true)
+    setError(null)
     try {
       const res = await fetch('/api/activity-log')
       if (res.ok) {
         const data = await res.json()
-        setActivities(Array.isArray(data) ? data : data.activities || [])
+        const logs: Array<Record<string, unknown>> = Array.isArray(data)
+          ? data
+          : data.logs || data.activities || []
+        setActivities(
+          logs.map((log) => ({
+            id: String(log.id),
+            category: (log.category as ActivityItem['category']) || 'resume',
+            action: String(log.action ?? ''),
+            details: log.details ? String(log.details) : '',
+            timestamp: String(log.createdAt ?? log.timestamp ?? new Date().toISOString()),
+          })),
+        )
       } else {
-        setActivities(DEMO_ACTIVITIES)
+        // No invented fallback data — surface the failure and show the honest empty state.
+        setActivities([])
+        setError(`Couldn't load your activity feed (HTTP ${res.status}).`)
       }
     } catch {
-      setActivities(DEMO_ACTIVITIES)
+      setActivities([])
+      setError("Couldn't reach the server to load your activity feed.")
     } finally {
       setLoading(false)
     }
@@ -189,8 +133,8 @@ export default function MissionLog() {
           <ScrollText className="w-5 h-5 text-hydra-cyan" />
         </div>
         <div>
-          <h1 className="text-xl font-bold text-foreground">Mission Log</h1>
-          <p className="text-sm text-hydra-muted">Global activity feed across all operations</p>
+          <h1 className="text-xl font-bold text-foreground">Trail</h1>
+          <p className="text-sm text-hydra-muted">Every step in your search, in one place</p>
         </div>
       </div>
 
@@ -220,6 +164,20 @@ export default function MissionLog() {
         </div>
       )}
 
+      {!loading && error && (
+        <div className="flex items-center justify-between gap-3 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3">
+          <p className="text-sm text-red-300">{error}</p>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => fetchActivities()}
+            className="text-red-300 hover:text-red-200 shrink-0"
+          >
+            Retry
+          </Button>
+        </div>
+      )}
+
       {!loading && filteredActivities.length === 0 && (
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
@@ -231,7 +189,7 @@ export default function MissionLog() {
           </div>
           <h3 className="text-lg font-semibold text-foreground mb-1">No Activity Yet</h3>
           <p className="text-sm text-hydra-muted text-center max-w-md">
-            Start using HydraHunt tools to see your mission log populate with activity entries.
+            Your activity feed fills up as you use the tools.
           </p>
         </motion.div>
       )}

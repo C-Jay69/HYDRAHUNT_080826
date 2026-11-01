@@ -1,5 +1,5 @@
 import ZAI from 'z-ai-web-dev-sdk'
-import type { ChatMessage } from 'z-ai-web-dev-sdk'
+import type { ChatMessage, CreateChatCompletionBody } from 'z-ai-web-dev-sdk'
 
 /*
  * Model resolution:
@@ -49,6 +49,81 @@ function resolveEnvConfig(): { baseUrl: string; apiKey: string } | null {
 
 type ZaiInstance = Awaited<ReturnType<typeof ZAI.create>>
 
+/* ----------------------------- Reliability knobs ----------------------------- */
+const AI_TIMEOUT_MS = Number(process.env.AI_TIMEOUT_MS || 90_000)
+const AI_MAX_RETRIES = Math.max(0, Number(process.env.AI_MAX_RETRIES ?? 2))
+const AI_FALLBACK_MODEL = process.env.AI_FALLBACK_MODEL || ''
+
+function isRetryableError(err: unknown): boolean {
+  const status = (err as { status?: number; statusCode?: number })?.status ??
+    (err as { statusCode?: number })?.statusCode
+  if (typeof status === 'number') {
+    return status === 408 || status === 409 || status === 429 || status >= 500
+  }
+  const message = err instanceof Error ? err.message : String(err ?? '')
+  return /timeout|timed out|network|fetch failed|ECONNRESET|ETIMEDOUT|rate limit|429|5\d\d/i.test(message)
+}
+
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms)
+    promise.then(
+      (value) => {
+        clearTimeout(timer)
+        resolve(value)
+      },
+      (err) => {
+        clearTimeout(timer)
+        reject(err)
+      },
+    )
+  })
+}
+
+/**
+ * Runs an AI call with a timeout, bounded retries and an optional fallback model.
+ * The primary model is tried first; on a retryable failure the fallback model
+ * takes over so a single provider hiccup does not fail the whole request.
+ */
+async function callWithRetry<T>(
+  label: string,
+  buildBody: (model: string) => CreateChatCompletionBody,
+  models: string[],
+): Promise<T> {
+  const candidates = models.filter(Boolean)
+  let lastError: unknown = null
+
+  for (const model of candidates) {
+    for (let attempt = 0; attempt <= AI_MAX_RETRIES; attempt++) {
+      const started = Date.now()
+      try {
+        const zai = await getClient()
+        const result = await withTimeout(
+          zai.chat.completions.create({ ...buildBody(model), model }) as Promise<T>,
+          AI_TIMEOUT_MS,
+          label,
+        )
+        const ms = Date.now() - started
+        if (ms > 15_000) console.warn(`[ai] ${label} slow: ${ms}ms (${model})`)
+        return result
+      } catch (err) {
+        lastError = err
+        const retryable = isRetryableError(err)
+        console.error(
+          `[ai] ${label} failed (${model}, attempt ${attempt + 1}/${AI_MAX_RETRIES + 1}, retryable=${retryable}):`,
+          err instanceof Error ? err.message : err,
+        )
+        if (!retryable) break
+        if (attempt < AI_MAX_RETRIES) {
+          await new Promise((r) => setTimeout(r, 500 * 2 ** attempt))
+        }
+      }
+    }
+  }
+
+  throw lastError instanceof Error ? lastError : new Error(`${label} failed`)
+}
+
 let zaiInstance: ZaiInstance | null = null
 
 async function getClient(): Promise<ZaiInstance> {
@@ -66,14 +141,19 @@ async function getClient(): Promise<ZaiInstance> {
  * Non-streaming completion. Returns the assistant's text content.
  */
 export async function complete(opts: AICompletionOptions): Promise<string> {
-  const zai = await getClient()
-  const completion = await zai.chat.completions.create({
-    model: opts.model || DEFAULT_MODEL,
-    messages: opts.messages,
-    temperature: opts.temperature,
-    max_tokens: opts.maxTokens,
-    thinking: { type: 'disabled' },
-  })
+  const completion = await callWithRetry<{
+    choices?: Array<{ message?: { content?: string } }>
+  }>(
+    'complete',
+    (model) => ({
+      model,
+      messages: opts.messages,
+      temperature: opts.temperature,
+      max_tokens: opts.maxTokens,
+      thinking: { type: 'disabled' },
+    }),
+    [opts.model || DEFAULT_MODEL, AI_FALLBACK_MODEL],
+  )
   return completion?.choices?.[0]?.message?.content || ''
 }
 
@@ -89,18 +169,21 @@ export async function complete(opts: AICompletionOptions): Promise<string> {
  * instead of raw SSE bytes, those are handled too.
  */
 export async function completeStream(opts: AICompletionOptions): Promise<ReadableStream<Uint8Array>> {
-  const zai = await getClient()
   const encoder = new TextEncoder()
   const decoder = new TextDecoder()
 
-  const raw = (await zai.chat.completions.create({
-    model: opts.model || STREAM_MODEL,
-    messages: opts.messages,
-    stream: true,
-    temperature: opts.temperature,
-    max_tokens: opts.maxTokens,
-    thinking: { type: 'disabled' },
-  })) as AsyncIterable<Uint8Array | string | Record<string, unknown>>
+  const raw = (await callWithRetry<AsyncIterable<Uint8Array | string | Record<string, unknown>>>(
+    'completeStream',
+    (model) => ({
+      model,
+      messages: opts.messages,
+      stream: true,
+      temperature: opts.temperature,
+      max_tokens: opts.maxTokens,
+      thinking: { type: 'disabled' },
+    }),
+    [opts.model || STREAM_MODEL, AI_FALLBACK_MODEL],
+  ))
 
   return new ReadableStream<Uint8Array>({
     async start(controller) {

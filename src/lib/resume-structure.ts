@@ -49,7 +49,7 @@ const uid = () => randomUUID()
 
 /**
  * Converts the AI's structured resume JSON into the DB section payload used
- * by Resume Forge (sections whose `content` is a JSON string).
+ * by Resume Studio (sections whose `content` is a JSON string).
  */
 export function structuredToSections(data: StructuredResume) {
   const summary = str(data.summary)

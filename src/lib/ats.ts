@@ -1,7 +1,7 @@
 /**
  * Shared ATS readiness heuristic.
  *
- * The Resume Forge editor has always computed this score live from resume
+ * The Resume Studio editor has always computed this score live from resume
  * content, while the resume list only read the persisted `Resume.atsScore`
  * column — which is written solely when a client explicitly PUTs one (the AI
  * analysis endpoint stores its score on the separate `ResumeAnalysis` row).

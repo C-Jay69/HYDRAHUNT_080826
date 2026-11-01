@@ -322,7 +322,7 @@ function ListView() {
         <div>
           <h1 className="text-2xl font-bold text-white flex items-center gap-2">
             <Sparkles className="size-6 text-hydra-purple" />
-            Resume Forge
+            Resume Studio
           </h1>
           <p className="text-hydra-muted text-sm mt-1">
             Build, edit, and optimize your resumes with AI precision
@@ -770,7 +770,12 @@ function EditorContent({ resume }: { resume: Resume }) {
 
         {/* ATS Score Meter */}
         <div className="hidden sm:flex items-center gap-2 min-w-[160px]">
-          <span className="text-xs text-hydra-muted">ATS</span>
+          <span
+            className="text-xs text-hydra-muted"
+            title="Content-completeness estimate. Run Fit Check against a specific job for a role-specific score."
+          >
+            ATS readiness
+          </span>
           <Progress
             value={atsScore}
             className="h-2 w-24"

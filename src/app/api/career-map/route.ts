@@ -14,7 +14,7 @@ export async function GET() {
 
     if (!careerMap) {
       careerMap = await db.careerMap.create({
-        data: { userId: user.id, title: 'My Career Map' },
+        data: { userId: user.id, title: 'My Career Trajectory' },
         include: { nodes: { orderBy: { orderIndex: 'asc' } } },
       })
     }

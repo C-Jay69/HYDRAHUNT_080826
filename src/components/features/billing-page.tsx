@@ -6,13 +6,13 @@ import {
   CreditCard,
   Zap,
   FileText,
-  Swords,
-  Target,
+  Mic,
+  ScanSearch,
   HardDrive,
   ArrowUpRight,
   Check,
   Crown,
-  Crosshair,
+  Bookmark,
   Sparkles,
   Star,
   Download,
@@ -43,86 +43,6 @@ interface PaymentRecord {
   status: 'paid' | 'pending' | 'failed'
 }
 
-const MOCK_USAGE: UsageStat[] = [
-  {
-    label: 'AI Generations',
-    used: 67,
-    limit: 100,
-    icon: Zap,
-    color: 'text-hydra-purple',
-    bgColor: 'bg-hydra-purple/15',
-  },
-  {
-    label: 'Resume Analyses',
-    used: 4,
-    limit: 10,
-    icon: Target,
-    color: 'text-hydra-cyan',
-    bgColor: 'bg-hydra-cyan/15',
-  },
-  {
-    label: 'Interview Sessions',
-    used: 8,
-    limit: 20,
-    icon: Swords,
-    color: 'text-hydra-yellow',
-    bgColor: 'bg-hydra-yellow/15',
-  },
-  {
-    label: 'Storage Used',
-    used: 12,
-    limit: '50 MB',
-    icon: HardDrive,
-    color: 'text-hydra-green',
-    bgColor: 'bg-hydra-green/15',
-  },
-]
-
-const MOCK_PAYMENTS: PaymentRecord[] = [
-  {
-    id: 'pay1',
-    date: 'Dec 1, 2025',
-    description: 'Hunter Plan — Monthly',
-    amount: '$24.00',
-    status: 'paid',
-  },
-  {
-    id: 'pay2',
-    date: 'Nov 1, 2025',
-    description: 'Hunter Plan — Monthly',
-    amount: '$24.00',
-    status: 'paid',
-  },
-  {
-    id: 'pay3',
-    date: 'Oct 15, 2025',
-    description: 'Mission Pack — One-time',
-    amount: '$12.00',
-    status: 'paid',
-  },
-  {
-    id: 'pay4',
-    date: 'Oct 1, 2025',
-    description: 'Hunter Plan — Monthly',
-    amount: '$24.00',
-    status: 'paid',
-  },
-  {
-    id: 'pay5',
-    date: 'Sep 1, 2025',
-    description: 'Free Plan Activation',
-    amount: '$0.00',
-    status: 'paid',
-  },
-  {
-    id: 'pay6',
-    date: 'Aug 15, 2025',
-    description: 'Mission Pack — One-time',
-    amount: '$12.00',
-    status: 'paid',
-  },
-]
-
 interface BillingResponse {
   plan: string
   usage: {
@@ -146,14 +66,14 @@ const PLANS = [
   },
   {
     key: 'hunter',
-    name: 'Hunter',
+    name: 'Stride',
     price: '$24/mo',
-    icon: Crosshair,
+    icon: Bookmark,
     color: 'text-hydra-purple',
   },
   {
     key: 'beastmaster',
-    name: 'Beastmaster',
+    name: 'Apex',
     price: '$59/mo',
     icon: Crown,
     color: 'text-hydra-purple',
@@ -176,8 +96,9 @@ const item = {
 export default function BillingPage() {
   const setView = useAppStore((s) => s.setView)
   const [currentPlan, setCurrentPlan] = useState('free')
-  const [usageStats, setUsageStats] = useState<UsageStat[]>(MOCK_USAGE)
-  const [payments, setPayments] = useState<PaymentRecord[]>(MOCK_PAYMENTS)
+  const [usageStats, setUsageStats] = useState<UsageStat[]>([])
+  const [payments, setPayments] = useState<PaymentRecord[]>([])
+  const [loadError, setLoadError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [portalLoading, setPortalLoading] = useState(false)
 
@@ -203,7 +124,7 @@ export default function BillingPage() {
               label: 'Resume Analyses',
               used: data.usage.analyses.used,
               limit: data.usage.analyses.limit ?? 'Unlimited',
-              icon: Target,
+              icon: ScanSearch,
               color: 'text-hydra-cyan',
               bgColor: 'bg-hydra-cyan/15',
             },
@@ -211,7 +132,7 @@ export default function BillingPage() {
               label: 'Interview Sessions',
               used: data.usage.interviews.used,
               limit: data.usage.interviews.limit ?? 'Unlimited',
-              icon: Swords,
+              icon: Mic,
               color: 'text-hydra-yellow',
               bgColor: 'bg-hydra-yellow/15',
             },
@@ -224,10 +145,15 @@ export default function BillingPage() {
               bgColor: 'bg-hydra-green/15',
             },
           ])
-          if (data.billingEvents.length > 0) setPayments(data.billingEvents)
+          setPayments(data.billingEvents)
+          setLoadError(null)
+        } else if (!cancelled) {
+          setLoadError('Could not load your billing details. Reload to try again.')
         }
       } catch {
-        // fall back to mock data
+        if (!cancelled) {
+          setLoadError('Could not load your billing details. Reload to try again.')
+        }
       } finally {
         if (!cancelled) setLoading(false)
       }
@@ -313,12 +239,12 @@ export default function BillingPage() {
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                 <div className="flex items-center gap-4">
                   <div className="w-12 h-12 rounded-xl bg-hydra-purple/15 flex items-center justify-center">
-                    <Crosshair className="w-6 h-6 text-hydra-purple" />
+                    <Bookmark className="w-6 h-6 text-hydra-purple" />
                   </div>
                   <div>
                     <div className="flex items-center gap-2 mb-0.5">
                       <h2 className="text-lg font-bold text-foreground">
-                        {currentPlan === 'beastmaster' ? 'Beastmaster' : currentPlan === 'hunter' ? 'Hunter' : 'Free'}
+                        {currentPlan === 'beastmaster' ? 'Apex' : currentPlan === 'hunter' ? 'Stride' : 'Free'}
                       </h2>
                       <Badge className="bg-hydra-purple/20 text-hydra-purple border-hydra-purple/30 text-[10px]">
                         ACTIVE
@@ -400,12 +326,22 @@ export default function BillingPage() {
                 <h2 className="text-base font-semibold text-foreground">Usage This Month</h2>
               </div>
 
+              {loadError && (
+                <p className="mb-4 text-xs text-hydra-yellow">{loadError}</p>
+              )}
+
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                {usageStats.length === 0 && !loadError && (
+                  <p className="col-span-full text-sm text-hydra-muted">
+                    No usage recorded yet this month.
+                  </p>
+                )}
                 {usageStats.map((stat) => {
                   const IconComp = stat.icon
                   const isStringLimit = typeof stat.limit === 'string'
                   const isUnlimited = stat.limit === 'Unlimited'
-                  const percentage = isStringLimit ? (isUnlimited ? 0 : 24) : Math.round((stat.used / stat.limit) * 100)
+                  const percentage =
+                    typeof stat.limit === 'number' ? Math.round((stat.used / stat.limit) * 100) : 0
 
                   return (
                     <div
@@ -464,7 +400,12 @@ export default function BillingPage() {
 
               {/* Table Rows */}
               <div className="divide-y divide-hydra-border">
-                {MOCK_PAYMENTS.map((payment) => (
+                {payments.length === 0 && (
+                  <p className="px-3 py-4 text-sm text-hydra-muted">
+                    No payments yet. Charges will appear here once you upgrade.
+                  </p>
+                )}
+                {payments.map((payment) => (
                   <div
                     key={payment.id}
                     className="grid grid-cols-1 sm:grid-cols-4 gap-2 sm:gap-4 px-3 py-3 items-center hover:bg-hydra-surface/50 transition-colors rounded-lg"

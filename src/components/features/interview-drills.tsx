@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
-  Swords,
+  Mic,
   Plus,
   ArrowLeft,
   Send,
@@ -200,9 +200,9 @@ function SessionList({ onSelect }: { onSelect: (id: string) => void }) {
       <motion.div variants={item} className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-hydra-purple/10 border border-hydra-purple/20">
-            <Swords className="h-5 w-5 text-hydra-purple" />
+            <Mic className="h-5 w-5 text-hydra-purple" />
           </div>
-          <h1 className="text-2xl font-bold tracking-tight">Interview Drills</h1>
+          <h1 className="text-2xl font-bold tracking-tight">Mock Room</h1>
         </div>
         <Button
           onClick={() => setShowNewDialog(true)}
@@ -313,7 +313,7 @@ function SessionList({ onSelect }: { onSelect: (id: string) => void }) {
       ) : filtered.length === 0 ? (
         <motion.div variants={item} className="flex flex-col items-center justify-center py-20 text-center">
           <div className="flex h-16 w-16 items-center justify-center rounded-full bg-hydra-purple/10 mb-4">
-            <Swords className="h-8 w-8 text-hydra-purple/50" />
+            <Mic className="h-8 w-8 text-hydra-purple/50" />
           </div>
           <p className="text-hydra-muted text-sm">No interview sessions yet.</p>
           <p className="text-hydra-muted/60 text-xs mt-1">Start a new session to practice with an AI interviewer.</p>
@@ -515,8 +515,11 @@ function ActiveSession({ sessionId, onBack }: { sessionId: string; onBack: () =>
                 return copy
               })
             } else if (event.type === 'done') {
-              streamScore = event.score
-              if (streamScore != null) setLiveScore((prev) => prev + streamScore)
+              const score = event.score
+              if (typeof score === 'number') {
+                streamScore = score
+                setLiveScore((prev) => prev + score)
+              }
             } else if (event.type === 'error') {
               throw new Error(event.error || 'Stream error')
             }
@@ -688,7 +691,7 @@ function ActiveSession({ sessionId, onBack }: { sessionId: string; onBack: () =>
                     {msg.role === 'ai' ? (
                       <Avatar className="h-8 w-8 shrink-0 mt-1">
                         <AvatarFallback className="bg-hydra-purple/20 text-hydra-purple border border-hydra-purple/30">
-                          <Swords className="h-4 w-4" />
+                          <Mic className="h-4 w-4" />
                         </AvatarFallback>
                       </Avatar>
                     ) : (
@@ -728,7 +731,7 @@ function ActiveSession({ sessionId, onBack }: { sessionId: string; onBack: () =>
                 >
                   <Avatar className="h-8 w-8 shrink-0 mt-1">
                     <AvatarFallback className="bg-hydra-purple/20 text-hydra-purple border border-hydra-purple/30">
-                      <Swords className="h-4 w-4" />
+                      <Mic className="h-4 w-4" />
                     </AvatarFallback>
                   </Avatar>
                   <div className="bg-hydra-surface-2 border border-hydra-border rounded-xl px-4 py-3">
@@ -828,7 +831,7 @@ function ActiveSession({ sessionId, onBack }: { sessionId: string; onBack: () =>
                           <motion.div
                             initial={{ width: 0 }}
                             animate={{ width: `${(liveScore / 40) * 100}%` }}
-                            transition={{ duration: 0.6, delay: 0.1, ease: 'easeOut' }}
+                            transition={{ duration: 0.6, delay: 0.1, ease: 'easeOut' as const }}
                             className={`h-full rounded-full ${
                               liveScore >= 28 ? 'bg-hydra-green' : liveScore >= 16 ? 'bg-hydra-yellow' : 'bg-hydra-red'
                             }`}
@@ -853,7 +856,7 @@ function ActiveSession({ sessionId, onBack }: { sessionId: string; onBack: () =>
                             <motion.div
                               initial={{ width: 0 }}
                               animate={{ width: `${pct}%` }}
-                              transition={{ duration: 0.6, delay: 0.1, ease: 'easeOut' }}
+                              transition={{ duration: 0.6, delay: 0.1, ease: 'easeOut' as const }}
                               className={`h-full rounded-full ${
                                 pct >= 70 ? 'bg-hydra-green' : pct >= 40 ? 'bg-hydra-yellow' : 'bg-hydra-red'
                               }`}
@@ -926,7 +929,7 @@ function ActiveSession({ sessionId, onBack }: { sessionId: string; onBack: () =>
             disabled={ending || messages.length === 0}
             className="border-hydra-red/30 text-hydra-red hover:bg-hydra-red/10 hover:text-hydra-red gap-1.5 text-xs"
           >
-            {ending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Swords className="h-3 w-3" />}
+            {ending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Mic className="h-3 w-3" />}
             End
           </Button>
         )}

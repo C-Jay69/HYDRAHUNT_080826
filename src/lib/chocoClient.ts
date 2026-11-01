@@ -62,6 +62,7 @@ export interface NormalizedJob {
   externalId?: string
   title?: string
   url?: string
+  jobUrl?: string
   company?: string
   companyUrl?: string
   location?: string
@@ -124,6 +125,7 @@ export function normalizeJob(raw: Record<string, unknown>): NormalizedJob {
       toStr(raw.job_id) || toStr(raw.id) || toStr(raw.slug) || undefined,
     title: toStr(raw.title),
     url: toStr(raw.url),
+    jobUrl: toStr(raw.url) || toStr(raw.job_url),
     company: toStr(raw.company),
     companyUrl: toStr(raw.company_url) || toStr(raw.companyUrl),
     location: toStr(raw.location),

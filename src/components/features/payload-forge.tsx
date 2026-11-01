@@ -29,6 +29,7 @@ import {
 } from '@/components/ui/select'
 import { Label } from '@/components/ui/label'
 import { useAppStore } from '@/store/app-store'
+import { computeResumeAtsScore } from '@/lib/ats'
 import ReactMarkdown from 'react-markdown'
 
 interface Resume {
@@ -36,9 +37,10 @@ interface Resume {
   title: string
   atsScore: number | null
   isDefault: boolean
+  sections?: { type: string; content: string }[]
 }
 
-const TONES = ['Confident', 'Professional', 'Casual', 'Aggressive'] as const
+const TONES = ['Confident', 'Professional', 'Casual', 'Bold'] as const
 
 type Tone = (typeof TONES)[number]
 
@@ -78,7 +80,7 @@ const container = {
 
 const item = {
   hidden: { opacity: 0, y: 16 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.4, ease: 'easeOut' } },
+  show: { opacity: 1, y: 0, transition: { duration: 0.4, ease: 'easeOut' as const } },
 }
 
 function StreamingCursor() {
@@ -280,7 +282,7 @@ export default function PayloadForge() {
            setOutputs((prev) => ({
              ...prev,
              summary:
-               '**No payload content was generated.** The AI model returned an empty or safety-restricted response.\n\nMake sure a resume is selected and a valid job description is provided, then try again. If it keeps failing, switch to a reliable model (e.g. `deepseek/deepseek-chat`) instead of the `openrouter/free` pool in `.env`.',
+               '**No kit content was generated.** The AI model returned an empty or safety-restricted response.\n\nMake sure a resume is selected and a valid job description is provided, then try again. If it keeps failing, switch to a reliable model (e.g. `deepseek/deepseek-chat`) instead of the `openrouter/free` pool in `.env`.',
            }))
          }
        } catch (err: unknown) {
@@ -288,7 +290,7 @@ export default function PayloadForge() {
       // On error, show a message in the summary tab
       setOutputs((prev) => ({
         ...prev,
-        summary: '**Error generating payload.** Please check your inputs and try again.\n\nMake sure you have a resume selected and a valid job description.',
+        summary: '**Error building your kit.** Please check your inputs and try again.\n\nMake sure you have a resume selected and a valid job description.',
       }))
     } finally {
       setIsGenerating(false)
@@ -308,7 +310,7 @@ export default function PayloadForge() {
       <motion.div variants={item}>
         <h1 className="text-2xl font-bold text-foreground">
           <Zap className="inline-block size-6 mr-2 text-hydra-purple" />
-          AI Payload Forge
+          Tailor
         </h1>
         <p className="text-hydra-muted mt-1 text-sm">
           Generate tailored application materials with AI precision.
@@ -323,7 +325,7 @@ export default function PayloadForge() {
             <CardHeader className="pb-4">
               <CardTitle className="text-base font-semibold flex items-center gap-2">
                 <Target className="size-4 text-hydra-cyan" />
-                Target Configuration
+                Job Details
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-5">
@@ -358,7 +360,7 @@ export default function PayloadForge() {
 
               {/* Resume Select */}
               <div className="space-y-2">
-                <Label className="text-sm font-medium">Target Resume</Label>
+                <Label className="text-sm font-medium">Resume</Label>
                 <Select value={selectedResumeId} onValueChange={setSelectedResumeId} disabled={!!resumeError}>
                   <SelectTrigger className="w-full bg-hydra-surface border-hydra-border text-foreground focus:ring-hydra-purple/40">
                     <SelectValue placeholder={resumesLoaded && resumes.length === 0 ? 'No resumes found' : 'Select a resume...'} />
@@ -374,7 +376,7 @@ export default function PayloadForge() {
                               Default
                             </Badge>
                           )}
-                          <span className="text-xs text-hydra-muted ml-auto">{resume.atsScore != null ? `${resume.atsScore}%` : '—'}</span>
+                          <span className="text-xs text-hydra-muted ml-auto">{resume.atsScore != null ? `${resume.atsScore}%` : `${computeResumeAtsScore(resume.sections ?? [])}%`}</span>
                         </div>
                       </SelectItem>
                     ))}
@@ -413,12 +415,12 @@ export default function PayloadForge() {
                 {isGenerating ? (
                   <>
                     <Loader2 className="size-4 mr-2 animate-spin" />
-                    <span className="pulse-glow">Deploying payload...</span>
+                    <span className="pulse-glow">Building your kit...</span>
                   </>
                 ) : (
                   <>
                     <Zap className="size-4 mr-2" />
-                    Generate Payload
+                    Build Application Kit
                   </>
                 )}
               </Button>
@@ -433,7 +435,7 @@ export default function PayloadForge() {
               <CardTitle className="text-base font-semibold flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Sparkles className="size-4 text-hydra-purple" />
-                  Generated Payload
+                  Your Application Kit
                 </div>
                 {hasGenerated && (
                   <CopyButton text={outputs[activeTab]} />
@@ -448,10 +450,10 @@ export default function PayloadForge() {
                     <Target className="size-10 text-hydra-purple/50" />
                   </div>
                   <p className="text-hydra-muted text-sm font-medium">
-                    Generate a payload to see results
+                    Build a kit to see results
                   </p>
                   <p className="text-hydra-muted/60 text-xs mt-1">
-                    Fill in the target configuration and hit deploy.
+                    Fill in the job details and build your kit.
                   </p>
                 </div>
               ) : (

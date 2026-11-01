@@ -9,10 +9,11 @@ export async function extractTextFromBuffer(buffer: Buffer, ext: string): Promis
       const uint8Array = new Uint8Array(buffer);
       const result = await extractText(uint8Array, { mergePages: true });
       
-      const parsedText = typeof result.text === 'string' 
-        ? result.text 
-        : Array.isArray(result.text) 
-        ? result.text.join('\n') 
+      const rawText = (result as { text?: string | string[] }).text;
+      const parsedText = Array.isArray(rawText)
+        ? rawText.join('\n')
+        : typeof rawText === 'string'
+        ? rawText
         : '';
 
       return parsedText.trim();
