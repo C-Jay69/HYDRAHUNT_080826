@@ -117,9 +117,9 @@ export const activityLogCreateSchema = z.object({
 export const scrapeJobsSchema = z.object({
   keywords: z.string().trim().min(1, 'Keywords are required').max(200),
   location: z.string().trim().max(200).optional(),
-  pages: z.number().int().min(1).max(5).default(3),
+  pages: z.number().int().min(1).max(10).default(3),
   source: z
-    .enum(['linkedin', 'weworkremotely', 'remoteok', 'remotive', 'dice', 'indeed', 'glassdoor', 'zip_recruiter', 'google'])
+    .enum(['all', 'linkedin', 'weworkremotely', 'remoteok', 'remotive', 'dice', 'indeed', 'glassdoor', 'zip_recruiter', 'google'])
     .default('linkedin'),
 })
 

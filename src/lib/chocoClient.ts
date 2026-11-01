@@ -22,7 +22,7 @@
  * Free-tier guardrails:
  *  - `pages` is clamped to a small default to stay within the 1000 req/day
  *    quota (10 results/page × ~50 pages still leaves headroom).
- *  - Callers should use `chocoRateLimit` before each request to avoid 429s
+ *  - Callers should use `waitForChocoRateLimit` before each request to avoid 429s
  *    and conserve quota.
  */
 
@@ -123,10 +123,10 @@ export function normalizeJob(raw: Record<string, unknown>): NormalizedJob {
     position: typeof raw.position === 'number' ? raw.position : undefined,
     externalId:
       toStr(raw.job_id) || toStr(raw.id) || toStr(raw.slug) || undefined,
-    title: toStr(raw.title),
-    url: toStr(raw.url),
-    jobUrl: toStr(raw.url) || toStr(raw.job_url),
-    company: toStr(raw.company),
+    title: toStr(raw.title) || toStr(raw.job_title),
+    url: toStr(raw.url) || toStr(raw.job_url) || toStr(raw.jobUrl),
+    jobUrl: toStr(raw.url) || toStr(raw.job_url) || toStr(raw.jobUrl) || toStr(raw.apply_url),
+    company: toStr(raw.company) || toStr(raw.company_name),
     companyUrl: toStr(raw.company_url) || toStr(raw.companyUrl),
     location: toStr(raw.location),
     postedDate: toStr(raw.posted_date) || toStr(raw.date_posted),
@@ -168,6 +168,7 @@ export async function fetchChocoJobs(
       headers: chocoHeaders(),
       cache: 'no-store',
       next: { revalidate: 0 },
+      signal: AbortSignal.timeout(60_000),
     },
   )
 
@@ -181,23 +182,25 @@ export async function fetchChocoJobs(
   return (await res.json()) as ChocoSearchResponse
 }
 
-/**
- * Minimal sliding-window rate limiter for ChocoData to avoid exhausting the
- * 1000 req/day free tier too fast. `CHOCODATA_RATE_LIMIT_RPM` defaults to 10.
- * Keyed per userId so concurrent users don't share a bucket.
- */
-const chocoBuckets = new Map<string, { count: number; resetAt: number }>()
-
-export function chocoRateLimit(key = 'global'): boolean {
-  const limit = Number(process.env.CHOCODATA_RATE_LIMIT_RPM || '10')
-  const windowMs = 60_000
-  const now = Date.now()
-  const bucket = chocoBuckets.get(key)
-  if (!bucket || bucket.resetAt <= now) {
-    chocoBuckets.set(key, { count: 1, resetAt: now + windowMs })
-    return true
+/** Process-wide quota guard shared by users of the same ChocoData key. */
+const chocoRequests: number[] = []
+export async function waitForChocoRateLimit(signal?: AbortSignal): Promise<void> {
+  const configured = Number(process.env.CHOCODATA_RATE_LIMIT_RPM || '10')
+  const limit = Number.isFinite(configured) && configured >= 1 ? Math.floor(configured) : 10
+  while (true) {
+    signal?.throwIfAborted()
+    const now = Date.now()
+    while (chocoRequests.length && chocoRequests[0] <= now - 60_000) chocoRequests.shift()
+    if (chocoRequests.length < limit) {
+      chocoRequests.push(now)
+      return
+    }
+    const delay = chocoRequests[0] + 60_000 - now
+    await new Promise<void>((resolve, reject) => {
+      const timer = setTimeout(() => { signal?.removeEventListener('abort', abort); resolve() }, delay)
+      const abort = () => { clearTimeout(timer); reject(signal?.reason) }
+      signal?.addEventListener('abort', abort, { once: true })
+      if (signal?.aborted) abort()
+    })
   }
-  if (bucket.count >= limit) return false
-  bucket.count += 1
-  return true
 }

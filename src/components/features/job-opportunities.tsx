@@ -12,7 +12,6 @@ import {
   Send,
   Check,
   Calendar,
-  AlertCircle,
   RefreshCw,
   Trash2,
 } from 'lucide-react'
@@ -42,7 +41,7 @@ import {
 import { useAppStore } from '@/store/app-store'
 import { cn } from '@/lib/utils'
 
-type JobSource = 'linkedin' | 'weworkremotely' | 'remoteok' | 'remotive' | 'dice' | 'indeed' | 'glassdoor' | 'zip_recruiter' | 'google'
+type JobSource = 'all' | 'linkedin' | 'weworkremotely' | 'remoteok' | 'remotive' | 'dice' | 'indeed' | 'glassdoor' | 'zip_recruiter' | 'google'
 
 /** True when a search location string is remote-flavored (Remote, Anywhere, Worldwide…). */
 function isRemoteSearch(location: string | undefined | null): boolean {
@@ -88,6 +87,7 @@ interface ScrapeEvent {
   totalFound?: number
   jobs?: JobOpportunity[]
   requestCount?: number
+  warnings?: string[]
   error?: string
 }
 
@@ -307,8 +307,8 @@ export default function JobOpportunities() {
   const [loading, setLoading] = useState(true)
   const [scrapeKeyword, setScrapeKeyword] = useState('software engineer')
   const [scrapeLocation, setScrapeLocation] = useState('')
-  const [scrapePages, setScrapePages] = useState(2)
-  const [scrapeSource, setScrapeSource] = useState<JobSource>('linkedin')
+  const [scrapePages, setScrapePages] = useState(3)
+  const [scrapeSource, setScrapeSource] = useState<JobSource>('all')
   const [scraping, setScraping] = useState(false)
   const [scrapeProgress, setScrapeProgress] = useState<{
     page: number
@@ -348,15 +348,25 @@ export default function JobOpportunities() {
     fetchJobs()
   }, [])
 
-  const fetchJobs = useCallback(() => {
+  const fetchJobs = useCallback(async () => {
     setLoading(true)
-    fetch('/api/jobs')
-      .then((r) => r.json())
-      .then((data) => {
-        setJobs(Array.isArray(data) ? data : [])
-      })
-      .catch(() => setJobs([]))
-      .finally(() => setLoading(false))
+    try {
+      const all: JobOpportunity[] = []
+      let cursor: string | undefined
+      do {
+        const response = await fetch(`/api/jobs${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ''}`)
+        if (!response.ok) throw new Error('Could not load saved jobs')
+        const batch: JobOpportunity[] = await response.json()
+        all.push(...batch)
+        cursor = batch.length === 100 ? batch[batch.length - 1].id : undefined
+      } while (cursor)
+      setJobs(all)
+    } catch (error) {
+      console.error(error)
+      setScrapeProgress((prev) => ({ page: prev?.page ?? 0, pages: prev?.pages ?? 0, found: prev?.found ?? 0, totalFound: prev?.totalFound ?? 0, error: 'Could not load saved jobs. Please try again.' }))
+    } finally {
+      setLoading(false)
+    }
   }, [])
 
   const startScrape = useCallback(() => {
@@ -365,6 +375,7 @@ export default function JobOpportunities() {
     setScraping(true)
     setScrapeProgress(null)
     setApplyResult(null)
+    setJobs([])
 
      const params = new URLSearchParams({
       keywords: scrapeKeyword.trim(),
@@ -388,6 +399,7 @@ export default function JobOpportunities() {
         }))
         setScraping(false)
         evt.close()
+        if ((payload.totalFound ?? 0) > 0) fetchJobs()
         return
       }
 
@@ -398,16 +410,17 @@ export default function JobOpportunities() {
           source: (payload.source as JobSource) || scrapeSource,
           found: payload.found ?? 0,
           totalFound: payload.totalFound ?? 0,
+          error: payload.warnings?.length ? `Some sources were incomplete: ${payload.warnings.join('; ')}` : undefined,
         })
         setScraping(false)
         evt.close()
-        // Use the jobs returned from the scrape (payload.jobs) instead of re-fetching all historical jobs
-        if (payload.jobs && payload.jobs.length > 0) {
-          setJobs(payload.jobs)
-        } else {
-          fetchJobs()
-        }
+        // The stream contains persisted records with real IDs, including for existing jobs.
+        setJobs(payload.jobs ?? [])
         return
+      }
+
+      if (payload.type === 'page' && payload.jobs?.length) {
+        setJobs((previous) => [...previous, ...payload.jobs!])
       }
 
       if (
@@ -420,6 +433,7 @@ export default function JobOpportunities() {
           pages: payload.pages ?? 0,
           found: payload.found ?? 0,
           totalFound: payload.totalFound ?? 0,
+          source: payload.source,
           error: payload.error,
         })
       }
@@ -428,8 +442,8 @@ export default function JobOpportunities() {
     evt.onerror = () => {
       setScraping(false)
       evt.close()
-      // Only fetch if we don't have current scrape results
-      if (jobs.length === 0) fetchJobs()
+      setScrapeProgress((prev) => ({ page: prev?.page ?? 0, pages: prev?.pages ?? 0, found: prev?.found ?? 0, totalFound: prev?.totalFound ?? 0, error: 'Connection lost. Saved results have been reloaded.' }))
+      fetchJobs()
     }
   }, [scrapeKeyword, scrapeLocation, scrapePages, scrapeSource, scraping, fetchJobs])
 
@@ -561,13 +575,13 @@ export default function JobOpportunities() {
                 />
               </div>
               <div className="space-y-2">
-                <Label className="text-xs text-muted-foreground">Pages</Label>
+                <Label className="text-xs text-muted-foreground">Search depth (pages)</Label>
                 <Input
                   type="number"
                   min={1}
-                  max={5}
+                  max={10}
                   value={scrapePages}
-                  onChange={(e) => setScrapePages(Math.min(5, Math.max(1, Number(e.target.value) || 1)))}
+                  onChange={(e) => setScrapePages(Math.min(10, Math.max(1, Number(e.target.value) || 1)))}
                   className="border-hydra-border bg-hydra-surface"
                 />
               </div>
@@ -578,6 +592,7 @@ export default function JobOpportunities() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent className="border-hydra-border bg-hydra-surface">
+                    <SelectItem value="all">Broad search (4 sources)</SelectItem>
                     <SelectItem value="linkedin">LinkedIn (ChocoData)</SelectItem>
                     <SelectItem value="indeed">Indeed (JobSpy)</SelectItem>
                     <SelectItem value="glassdoor">Glassdoor (JobSpy)</SelectItem>
@@ -608,21 +623,11 @@ export default function JobOpportunities() {
                     </>
                   )}
                 </Button>
-                {scraping && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      setScraping(false)
-                    }}
-                    className="h-9 px-2"
-                  >
-                    <AlertCircle className="h-3 w-3" />
-                  </Button>
-                )}
+
               </div>
             </div>
 
+            <p className="text-xs text-muted-foreground">Broad search checks LinkedIn, Indeed, ZipRecruiter and Google Jobs. Depth is up to 10 pages for ChocoData or 25 results per depth level (up to 100) for JobSpy. More depth takes longer and uses more provider requests; availability varies by board.</p>
             {/* Scrape Progress */}
             {scrapeProgress && (
               <div className="flex items-center justify-between rounded-md border border-hydra-border bg-hydra-surface p-2.5 text-sm">
@@ -631,14 +636,14 @@ export default function JobOpportunities() {
                     className={cn('h-4 w-4 text-hydra-cyan', scraping && 'animate-spin')}
                   />
                   <span>
-                    Page {scrapeProgress.page}/{scrapeProgress.pages} ·{' '}
+                    {scrapeProgress.source && `${scrapeProgress.source} · `}Page {scrapeProgress.page}/{scrapeProgress.pages} ·{' '}
                     {scrapeProgress.totalFound} jobs found
                   </span>
                   {scrapeProgress.error && (
                     <span className="text-hydra-red">{scrapeProgress.error}</span>
                   )}
                 </div>
-                {!scraping && scrapeProgress.totalFound > 0 && (
+                {!scraping && (
                   <Button
                     variant="ghost"
                     size="sm"
@@ -667,7 +672,7 @@ export default function JobOpportunities() {
               <Search className="mx-auto h-8 w-8" />
             </div>
             <p className="mt-3 text-sm text-muted-foreground">
-              No opportunities scraped yet. Run a harvest above.
+              {scraping ? 'Searching for opportunities…' : scrapeProgress ? 'No opportunities found in this search. Try a broader keyword or another location.' : 'No opportunities scraped yet. Run a harvest above.'}
             </p>
           </div>
         ) : (

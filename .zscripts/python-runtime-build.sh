@@ -117,4 +117,11 @@ if has_python_sources; then
     ) | tar -C "$NEXT_DIST_DIR" -xf -
 fi
 
+# JobSpy is a Python mini-service, not a Node mini-service; package its entrypoint
+# explicitly rather than copying unrelated mini-services or their virtualenvs.
+if [ -f "$PROJECT_DIR/mini-services/jobspy-svc/app.py" ]; then
+    mkdir -p "$NEXT_DIST_DIR/mini-services/jobspy-svc"
+    cp "$PROJECT_DIR/mini-services/jobspy-svc/app.py" "$NEXT_DIST_DIR/mini-services/jobspy-svc/app.py"
+fi
+
 echo "✅ Python runtime 已固化到部署产物"

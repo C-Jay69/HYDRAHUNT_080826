@@ -56,3 +56,7 @@ server.log
 BRIGHTDATA/
 mini-services/*/venv/
 __pypackages__/
+
+# Python bytecode
+__pycache__/
+*.py[cod]
