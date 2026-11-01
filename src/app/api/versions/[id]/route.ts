@@ -101,3 +101,31 @@ export async function PUT(
     return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 })
   }
 }
+
+// DELETE /api/versions/[id] — permanently remove a saved snapshot
+export async function DELETE(
+  _request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  try {
+    const user = await requireUser()
+    const { id } = await params
+
+    const version = await db.resumeVersion.findFirst({
+      where: { id, resume: { userId: user.id } },
+      select: { id: true },
+    })
+
+    if (!version) {
+      return NextResponse.json({ success: false, error: 'Version not found' }, { status: 404 })
+    }
+
+    await db.resumeVersion.delete({ where: { id } })
+
+    return NextResponse.json({ success: true })
+  } catch (error) {
+    if (error instanceof NextResponse) return error
+    console.error('Delete version error:', error)
+    return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 })
+  }
+}

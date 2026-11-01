@@ -13,6 +13,7 @@ import {
   MessageSquare,
   Sparkles,
   Loader2,
+  Trash2,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -28,6 +29,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Label } from '@/components/ui/label'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { useAppStore } from '@/store/app-store'
 import { computeResumeAtsScore } from '@/lib/ats'
 import ReactMarkdown from 'react-markdown'
@@ -147,6 +149,9 @@ export default function PayloadForge() {
   const [resumes, setResumes] = useState<Resume[]>([])
   const [resumesLoaded, setResumesLoaded] = useState(false)
   const [resumeError, setResumeError] = useState<string | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<Resume | null>(null)
+  const [deleting, setDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
 
   const [outputs, setOutputs] = useState<Record<OutputTab, string>>({
     summary: '',
@@ -182,6 +187,30 @@ export default function PayloadForge() {
       })
       .finally(() => setResumesLoaded(true))
   }, [])
+
+  const handleDeleteResume = async () => {
+    if (!deleteTarget) return
+    setDeleting(true)
+    setDeleteError(null)
+    try {
+      const res = await fetch(`/api/resumes/${deleteTarget.id}`, { method: 'DELETE' })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data?.error || `Couldn't delete that resume (HTTP ${res.status}).`)
+      }
+      const nextResumes = resumes.filter((r) => r.id !== deleteTarget.id)
+      setResumes(nextResumes)
+      if (selectedResumeId === deleteTarget.id) {
+        const fallback = nextResumes.find((r) => r.isDefault) ?? nextResumes[0]
+        setSelectedResumeId(fallback?.id ?? '')
+      }
+      setDeleteTarget(null)
+    } catch (err) {
+      setDeleteError(err instanceof Error ? err.message : 'Failed to delete resume.')
+    } finally {
+      setDeleting(false)
+    }
+  }
 
   const canGenerate =
     jobDescription.trim().length > 0 &&
@@ -361,27 +390,50 @@ export default function PayloadForge() {
               {/* Resume Select */}
               <div className="space-y-2">
                 <Label className="text-sm font-medium">Resume</Label>
-                <Select value={selectedResumeId} onValueChange={setSelectedResumeId} disabled={!!resumeError}>
-                  <SelectTrigger className="w-full bg-hydra-surface border-hydra-border text-foreground focus:ring-hydra-purple/40">
-                    <SelectValue placeholder={resumesLoaded && resumes.length === 0 ? 'No resumes found' : 'Select a resume...'} />
-                  </SelectTrigger>
-                  <SelectContent className="bg-hydra-surface border-hydra-border">
-                    {resumes.map((resume) => (
-                      <SelectItem key={resume.id} value={resume.id} className="text-foreground focus:bg-hydra-purple/10 focus:text-hydra-purple">
-                        <div className="flex items-center gap-2">
-                          <FileText className="size-3.5 text-hydra-muted" />
-                          <span>{resume.title}</span>
-                          {resume.isDefault && (
-                            <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-hydra-cyan/30 text-hydra-cyan">
-                              Default
-                            </Badge>
-                          )}
-                          <span className="text-xs text-hydra-muted ml-auto">{resume.atsScore != null ? `${resume.atsScore}%` : `${computeResumeAtsScore(resume.sections ?? [])}%`}</span>
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <div className="flex items-center gap-2">
+                  <div className="flex-1 min-w-0">
+                    <Select value={selectedResumeId} onValueChange={setSelectedResumeId} disabled={!!resumeError}>
+                      <SelectTrigger className="w-full bg-hydra-surface border-hydra-border text-foreground focus:ring-hydra-purple/40">
+                        <SelectValue placeholder={resumesLoaded && resumes.length === 0 ? 'No resumes found' : 'Select a resume...'} />
+                      </SelectTrigger>
+                      <SelectContent className="bg-hydra-surface border-hydra-border">
+                        {resumes.map((resume) => (
+                          <SelectItem key={resume.id} value={resume.id} className="text-foreground focus:bg-hydra-purple/10 focus:text-hydra-purple">
+                            <div className="flex items-center gap-2">
+                              <FileText className="size-3.5 text-hydra-muted" />
+                              <span>{resume.title}</span>
+                              {resume.isDefault && (
+                                <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-hydra-cyan/30 text-hydra-cyan">
+                                  Default
+                                </Badge>
+                              )}
+                              <span className="text-xs text-hydra-muted ml-auto">{resume.atsScore != null ? `${resume.atsScore}%` : `${computeResumeAtsScore(resume.sections ?? [])}%`}</span>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  {selectedResumeId && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      title="Delete the selected resume"
+                      aria-label="Delete the selected resume"
+                      onClick={() => {
+                        const target = resumes.find((r) => r.id === selectedResumeId)
+                        if (target) {
+                          setDeleteError(null)
+                          setDeleteTarget(target)
+                        }
+                      }}
+                      className="shrink-0 text-hydra-muted hover:text-hydra-red hover:bg-hydra-red/10"
+                    >
+                      <Trash2 className="size-4" />
+                    </Button>
+                  )}
+                </div>
                 {resumeError && (
                   <p className="text-xs text-hydra-red">
                     {resumeError}
@@ -512,6 +564,32 @@ export default function PayloadForge() {
           </Card>
         </motion.div>
       </div>
+
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        onOpenChange={(open) => {
+          if (!open && !deleting) {
+            setDeleteTarget(null)
+            setDeleteError(null)
+          }
+        }}
+        title="Delete this resume?"
+        description={
+          <>
+            <span className="font-medium text-foreground">
+              {deleteTarget?.title}
+            </span>{' '}
+            and all of its saved versions and fit-check analyses will be
+            permanently deleted. This cannot be undone.
+            {deleteError && (
+              <span className="block mt-2 text-hydra-red">{deleteError}</span>
+            )}
+          </>
+        }
+        confirmLabel={deleting ? 'Deleting...' : 'Delete Resume'}
+        onConfirm={handleDeleteResume}
+        isPending={deleting}
+      />
     </motion.div>
   )
 }

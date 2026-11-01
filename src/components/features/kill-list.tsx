@@ -603,10 +603,9 @@ export default function KillList() {
     }),
   )
 
-  // Fetch targets from API
+  // Fetch targets from API. Loading starts as true and loadError as null, so
+  // there's no need to set either synchronously here.
   useEffect(() => {
-    setLoading(true)
-    setLoadError(null)
     fetch('/api/job-targets')
       .then(async (r) => {
         if (!r.ok) throw new Error(`HTTP ${r.status}`)

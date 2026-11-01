@@ -31,6 +31,7 @@ import {
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Switch } from '@/components/ui/switch'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import {
   Select,
   SelectContent,
@@ -321,6 +322,9 @@ export default function JobOpportunities() {
   const [previewJob, setPreviewJob] = useState<JobOpportunity | null>(null)
   const [resumes, setResumes] = useState<Resume[]>([])
   const [selectedResumeId, setSelectedResumeId] = useState<string>('')
+  const [deleteTarget, setDeleteTarget] = useState<Resume | null>(null)
+  const [deleting, setDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
   const [autoApply, setAutoApply] = useState(true)
   const [applyNotes, setApplyNotes] = useState('')
   const [applying, setApplying] = useState(false)
@@ -343,6 +347,30 @@ export default function JobOpportunities() {
       })
       .catch(() => setResumes([]))
   }, [])
+
+  const handleDeleteResume = async () => {
+    if (!deleteTarget) return
+    setDeleting(true)
+    setDeleteError(null)
+    try {
+      const res = await fetch(`/api/resumes/${deleteTarget.id}`, { method: 'DELETE' })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data?.error || `Couldn't delete that resume (HTTP ${res.status}).`)
+      }
+      const nextResumes = resumes.filter((r) => r.id !== deleteTarget.id)
+      setResumes(nextResumes)
+      if (selectedResumeId === deleteTarget.id) {
+        const fallback = nextResumes.find((r) => r.isDefault) ?? nextResumes[0]
+        setSelectedResumeId(fallback?.id ?? '')
+      }
+      setDeleteTarget(null)
+    } catch (err) {
+      setDeleteError(err instanceof Error ? err.message : 'Failed to delete resume.')
+    } finally {
+      setDeleting(false)
+    }
+  }
 
   useEffect(() => {
     fetchJobs()
@@ -770,18 +798,39 @@ export default function JobOpportunities() {
 
               <div className="space-y-2">
                 <Label className="text-xs text-muted-foreground">Resume</Label>
-                <select
-                  value={selectedResumeId}
-                  onChange={(e) => setSelectedResumeId(e.target.value)}
-                  className="w-full rounded-md border border-hydra-border bg-hydra-surface text-foreground"
-                >
-                  {resumes.map((r) => (
-                    <option key={r.id} value={r.id}>
-                      {r.title}
-                      {r.isDefault && ' (default)'}
-                    </option>
-                  ))}
-                </select>
+                <div className="flex items-center gap-2">
+                  <select
+                    value={selectedResumeId}
+                    onChange={(e) => setSelectedResumeId(e.target.value)}
+                    className="flex-1 min-w-0 w-full rounded-md border border-hydra-border bg-hydra-surface text-foreground"
+                  >
+                    {resumes.map((r) => (
+                      <option key={r.id} value={r.id}>
+                        {r.title}
+                        {r.isDefault && ' (default)'}
+                      </option>
+                    ))}
+                  </select>
+                  {selectedResumeId && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      title="Delete the selected resume"
+                      aria-label="Delete the selected resume"
+                      onClick={() => {
+                        const target = resumes.find((r) => r.id === selectedResumeId)
+                        if (target) {
+                          setDeleteError(null)
+                          setDeleteTarget(target)
+                        }
+                      }}
+                      className="shrink-0 text-muted-foreground hover:text-hydra-red hover:bg-hydra-red/10"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
               </div>
 
               <div className="space-y-2">
@@ -852,6 +901,32 @@ export default function JobOpportunities() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        onOpenChange={(open) => {
+          if (!open && !deleting) {
+            setDeleteTarget(null)
+            setDeleteError(null)
+          }
+        }}
+        title="Delete this resume?"
+        description={
+          <>
+            <span className="font-medium text-foreground">
+              {deleteTarget?.title}
+            </span>{' '}
+            and all of its saved versions and fit-check analyses will be
+            permanently deleted. This cannot be undone.
+            {deleteError && (
+              <span className="block mt-2 text-hydra-red">{deleteError}</span>
+            )}
+          </>
+        }
+        confirmLabel={deleting ? 'Deleting...' : 'Delete Resume'}
+        onConfirm={handleDeleteResume}
+        isPending={deleting}
+      />
     </motion.div>
   )
 }
