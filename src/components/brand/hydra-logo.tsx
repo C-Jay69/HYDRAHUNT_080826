@@ -52,3 +52,18 @@ export function HydraLogo({
     </span>
   )
 }
+
+/** Full supplied artwork for prominent placements, rather than the cropped mark. */
+export function HydraArtwork({ className, priority = false }: { className?: string; priority?: boolean }) {
+  return (
+    <Image
+      src="/LOGO.png"
+      alt="HydraHunt three-headed dragon logo"
+      width={1024}
+      height={1024}
+      sizes="(max-width: 640px) 256px, 320px"
+      priority={priority}
+      className={cn('h-auto w-full rounded-2xl object-contain', className)}
+    />
+  )
+}

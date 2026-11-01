@@ -26,7 +26,7 @@ import {
   CreditCard,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { HydraLogo, HydraMark } from '@/components/brand/hydra-logo'
+import { HydraArtwork, HydraLogo, HydraMark } from '@/components/brand/hydra-logo'
 import { useAppStore } from '@/store/app-store'
 
 /* ------------------------------------------------------------------ */
@@ -306,7 +306,7 @@ function HeroTerminal() {
       initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
       transition={{ duration: 0.8, delay: 0.4 }}
-      className="relative w-full max-w-lg mx-auto mt-10 lg:mt-0"
+      className="relative w-full max-w-lg mx-auto"
     >
       {/* Outer glow */}
       <div className="absolute -inset-1 rounded-xl bg-gradient-to-r from-hydra-purple/20 via-hydra-cyan/10 to-hydra-purple/20 blur-xl" />
@@ -418,14 +418,14 @@ export default function LandingPage() {
       {/*  NAV BAR                                                      */}
       {/* ============================================================ */}
       <header className="sticky top-0 z-50 w-full border-b border-hydra-border bg-hydra-dark/80 backdrop-blur-md">
-        <nav className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4 sm:px-6">
+        <nav className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
           {/* Logo */}
           <button
             onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
             className="flex items-center gap-2"
             aria-label="HydraHunt home"
           >
-            <HydraMark size={30} priority alt="" />
+            <HydraMark size={44} alt="" />
             <span className="text-xl font-bold tracking-tight gradient-text">HydraHunt</span>
           </button>
 
@@ -524,7 +524,7 @@ export default function LandingPage() {
           {/* Background radial glow */}
           <div className="pointer-events-none absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[600px] bg-hydra-purple/8 rounded-full blur-[120px]" />
 
-          <div className="relative mx-auto max-w-6xl px-4 sm:px-6 py-16 sm:py-24 lg:py-32">
+          <div className="relative mx-auto max-w-6xl px-4 sm:px-6 py-14 sm:py-20 lg:py-24">
             <div className="grid gap-10 lg:grid-cols-2 lg:gap-12 items-center">
               {/* Text side */}
               <motion.div
@@ -597,8 +597,19 @@ export default function LandingPage() {
                 </motion.button>
               </motion.div>
 
-              {/* Terminal graphic side */}
-              <HeroTerminal />
+              {/* Give the supplied artwork a focal point while keeping the workspace preview. */}
+              <div className="flex flex-col items-center gap-7">
+                <motion.div
+                  initial={{ opacity: 0, y: 16 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.7, delay: 0.2 }}
+                  className="relative w-64 max-w-full sm:w-80"
+                >
+                  <div aria-hidden="true" className="absolute -inset-2 rounded-3xl bg-gradient-to-br from-hydra-purple/30 to-hydra-cyan/20 blur-xl" />
+                  <HydraArtwork priority className="relative border border-white/20 shadow-2xl" />
+                </motion.div>
+                <HeroTerminal />
+              </div>
             </div>
           </div>
         </section>

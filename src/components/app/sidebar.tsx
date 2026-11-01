@@ -82,17 +82,17 @@ export default function Sidebar() {
       {/* Logo area */}
       <div
         className={cn(
-          'flex h-14 items-center border-b border-hydra-border',
+          'flex h-20 shrink-0 items-center border-b border-hydra-border',
           sidebarOpen ? 'px-4' : 'justify-center px-2'
         )}
       >
         {sidebarOpen ? (
           <HydraLogo
-            markSize={26}
-            wordmarkClassName="text-sm uppercase tracking-wider"
+            markSize={60}
+            wordmarkClassName="text-base uppercase tracking-wide"
           />
         ) : (
-          <HydraMark size={30} />
+          <HydraMark size={42} />
         )}
       </div>
 
