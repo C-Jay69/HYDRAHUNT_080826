@@ -179,24 +179,24 @@
    pre-blurred: they read as atmosphere instead of ghosted screenshots. */
 .scene-nebula {
   --scene-image: url('/backgrounds/nebula-b.webp');
-  --scene-scrim: radial-gradient(circle at 50% 42%, rgba(10, 6, 14, 0.55), rgba(5, 3, 9, 0.82) 55%, rgba(5, 3, 9, 0.95) 100%);
+  --scene-scrim: radial-gradient(circle at 50% 42%, rgba(10, 6, 14, 0.32), rgba(5, 3, 9, 0.66) 55%, rgba(5, 3, 9, 0.9) 100%);
 }
 
 .scene-circuit {
   --scene-image: url('/backgrounds/circuit-b.webp');
-  /* The source art has light bands; use a heavier veil. */
-  --scene-scrim: linear-gradient(180deg, rgba(10, 6, 14, 0.74), rgba(5, 3, 9, 0.93));
+  /* The source art has light bands; keep a firmer veil. */
+  --scene-scrim: linear-gradient(180deg, rgba(10, 6, 14, 0.5), rgba(5, 3, 9, 0.84));
 }
 
 .scene-blueprint {
   --scene-image: url('/backgrounds/blueprint-b.webp');
-  /* Bright photo collage — needs a stronger veil for legible copy. */
-  --scene-scrim: linear-gradient(180deg, rgba(10, 6, 14, 0.74), rgba(5, 3, 9, 0.92));
+  /* Bright photo collage — needs a firmer veil for legible copy. */
+  --scene-scrim: linear-gradient(180deg, rgba(10, 6, 14, 0.52), rgba(5, 3, 9, 0.82));
 }
 
 /* Workspace views sit behind dense UI — veil the artwork a little harder. */
 .scene-app {
-  --scene-scrim: linear-gradient(180deg, rgba(10, 6, 14, 0.78), rgba(5, 3, 9, 0.9));
+  --scene-scrim: linear-gradient(180deg, rgba(10, 6, 14, 0.62), rgba(5, 3, 9, 0.86));
 }
 
 @media (min-width: 768px) {
