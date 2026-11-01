@@ -20,6 +20,7 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { HydraLogo, HydraMark } from '@/components/brand/hydra-logo'
 
 interface NavItem {
   label: string
@@ -79,14 +80,19 @@ export default function Sidebar() {
       </button>
 
       {/* Logo area */}
-      <div className="flex h-14 items-center px-4 border-b border-hydra-border">
-        {sidebarOpen && (
-          <span className="text-sm font-bold tracking-wider gradient-text">
-            HYDRAHUNT
-          </span>
+      <div
+        className={cn(
+          'flex h-14 items-center border-b border-hydra-border',
+          sidebarOpen ? 'px-4' : 'justify-center px-2'
         )}
-        {!sidebarOpen && (
-          <span className="mx-auto text-xs font-bold text-hydra-purple">H</span>
+      >
+        {sidebarOpen ? (
+          <HydraLogo
+            markSize={26}
+            wordmarkClassName="text-sm uppercase tracking-wider"
+          />
+        ) : (
+          <HydraMark size={30} />
         )}
       </div>
 

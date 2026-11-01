@@ -26,6 +26,7 @@ import {
   CreditCard,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { HydraLogo, HydraMark } from '@/components/brand/hydra-logo'
 import { useAppStore } from '@/store/app-store'
 
 /* ------------------------------------------------------------------ */
@@ -412,7 +413,7 @@ export default function LandingPage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-hydra-dark bg-grid">
+    <div className="min-h-screen flex flex-col scene scene-nebula">
       {/* ============================================================ */}
       {/*  NAV BAR                                                      */}
       {/* ============================================================ */}
@@ -421,9 +422,11 @@ export default function LandingPage() {
           {/* Logo */}
           <button
             onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-            className="text-xl font-bold tracking-tight gradient-text"
+            className="flex items-center gap-2"
+            aria-label="HydraHunt home"
           >
-            HydraHunt
+            <HydraMark size={30} priority alt="" />
+            <span className="text-xl font-bold tracking-tight gradient-text">HydraHunt</span>
           </button>
 
           {/* Desktop links */}
@@ -835,7 +838,7 @@ export default function LandingPage() {
         <div className="mx-auto max-w-6xl px-4 sm:px-6 py-8 sm:py-10">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
             {/* Logo */}
-            <span className="text-lg font-bold gradient-text">HydraHunt</span>
+            <HydraLogo markSize={26} wordmarkClassName="text-lg" />
 
             {/* Links */}
             <nav className="flex items-center gap-6" aria-label="Footer navigation">

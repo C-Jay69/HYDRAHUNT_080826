@@ -25,6 +25,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { useAppStore } from '@/store/app-store'
+import { HydraMark } from '@/components/brand/hydra-logo'
 import { toast } from '@/hooks/use-toast'
 
 interface PlanFeature {
@@ -316,7 +317,8 @@ export default function PricingPage() {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="min-h-screen scene scene-blueprint">
+      <div className="mx-auto max-w-6xl space-y-8 px-4 py-8 sm:px-6 sm:py-12">
       {/* Back to dashboard */}
       <div className="flex items-center justify-between">
         <Button
@@ -336,6 +338,9 @@ export default function PricingPage() {
         animate={{ opacity: 1, y: 0 }}
         className="text-center"
       >
+        <div className="mb-3 flex justify-center">
+          <HydraMark size={44} priority />
+        </div>
         <h1 className="text-2xl font-bold text-foreground mb-2">Choose Your Weapon</h1>
         <p className="text-sm text-hydra-muted max-w-lg mx-auto">
           Select the plan that matches your pace. Upgrade or downgrade at any time.
@@ -423,6 +428,7 @@ export default function PricingPage() {
         <p>All plans include access to the A-List tracker and basic mock interviews.</p>
         <p className="mt-1">Cancel anytime. No questions asked.</p>
       </motion.div>
+      </div>
     </div>
   )
 }

@@ -161,6 +161,50 @@
   background-size: 40px 40px;
 }
 
+/* Scene backgrounds — layered photographic backdrops with a readability scrim.
+   Set --scene-image via a modifier class; the scrim keeps text contrast high. */
+.scene {
+  background-color: #0a060e;
+  background-image:
+    var(--scene-scrim, linear-gradient(180deg, rgba(10, 6, 14, 0.62), rgba(5, 3, 9, 0.88))),
+    linear-gradient(rgba(177, 84, 248, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(177, 84, 248, 0.03) 1px, transparent 1px),
+    var(--scene-image, none);
+  background-size: auto, 40px 40px, 40px 40px, cover;
+  background-position: center, 0 0, 0 0, center;
+  background-repeat: no-repeat, repeat, repeat, no-repeat;
+}
+
+/* The supplied artwork contains baked-in UI detail, so the -b variants are
+   pre-blurred: they read as atmosphere instead of ghosted screenshots. */
+.scene-nebula {
+  --scene-image: url('/backgrounds/nebula-b.webp');
+  --scene-scrim: radial-gradient(circle at 50% 42%, rgba(10, 6, 14, 0.55), rgba(5, 3, 9, 0.82) 55%, rgba(5, 3, 9, 0.95) 100%);
+}
+
+.scene-circuit {
+  --scene-image: url('/backgrounds/circuit-b.webp');
+  /* The source art has light bands; use a heavier veil. */
+  --scene-scrim: linear-gradient(180deg, rgba(10, 6, 14, 0.74), rgba(5, 3, 9, 0.93));
+}
+
+.scene-blueprint {
+  --scene-image: url('/backgrounds/blueprint-b.webp');
+  /* Bright photo collage — needs a stronger veil for legible copy. */
+  --scene-scrim: linear-gradient(180deg, rgba(10, 6, 14, 0.74), rgba(5, 3, 9, 0.92));
+}
+
+/* Workspace views sit behind dense UI — veil the artwork a little harder. */
+.scene-app {
+  --scene-scrim: linear-gradient(180deg, rgba(10, 6, 14, 0.78), rgba(5, 3, 9, 0.9));
+}
+
+@media (min-width: 768px) {
+  .scene {
+    background-attachment: fixed;
+  }
+}
+
 /* Pulse animation for status indicators */
 @keyframes pulse-glow {
   0%, 100% { opacity: 1; box-shadow: 0 0 4px currentColor; }

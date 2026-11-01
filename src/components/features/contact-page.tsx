@@ -17,6 +17,7 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
+import { HydraMark } from '@/components/brand/hydra-logo'
 import {
   Select,
   SelectContent,
@@ -89,7 +90,7 @@ export default function ContactPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 py-12 bg-grid">
+    <div className="min-h-screen flex items-center justify-center px-4 py-12 scene scene-circuit">
       <motion.div
         className="w-full max-w-4xl"
         initial="hidden"
@@ -98,6 +99,9 @@ export default function ContactPage() {
       >
         {/* Header */}
         <motion.div className="text-center mb-10" variants={fadeUp}>
+          <div className="mb-4 flex justify-center">
+            <HydraMark size={44} priority />
+          </div>
           <div className="flex items-center justify-center gap-2 mb-2">
             <Radio className="h-5 w-5 text-hydra-cyan" />
             <h1 className="text-3xl font-bold gradient-text">Get in Touch</h1>

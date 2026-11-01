@@ -3,6 +3,7 @@
 import { useState, type FormEvent } from 'react'
 import { motion } from 'framer-motion'
 import { Eye, EyeOff, Mail, Lock, User, Loader2 } from 'lucide-react'
+import { HydraMark } from '@/components/brand/hydra-logo'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -79,7 +80,7 @@ export default function SignupPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 py-12 bg-grid">
+    <div className="min-h-screen flex items-center justify-center px-4 py-12 scene scene-blueprint">
       <motion.div
         className="w-full max-w-md"
         initial="hidden"
@@ -88,6 +89,9 @@ export default function SignupPage() {
       >
         {/* Logo */}
         <motion.div className="text-center mb-8" variants={fadeUp}>
+          <div className="mb-3 flex justify-center">
+            <HydraMark size={56} priority />
+          </div>
           <h1 className="text-3xl font-bold gradient-text">HydraHunt</h1>
           <p className="text-sm text-muted-foreground mt-1">
             Create your profile

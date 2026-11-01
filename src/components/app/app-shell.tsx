@@ -2,12 +2,36 @@
 
 import Sidebar from './sidebar'
 import Header from './header'
-import { useAppStore } from '@/store/app-store'
+import { useAppStore, type AppView } from '@/store/app-store'
 import { cn } from '@/lib/utils'
 import { Menu } from 'lucide-react'
 
+/** Which backdrop artwork belongs to each workspace view. */
+const SCENE_BY_VIEW: Record<AppView, string> = {
+  landing: 'scene-nebula',
+  pricing: 'scene-blueprint',
+  login: 'scene-nebula',
+  signup: 'scene-blueprint',
+  contact: 'scene-circuit',
+  dashboard: 'scene-blueprint',
+  'kill-list': 'scene-blueprint',
+  'resume-forge': 'scene-circuit',
+  'resume-edit': 'scene-circuit',
+  'payload-forge': 'scene-circuit',
+  'interview-drills': 'scene-blueprint',
+  'interview-session': 'scene-blueprint',
+  analysis: 'scene-blueprint',
+  'version-vault': 'scene-blueprint',
+  'mission-log': 'scene-blueprint',
+  'career-map': 'scene-blueprint',
+  'job-opportunities': 'scene-blueprint',
+  settings: 'scene-blueprint',
+  billing: 'scene-blueprint',
+  admin: 'scene-circuit',
+}
+
 export default function AppShell({ children }: { children: React.ReactNode }) {
-  const { sidebarOpen, setSidebarOpen } = useAppStore()
+  const { sidebarOpen, setSidebarOpen, view } = useAppStore()
 
   return (
     <div className="flex h-screen w-full overflow-hidden bg-hydra-dark">
@@ -50,7 +74,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         </div>
 
         {/* Page content */}
-        <main className="flex-1 overflow-auto bg-grid">
+        <main className={cn('flex-1 overflow-auto scene scene-app', SCENE_BY_VIEW[view])}>
           <div className="p-4 md:p-6">{children}</div>
         </main>
       </div>

@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
+import { HydraMark } from '@/components/brand/hydra-logo'
 
 export const metadata: Metadata = {
   title: 'Privacy — HydraHunt',
@@ -64,11 +65,14 @@ const SECTIONS: { title: string; body: React.ReactNode }[] = [
 
 export default function PrivacyPage() {
   return (
-    <main className="min-h-screen bg-hydra-dark px-4 py-12 sm:px-6">
+    <main className="min-h-screen scene scene-blueprint px-4 py-12 sm:px-6">
       <div className="mx-auto max-w-2xl">
-        <Link href="/" className="text-sm text-hydra-purple hover:underline">
-          ← Back to HydraHunt
-        </Link>
+        <div className="flex items-center gap-3">
+          <HydraMark size={32} priority />
+          <Link href="/" className="text-sm text-hydra-purple hover:underline">
+            ← Back to HydraHunt
+          </Link>
+        </div>
         <h1 className="mt-6 text-3xl font-bold text-foreground">Privacy</h1>
         <p className="mt-2 text-sm text-hydra-muted">
           Last updated {new Date().getFullYear()}. This page explains what we collect, who processes it, and how

@@ -2,6 +2,7 @@
 
 import { useAppStore, type AppView } from '@/store/app-store'
 import { Input } from '@/components/ui/input'
+import { HydraMark } from '@/components/brand/hydra-logo'
 import { Bell } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -34,6 +35,9 @@ export default function Header() {
 
   return (
     <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b border-hydra-border bg-hydra-surface/80 px-6 backdrop-blur-sm">
+      {/* Brand mark — the sidebar is off-canvas on mobile */}
+      <HydraMark size={24} alt="" className="md:hidden" />
+
       {/* View title */}
       <h1 className="text-sm font-semibold tracking-wide text-foreground">
         {title}

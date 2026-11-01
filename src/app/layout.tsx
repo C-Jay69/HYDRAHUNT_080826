@@ -15,9 +15,6 @@ export const metadata: Metadata = {
     "interview prep",
     "cover letter AI",
   ],
-  icons: {
-    icon: "/logo.svg",
-  },
 };
 
 export default function RootLayout({
