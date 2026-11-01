@@ -13,7 +13,7 @@ Query params:
   site       — one JobSpy site or comma list:
                linkedin, indeed, glassdoor, zip_recruiter, google, naukri, bayt, bdjobs
                (default: indeed,glassdoor,zip_recruiter,google)
-  n          — results per site (default 10, max 50)
+  n          — results per site (default 10, max 100)
   hours_old  — optional recency filter (e.g. 24, 72, 168)
 
 Returns JSON:
@@ -125,14 +125,14 @@ def scrape_site(site: str, keywords: str, location: str | None, n: int, hours_ol
         kwargs: dict = {
             "site_name": site,
             "search_term": keywords,
-            "results_wanted": min(max(n, 1), 50),
+            "results_wanted": min(max(n, 1), 100),
             "verbose": 0,
         }
         if location:
             # Treat "Remote" (or any remote-flavored location) as a remote
             # filter rather than a city string — boards like Indeed/Glassdoor
             # expect is_remote and 400/0-result on location="Remote".
-            if "remote" in location.lower():
+            if any(term in location.lower() for term in ("remote", "anywhere", "worldwide", "work from home", "wfh", "global")):
                 kwargs["is_remote"] = True
             else:
                 kwargs["location"] = location
@@ -198,7 +198,11 @@ class Handler(BaseHTTPRequestHandler):
             self._send(400, {"success": False, "error": f"invalid site(s): {site_param}"})
             return
 
-        n = int(qs.get("n", ["10"])[0])
+        try:
+            n = min(max(int(qs.get("n", ["10"])[0]), 1), 100)
+        except ValueError:
+            self._send(400, {"success": False, "error": "n must be an integer"})
+            return
         try:
             hours_old = int(qs.get("hours_old", [None])[0]) if qs.get("hours_old", [None])[0] else None
         except (TypeError, ValueError):
@@ -239,7 +243,7 @@ class Handler(BaseHTTPRequestHandler):
 
 if __name__ == "__main__":
     port = int(sys.argv[1]) if len(sys.argv) > 1 else DEFAULT_PORT
-    server = ThreadingHTTPServer(("0.0.0.0", port), Handler)
+    server = ThreadingHTTPServer(("127.0.0.1", port), Handler)
     print(f"[jobspy-svc] listening on :{port}", file=sys.stderr)
     try:
         server.serve_forever()

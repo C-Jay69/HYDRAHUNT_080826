@@ -3,371 +3,186 @@ import { db } from '@/lib/db'
 import { requireUser } from '@/lib/auth'
 import { enforcePlanGate } from '@/lib/plans'
 import { scrapeJobsSchema } from '@/lib/validators'
-import {
-  fetchChocoJobs,
-  chocoRateLimit,
-  normalizeJob,
-  type JobSource,
-  type NormalizedJob,
-} from '@/lib/chocoClient'
+import { fetchChocoJobs, waitForChocoRateLimit, normalizeJob, type JobSource, type NormalizedJob } from '@/lib/chocoClient'
 
 const encoder = new TextEncoder()
-
-function sse(
-  controller: ReadableStreamDefaultController<Uint8Array>,
-  payload: unknown,
-) {
-  controller.enqueue(encoder.encode(`data: ${JSON.stringify(payload)}\n\n`))
-}
-
-/** Sources served by the JobSpy Python micro-service (ChocoData can't do these). */
-const JOBSPY_SOURCES: Record<string, true> = {
-  indeed: true,
-  glassdoor: true,
-  zip_recruiter: true,
-  google: true,
-}
-
 const JOBSPY_URL = process.env.JOBSPY_URL || 'http://127.0.0.1:3001/scrape'
+const JOBSPY_SOURCES = new Set(['indeed', 'glassdoor', 'zip_recruiter', 'google'])
+// A broad search without querying every niche/remote board or consuming excessive API quota.
+const BROAD_SOURCES = ['linkedin', 'indeed', 'zip_recruiter', 'google'] as const
 
-/** Turn a thrown fetch error from the JobSpy service into an actionable message. */
-function jobSpyError(err: unknown): string {
-  const cause = (err as { cause?: { code?: string } })?.cause
-  const code = cause?.code
-  const port = (() => {
-    try {
-      return new URL(JOBSPY_URL).port || '3001'
-    } catch {
-      return '3001'
-    }
-  })()
-  if (code === 'ECONNREFUSED') {
-    return `JobSpy service is not running on port ${port}. Start it with: npm run dev:services`
-  }
-  if (code === 'ECONNRESET' || code === 'UND_ERR_CONNECT_TIMEOUT' || code === 'ETIMEDOUT') {
-    return `JobSpy service on port ${port} did not respond (${code}). It may still be starting — try again in a moment.`
-  }
-  if (err instanceof Error && err.name === 'TimeoutError') {
-    return `JobSpy service on port ${port} timed out while scraping. Try fewer pages or try again.`
-  }
-  return err instanceof Error ? err.message : String(err)
-}
+type SavedJob = Awaited<ReturnType<typeof db.jobOpportunity.upsert>>
 
-/** Map a JobSpy service result to the canonical NormalizedJob shape. */
 function fromJobSpyJob(j: Record<string, unknown>): NormalizedJob {
-  const url = typeof j.jobUrl === 'string' ? j.jobUrl : typeof j.applyUrl === 'string' ? (j.applyUrl as string) : ''
-  const title = typeof j.title === 'string' ? j.title : ''
-  const company = typeof j.company === 'string' ? j.company : ''
-  // Synthesize a stable external id from the job URL or company:title.
-  const externalId = url ? `jobspy:${url}` : `jobspy:${company}:${title}`
+  const url = typeof j.jobUrl === 'string' && j.jobUrl.trim() ? j.jobUrl : typeof j.applyUrl === 'string' ? j.applyUrl : ''
   return {
-    externalId,
-    title: title || undefined,
-    company,
-    companyUrl: typeof j.companyUrl === 'string' ? j.companyUrl : undefined,
+    externalId: url ? `jobspy:${url}` : typeof j.company === 'string' && j.company.trim() && typeof j.title === 'string' && j.title.trim() ? `jobspy:${JSON.stringify([j.company.trim().toLowerCase(), j.title.trim().toLowerCase(), typeof j.location === 'string' ? j.location.trim().toLowerCase() : ''])}` : undefined,
+    title: typeof j.title === 'string' ? j.title : undefined,
+    company: typeof j.company === 'string' ? j.company : undefined,
     location: typeof j.location === 'string' ? j.location : undefined,
     jobUrl: url || undefined,
     postedDate: typeof j.postedDate === 'string' ? j.postedDate : undefined,
     postedLabel: typeof j.postedLabel === 'string' ? j.postedLabel : undefined,
-    salary: typeof j.salary === 'string' ? j.salary : j.salary == null ? null : undefined,
+    salary: typeof j.salary === 'string' ? j.salary : null,
     companyLogo: typeof j.companyLogo === 'string' ? j.companyLogo : undefined,
-    applyUrl: typeof j.applyUrl === 'string' ? j.applyUrl : url || undefined,
+    companyUrl: typeof j.companyUrl === 'string' ? j.companyUrl : undefined,
     raw: typeof j.raw === 'string' ? j.raw : JSON.stringify(j),
   }
 }
 
-/**
- * Persist (upsert) a normalized job for the current user. Shared by both the
- * ChocoData and JobSpy code paths so a single write path serves all sources.
- */
-async function upsertOpportunity(
-  user: { id: string },
-  job: NormalizedJob,
-): Promise<void> {
-  const extId = job.externalId || ''
-  try {
-    await db.jobOpportunity.upsert({
-      where: {
-        externalId_userId: { externalId: extId, userId: user.id },
-      },
-      update: {
-        title: job.title || '',
-        company: job.company || null,
-        companyUrl: job.companyUrl || null,
-        location: job.location || null,
-        jobUrl: job.jobUrl || null,
-        postedDate: job.postedDate || null,
-        postedLabel: job.postedLabel || null,
-        salary: job.salary || null,
-        companyLogo: job.companyLogo || null,
-        raw: job.raw || undefined,
-      },
-      create: {
-        userId: user.id,
-        externalId: extId || null,
-        title: job.title || '',
-        company: job.company || null,
-        companyUrl: job.companyUrl || null,
-        location: job.location || null,
-        jobUrl: job.jobUrl || null,
-        postedDate: job.postedDate || null,
-        postedLabel: job.postedLabel || null,
-        salary: job.salary || null,
-        companyLogo: job.companyLogo || null,
-        raw: job.raw || undefined,
-      },
-    })
-  } catch {
-    // unique-constraint miss or transient DB error; keep streaming
+async function upsertOpportunity(userId: string, job: NormalizedJob): Promise<SavedJob> {
+  const fields = {
+    title: job.title || '', company: job.company || null,
+    companyUrl: job.companyUrl || null, location: job.location || null,
+    jobUrl: job.jobUrl || null, postedDate: job.postedDate || null,
+    postedLabel: job.postedLabel || null, salary: job.salary || null,
+    companyLogo: job.companyLogo || null, raw: job.raw || null,
   }
+  // Reuse records found through another source without changing their ID or status.
+  if (job.jobUrl) {
+    const existing = await db.jobOpportunity.findFirst({ where: { userId, jobUrl: job.jobUrl } })
+    if (existing) return db.jobOpportunity.update({ where: { id: existing.id }, data: fields })
+  }
+  return db.jobOpportunity.upsert({
+    where: { externalId_userId: { externalId: job.externalId!, userId } },
+    update: fields,
+    create: { ...fields, externalId: job.externalId!, userId },
+  })
 }
 
-// GET /api/jobs/scrape?keywords=...&location=...&pages=3&source=linkedin
-// Streams ScrapingRun progress as SSE. Sources are split across two backends:
-//   - ChocoData (Node HTTP): linkedin, weworkremotely, remoteok, remotive, dice
-//   - JobSpy (Python service): indeed, glassdoor, zip_recruiter, google
+// GET /api/jobs/scrape — progress and saved jobs are streamed as SSE.
 export async function GET(request: NextRequest) {
-  const controller = new ReadableStream<Uint8Array>({
+  const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
-      let runId: string | null = null
+      let runId: string | undefined
+      let totalFound = 0
+      let requestCount = 0
+      let disconnected = false
+      const send = (payload: unknown) => {
+        if (!disconnected) {
+          try { controller.enqueue(encoder.encode(`data: ${JSON.stringify(payload)}\n\n`)) }
+          catch { disconnected = true }
+        }
+      }
+      // Keep proxies from timing out while a provider is scraping a large batch.
+      const heartbeat = setInterval(() => {
+        if (!disconnected) {
+          try { controller.enqueue(encoder.encode(': keep-alive\n\n')) }
+          catch { disconnected = true }
+        }
+      }, 15_000)
       try {
         const user = await requireUser()
-
         const sp = request.nextUrl.searchParams
-        const keywords = sp.get('keywords') || ''
-        const location = sp.get('location') || undefined
-        const pages = Math.min(Number(sp.get('pages') || 3), 5)
-        const source = (sp.get('source') || 'linkedin') as JobSource
-
-        const parseResult = scrapeJobsSchema.safeParse({
-          keywords,
-          location,
-          pages,
-          source,
+        const parsed = scrapeJobsSchema.safeParse({
+          keywords: sp.get('keywords') || '', location: sp.get('location') || undefined,
+          pages: Number(sp.get('pages') || 3), source: sp.get('source') || 'linkedin',
         })
-        if (!parseResult.success) {
-          sse(controller, {
-            type: 'error',
-            error:
-              parseResult.error.issues[0]?.message || 'Keywords are required',
-          })
-          controller.close()
-          return
-        }
-
-        const { keywords: kw, location: loc, pages: p } = parseResult.data
-
-        // Plan gate (admins bypass). Free tier gets a small scrape.
+        if (!parsed.success) throw new Error(parsed.error.issues[0]?.message || 'Invalid search')
+        const { keywords, location, pages, source } = parsed.data
         await enforcePlanGate(user.id, 'jobTargets')
-
-        const run = await db.scrapingRun.create({
-          data: {
-            userId: user.id,
-            keywords: kw,
-            location: loc || null,
-            pages: p,
-            status: 'active',
-          },
-        })
+        const run = await db.scrapingRun.create({ data: { userId: user.id, keywords, location: location || null, pages, status: 'active' } })
         runId = run.id
-
-        sse(controller, {
-          type: 'progress',
-          source,
-          page: 0,
-          pages: p,
-          found: 0,
-          totalFound: 0,
-        })
-
-        let totalFound = 0
-        let requestCount = 0
+        const sources: readonly string[] = source === 'all' ? BROAD_SOURCES : [source]
         const seen = new Set<string>()
-        const collected: NormalizedJob[] = []
+        const collected: SavedJob[] = []
+        const warnings: string[] = []
+        let successfulSources = 0
+        let saveFailures = 0
 
-        if (JOBSPY_SOURCES[source]) {
-          // ----------------------- JobSpy branch -----------------------
-          // JobSpy isn't paginated like ChocoData; treat `pages` as a result
-          // multiplier (pages * 25) and fetch a single batch per source.
-          const n = Math.min(p * 25, 100)
-          const url = new URL(JOBSPY_URL)
-          url.searchParams.set('keywords', kw)
-          if (loc) url.searchParams.set('location', loc)
-          url.searchParams.set('site', source)
-          url.searchParams.set('n', String(n))
-
-          sse(controller, {
-            type: 'progress',
-            source,
-            page: 1,
-            pages: p,
-            found: totalFound,
-            totalFound,
-          })
-
-          let data: { jobs?: unknown[]; errors?: string[] }
-          try {
-            const res = await fetch(url.toString(), {
-              method: 'GET',
-              headers: { Accept: 'application/json' },
-              // JobSpy can be slow (browser scraping under the hood).
-              signal: AbortSignal.timeout(90_000),
-            })
-            if (!res.ok) {
-              const body = (await res.text()).slice(0, 300)
-              throw new Error(`JobSpy (${source}) returned HTTP ${res.status}: ${body}`)
-            }
-            data = (await res.json()) as { jobs?: unknown[]; errors?: string[] }
-            requestCount += 1
-          } catch (err) {
-            const msg = jobSpyError(err)
-            sse(controller, { type: 'error', error: msg })
-            await db.scrapingRun.update({
-              where: { id: runId },
-              data: { status: 'failed', totalFound, requestCount },
-            })
-            controller.close()
-            return
-          }
-
-          const rawJobs = Array.isArray(data?.jobs) ? data.jobs : []
-          const pageResults: NormalizedJob[] = rawJobs
-            .map((j) => fromJobSpyJob(j as Record<string, unknown>))
-            .filter(Boolean)
-
-          for (const job of pageResults) {
-            const key = job.externalId || job.jobUrl
-            if (!key || seen.has(key)) continue
-            seen.add(key)
-            collected.push(job)
-            await upsertOpportunity(user, job)
-          }
-
-          totalFound = collected.length
-          sse(controller, {
-            type: 'page',
-            source,
-            page: 1,
-            pages: p,
-            found: totalFound,
-            totalFound,
-            jobs: pageResults,
-          })
-
-          // Per-site warnings (e.g. Glassdoor 400 on a fuzzy location) are
-          // non-fatal: surface them as a note, but don't abort the stream —
-          // other boards may still have returned jobs.
-          if (data?.errors?.length) {
-            sse(controller, {
-              type: 'progress',
-              source,
-              page: 1,
-              pages: p,
-              found: totalFound,
-              totalFound,
-              error: `JobSpy warnings: ${data.errors.join('; ')}`,
-            })
-          }
-        } else {
-          // ---------------------- ChocoData branch ----------------------
-          for (let page = 1; page <= p; page++) {
-            if (!chocoRateLimit(user.id)) {
-              await new Promise((r) => setTimeout(r, 1500))
-            }
-
-            sse(controller, {
-              type: 'progress',
-              source,
-              page,
-              pages: p,
-              found: totalFound,
-              totalFound,
-            })
-
-            let data
+        for (const board of sources) {
+          if (request.signal.aborted || disconnected) break
+          const isJobSpy = JOBSPY_SOURCES.has(board)
+          const pageCount = isJobSpy ? 1 : pages
+          let sourceSucceeded = false
+          for (let page = 1; page <= pageCount; page++) {
+            if (request.signal.aborted || disconnected) break
+            send({ type: 'progress', source: board, page, pages: pageCount, totalFound })
+            let jobs: NormalizedJob[]
+            let sourceErrors: string[] = []
             try {
-              data = await fetchChocoJobs(source, kw, loc, page, 10)
-              requestCount += 1
+              if (isJobSpy) {
+                const url = new URL(JOBSPY_URL)
+                url.searchParams.set('keywords', keywords)
+                if (location) url.searchParams.set('location', location)
+                url.searchParams.set('site', board)
+                url.searchParams.set('n', String(Math.min(pages * 25, 100)))
+                requestCount++
+                const res = await fetch(url, { headers: { Accept: 'application/json' }, signal: AbortSignal.any([request.signal, AbortSignal.timeout(180_000)]) })
+                if (!res.ok) throw new Error(`JobSpy returned HTTP ${res.status}`)
+                const data = await res.json() as { jobs?: unknown[]; errors?: string[]; success?: boolean; error?: string }
+                if (data.success === false) throw new Error(data.error || 'JobSpy request failed')
+                sourceErrors = Array.isArray(data.errors) ? data.errors : []
+                jobs = (Array.isArray(data.jobs) ? data.jobs : [])
+                  .filter((j): j is Record<string, unknown> => !!j && typeof j === 'object' && !Array.isArray(j))
+                  .map(fromJobSpyJob)
+                if (sourceErrors.length && jobs.length === 0) throw new Error(sourceErrors.join('; '))
+              } else {
+                await waitForChocoRateLimit(request.signal)
+                requestCount++
+                const data = await fetchChocoJobs(board as JobSource, keywords, location, page, 10)
+                jobs = (Array.isArray(data.results) ? data.results : [])
+                  .filter((j): j is Record<string, unknown> => !!j && typeof j === 'object' && !Array.isArray(j))
+                  .map((raw) => {
+                    const job = normalizeJob(raw)
+                    // Namespace source IDs to avoid collisions between different boards.
+                    job.externalId = job.externalId ? `${board}:${job.externalId}` : job.jobUrl ? `${board}:${job.jobUrl}` : undefined
+                    return job
+                  })
+              }
+              sourceSucceeded = true
             } catch (err) {
-              const msg = err instanceof Error ? err.message : String(err)
-              sse(controller, { type: 'error', error: msg })
-              await db.scrapingRun.update({
-                where: { id: runId },
-                data: { status: 'failed', totalFound, requestCount },
-              })
-              controller.close()
-              return
+              if (request.signal.aborted) break
+              warnings.push(`${board}: ${isJobSpy && err instanceof TypeError && err.message === 'fetch failed' ? 'JobSpy service is unreachable. Start it with npm run dev:services or check JOBSPY_URL.' : err instanceof Error ? err.message : String(err)}`)
+              break
             }
-
-            const pageResults: NormalizedJob[] = Array.isArray(data?.results)
-              ? (data.results as Record<string, unknown>[]).map((job) => {
-                  // Map url field to jobUrl for DB persistence
-                  job.jobUrl = job.url
-                  return job
-                })
-              : []
-
-            for (const job of pageResults) {
-              const key = job.externalId || job.jobUrl
-              if (!key || seen.has(key)) continue
-              seen.add(key)
-              collected.push(job)
-              await upsertOpportunity(user, job)
+            warnings.push(...sourceErrors.map((error) => `${board}: ${error}`))
+            const savedPage: SavedJob[] = []
+            for (const job of jobs) {
+              // Do not collapse unrelated jobs with missing IDs into a single record.
+              if (!job.externalId || !job.title) continue
+              const keys = [`id:${job.externalId}`, ...(job.jobUrl ? [`url:${job.jobUrl}`] : [])]
+              if (keys.some((key) => seen.has(key))) continue
+              keys.forEach((key) => seen.add(key))
+              try {
+                const saved = await upsertOpportunity(user.id, job)
+                collected.push(saved)
+                savedPage.push(saved)
+              } catch (err) {
+                saveFailures++
+                console.error('Failed to save job:', err)
+              }
             }
-
             totalFound = collected.length
-            sse(controller, {
-              type: 'page',
-              source,
-              page,
-              pages: p,
-              found: totalFound,
-              totalFound,
-              jobs: pageResults,
-            })
+            send({ type: 'page', source: board, page, pages: pageCount, found: savedPage.length, totalFound, jobs: savedPage })
+            // Some providers repeat the final page instead of returning an empty one.
+            if (!isJobSpy && (jobs.length === 0 || savedPage.length === 0)) break
           }
+          if (sourceSucceeded) successfulSources++
         }
-
-        await db.scrapingRun.update({
-          where: { id: runId },
-          data: { status: 'completed', totalFound, requestCount },
-        })
-
-        sse(controller, {
-          type: 'done',
-          source,
-          page: p,
-          pages: p,
-          found: totalFound,
-          totalFound,
-          jobs: collected,
-          requestCount,
-        })
-      } catch (err: unknown) {
+        if (saveFailures) warnings.push(`${saveFailures} job(s) could not be saved.`)
+        const cancelled = request.signal.aborted || disconnected
+        const status = cancelled ? 'cancelled' : successfulSources === 0 ? 'failed' : warnings.length ? 'partial' : 'completed'
+        await db.scrapingRun.update({ where: { id: runId }, data: { status, totalFound, requestCount } })
+        if (!cancelled) {
+          if (!successfulSources) send({ type: 'error', totalFound, error: warnings.join('; ') || 'No sources could be searched.' })
+          else send({ type: 'done', source, page: pages, pages, totalFound, found: totalFound, jobs: collected, requestCount, warnings })
+        }
+      } catch (err) {
+        if (runId) await db.scrapingRun.update({ where: { id: runId }, data: { status: 'failed', totalFound, requestCount } }).catch(console.error)
         if (err instanceof NextResponse) {
           const text = await err.text().catch(() => '')
-          sse(controller, { type: 'error', error: text || 'Unauthorized' })
+          try { send({ type: 'error', error: JSON.parse(text).error || 'Unauthorized' }) }
+          catch { send({ type: 'error', error: text || 'Unauthorized' }) }
         } else {
           console.error('Scrape error:', err)
-          sse(controller, {
-            type: 'error',
-            error: err instanceof Error ? err.message : 'Scrape failed',
-          })
+          send({ type: 'error', error: err instanceof Error ? err.message : 'Scrape failed' })
         }
       } finally {
-        controller.close()
+        clearInterval(heartbeat)
+        if (!disconnected) { try { controller.close() } catch { /* client disconnected */ } }
       }
     },
-    cancel() {
-      // Client disconnected; underlying fetch loop surfaces E_CANCELED.
-    },
   })
-
-  return new Response(controller, {
-    headers: {
-      'Content-Type': 'text/event-stream',
-      'Cache-Control': 'no-cache',
-      Connection: 'keep-alive',
-    },
-  })
+  return new Response(stream, { headers: { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', Connection: 'keep-alive' } })
 }

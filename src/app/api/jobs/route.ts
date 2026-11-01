@@ -3,13 +3,16 @@ import { db } from '@/lib/db'
 import { requireUser } from '@/lib/auth'
 
 // GET /api/jobs — list the current user's scraped job opportunities.
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const user = await requireUser()
+    const params = new URL(request.url).searchParams
+    const cursor = params.get('cursor')
     const jobs = await db.jobOpportunity.findMany({
       where: { userId: user.id },
-      orderBy: { createdAt: 'desc' },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       take: 100,
+      ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
     })
     return NextResponse.json(jobs)
   } catch (err) {
