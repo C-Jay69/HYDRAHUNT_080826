@@ -76,7 +76,7 @@ export default function LoginPage() {
         {/* Logo */}
         <motion.div className="text-center mb-8" variants={fadeUp}>
           <div className="mb-3 flex justify-center">
-            <HydraMark size={56} priority />
+            <HydraMark size={80} priority alt="" />
           </div>
           <h1 className="text-3xl font-bold gradient-text">HydraHunt</h1>
           <p className="text-sm text-muted-foreground mt-1">
