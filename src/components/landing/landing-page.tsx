@@ -413,7 +413,7 @@ export default function LandingPage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col scene scene-nebula">
+    <div className="min-h-screen flex flex-col scene scene-lights">
       {/* ============================================================ */}
       {/*  NAV BAR                                                      */}
       {/* ============================================================ */}

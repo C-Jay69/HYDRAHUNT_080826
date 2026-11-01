@@ -207,19 +207,36 @@
 
 .scene-dusk {
   --scene-image: url('/backgrounds/pexels-17071359-b.webp');
-  /* Cool-blue frame is the brightest of the set — firmest veil. */
-  --scene-scrim: linear-gradient(180deg, rgba(10, 6, 14, 0.66), rgba(5, 3, 9, 0.9));
+  /* Bright skyline: a stronger veil preserves readable copy on public pages. */
+  --scene-scrim: linear-gradient(135deg, rgba(10, 6, 20, 0.86), rgba(5, 3, 12, 0.94));
 }
 
 .scene-navy {
   --scene-image: url('/backgrounds/pexels-6803550-b.webp');
-  /* Deep navy frame; mid-weight veil. */
-  --scene-scrim: linear-gradient(180deg, rgba(10, 6, 14, 0.56), rgba(5, 3, 9, 0.84));
+  /* A firm veil keeps privacy and billing content easy to read. */
+  --scene-scrim: linear-gradient(135deg, rgba(10, 6, 20, 0.84), rgba(5, 3, 12, 0.93));
+}
+
+/* Pexels photo scenes. Source and photographer credits: public/backgrounds/CREDITS.md.
+   Dark overlays keep page copy legible while leaving the photos visible. */
+.scene-lights {
+  --scene-image: url('/backgrounds/pexels-34001135.webp');
+  --scene-scrim: linear-gradient(135deg, rgba(10, 6, 20, 0.84), rgba(5, 3, 12, 0.92));
+}
+
+.scene-workspace {
+  --scene-image: url('/backgrounds/pexels-8524589.webp');
+  --scene-scrim: linear-gradient(135deg, rgba(8, 8, 18, 0.84), rgba(5, 3, 12, 0.92));
+}
+
+.scene-interview {
+  --scene-image: url('/backgrounds/pexels-5439143.webp');
+  --scene-scrim: linear-gradient(135deg, rgba(10, 6, 20, 0.88), rgba(5, 3, 12, 0.94));
 }
 
 /* Workspace views sit behind dense UI — veil the artwork a little harder. */
 .scene-app {
-  --scene-scrim: linear-gradient(180deg, rgba(10, 6, 14, 0.62), rgba(5, 3, 9, 0.86));
+  --scene-scrim: linear-gradient(135deg, rgba(10, 6, 20, 0.86), rgba(5, 3, 12, 0.94));
 }
 
 @media (min-width: 768px) {
