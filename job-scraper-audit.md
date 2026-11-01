@@ -23,7 +23,7 @@ Both backends normalize job data into the canonical `JobOpportunity` shape and p
 **Base URL**: `https://api.chocodata.com/api/v1/`
 
 ### Configuration
-- **API Key**: Set in `.env` as `CHOCODATA_API_KEY="cd_live_4m2bQZaENNfOUntc4ON4jn5fl5hNHfL4"`
+- **API Key**: Set in `.env` as `CHOCODATA_API_KEY (configure in the environment; never commit API keys)`
 - **Rate Limit**: 10 RPM (configurable via `CHOCODATA_RATE_LIMIT_RPM`)
 - **Daily Quota**: 1000 requests/day on free tier
 

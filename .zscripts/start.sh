@@ -89,6 +89,9 @@ if [ -f "./next-service-dist/server.js" ]; then
         echo "🗄️  当前使用外部指定数据库: $DATABASE_URL"
     fi
     
+    if [ -z "${JOBSPY_URL:-}" ]; then START_LOCAL_JOBSPY=1; fi
+    export JOBSPY_URL="${JOBSPY_URL:-http://127.0.0.1:${JOBSPY_PORT:-3001}/scrape}"
+
     # 后台启动 Next.js
     bun server.js &
     NEXT_PID=$!
@@ -106,6 +109,14 @@ if [ -f "./next-service-dist/server.js" ]; then
     cd ../
 else
     echo "⚠️  未找到 Next.js 服务器文件: ./next-service-dist/server.js"
+fi
+
+# Start the packaged JobSpy worker unless an external service was configured.
+if [ "${START_LOCAL_JOBSPY:-}" = 1 ] && [ -f "./next-service-dist/mini-services/jobspy-svc/app.py" ]; then
+    python3 ./next-service-dist/mini-services/jobspy-svc/app.py "${JOBSPY_PORT:-3001}" &
+    JOBSPY_PID=$!
+    pids="$pids $JOBSPY_PID"
+    export JOBSPY_URL="http://127.0.0.1:${JOBSPY_PORT:-3001}/scrape"
 fi
 
 # 启动 mini-services
