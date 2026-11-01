@@ -80,7 +80,7 @@ export default function SignupPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 py-12 scene scene-blueprint">
+    <div className="min-h-screen flex items-center justify-center px-4 py-12 scene scene-lights">
       <motion.div
         className="w-full max-w-md"
         initial="hidden"

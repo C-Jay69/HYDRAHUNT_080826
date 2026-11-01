@@ -65,7 +65,7 @@ const SECTIONS: { title: string; body: React.ReactNode }[] = [
 
 export default function PrivacyPage() {
   return (
-    <main className="min-h-screen scene scene-blueprint px-4 py-12 sm:px-6">
+    <main className="min-h-screen scene scene-navy px-4 py-12 sm:px-6">
       <div className="mx-auto max-w-2xl">
         <div className="flex items-center gap-3">
           <HydraMark size={32} priority />
