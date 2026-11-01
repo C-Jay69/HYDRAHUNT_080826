@@ -35,6 +35,44 @@ sys.exit(1)
 PYEOF
 }
 
+# True when the service on this port is this project's dev server (not some
+# unrelated app that happens to be listening). The health route stamps the app
+# name even when the database is down, so a degraded server still counts.
+is_project_dev() {
+  local body
+  body="$(curl -s --max-time 2 "http://127.0.0.1:$1/api/health" 2>/dev/null || true)"
+  case "$body" in
+    *'"app":"hydrahunt"'*) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+# PIDs of `next dev` processes whose working directory is this project.
+project_dev_pids() {
+  local pid cwd
+  for pid in $(pgrep -f "next dev" 2>/dev/null || true); do
+    cwd="$(readlink -f "/proc/$pid/cwd" 2>/dev/null || true)"
+    [ "$cwd" = "$ROOT" ] && echo "$pid"
+  done
+}
+
+# Report an already-running dev server and exit 0 without spawning a second
+# one. Next's dev lock lives in .next/dev, so two instances in the same project
+# can never coexist — even on different ports.
+reuse_running_dev() {
+  local pid="$1" port="$2"
+  echo "[start-server] Your dev server is already running at http://localhost:$port (pid ${pid:-unknown})."
+  echo "[start-server] Reusing it — edits hot-reload automatically, no restart needed."
+  case "$pid" in
+    ''|*[!0-9]*) echo "[start-server] To force a restart, stop that next dev process first." ;;
+    *)           echo "[start-server] To force a restart, stop it first:  kill $pid" ;;
+  esac
+  # The app server may have been started without this script; leave any JobSpy
+  # service we just launched running for it.
+  JOBSPY_PID=""
+  exit 0
+}
+
 # Start the JobSpy service (used for indeed/glassdoor/zip_recruiter/google).
 if command -v python3 >/dev/null 2>&1; then
   if python3 -c "import jobspy" >/dev/null 2>&1; then
@@ -61,18 +99,64 @@ else
 fi
 
 cd "$ROOT"
-# Pick the first free port so a stale dev server never blocks startup.
-DEV_PORT="${PORT:-3000}"
-for candidate in $(seq "$DEV_PORT" 3010); do
-  if ! port_in_use "$candidate"; then
-    DEV_PORT="$candidate"
-    break
+
+# 1) If this project's dev server is already running, reuse it. Next's dev
+#    lock is per-project, so a second instance always fails — even on a
+#    different port.
+for pid in $(project_dev_pids); do
+  args="$(ps -o args= -p "$pid" 2>/dev/null || true)"
+  port="$(printf '%s\n' "$args" | sed -n 's/.*-p[[:space:]]\{1,\}\([0-9]\{1,\}\).*/\1/p' | head -n1)"
+  [ -n "$port" ] || port="3000"
+  # Give a just-started server a moment to bind and compile, then require it
+  # to answer.
+  for _ in $(seq 1 20); do
+    if is_project_dev "$port"; then
+      reuse_running_dev "$pid" "$port"
+    fi
+    kill -0 "$pid" 2>/dev/null || break
+    sleep 0.5
+  done
+  # `-p` may be missing (plain `next dev` binds 3000) or the server may have
+  # been started with `--port`/the PORT env var; probe the range before
+  # giving up on a healthy process.
+  for candidate in $(seq 3000 3010); do
+    if is_project_dev "$candidate"; then
+      reuse_running_dev "$pid" "$candidate"
+    fi
+  done
+  if kill -0 "$pid" 2>/dev/null; then
+    echo "[start-server] A dev server for this project (pid $pid) is running but not answering its health check. Stop it: kill $pid" >&2
+    exit 1
   fi
 done
-if port_in_use "$DEV_PORT"; then
-  echo "[start-server] Ports ${DEV_PORT}-3010 are all in use. Stop a dev server or set PORT." >&2
+
+# 2) Otherwise pick the first free port. If an occupied port serves this app we
+#    already handled it above; here we skip ports owned by other applications.
+DEV_PORT="${PORT:-3000}"
+FOUND_FREE=""
+for candidate in $(seq "$DEV_PORT" 3010); do
+  if port_in_use "$candidate"; then
+    if is_project_dev "$candidate"; then
+      reuse_running_dev "$(project_dev_pids | head -n1)" "$candidate"
+    fi
+    continue
+  fi
+  FOUND_FREE="$candidate"
+  break
+done
+if [ -z "$FOUND_FREE" ]; then
+  echo "[start-server] Ports ${DEV_PORT}-3010 are all in use by other applications. Stop one or set PORT." >&2
   exit 1
 fi
+DEV_PORT="$FOUND_FREE"
+
+# 3) Clear a stale lock left by a crashed dev server. Only do this when no
+#    `next dev` process for this project is alive.
+if [ -e "$ROOT/.next/dev/lock" ] && [ -z "$(project_dev_pids)" ]; then
+  echo "[start-server] Removing stale dev lock (no next dev process for this project)."
+  rm -f "$ROOT/.next/dev/lock"
+fi
+
 echo "[start-server] Starting Next.js on port $DEV_PORT"
 
 # Run next dev in the background so the trap can clean up the JobSpy child

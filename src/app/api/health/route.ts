@@ -5,8 +5,8 @@ import { db } from '@/lib/db'
 export async function GET() {
   try {
     await db.$queryRaw`SELECT 1`
-    return NextResponse.json({ success: true, status: 'ok', timestamp: new Date().toISOString() })
+    return NextResponse.json({ success: true, status: 'ok', app: 'hydrahunt', timestamp: new Date().toISOString() })
   } catch {
-    return NextResponse.json({ success: false, status: 'degraded' }, { status: 503 })
+    return NextResponse.json({ success: false, status: 'degraded', app: 'hydrahunt' }, { status: 503 })
   }
 }
