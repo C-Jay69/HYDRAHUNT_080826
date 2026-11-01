@@ -194,6 +194,29 @@
   --scene-scrim: linear-gradient(180deg, rgba(10, 6, 14, 0.52), rgba(5, 3, 9, 0.82));
 }
 
+/* Stock-photo backdrops sourced from Pexels (https://www.pexels.com) and used
+   under the Pexels License — free for commercial use, no attribution required;
+   credited here purely for traceability. Photos: pexels.com/photo/4499765,
+   /17071359, /6803550. Each was cover-cropped to 16:9, Gaussian-blurred and
+   exported to webp, then given a scrim tuned so body copy holds WCAG AA. */
+.scene-slate {
+  --scene-image: url('/backgrounds/pexels-4499765-b.webp');
+  /* Neutral dark frame; dark enough to keep a light veil. */
+  --scene-scrim: linear-gradient(180deg, rgba(10, 6, 14, 0.42), rgba(5, 3, 9, 0.77));
+}
+
+.scene-dusk {
+  --scene-image: url('/backgrounds/pexels-17071359-b.webp');
+  /* Cool-blue frame is the brightest of the set — firmest veil. */
+  --scene-scrim: linear-gradient(180deg, rgba(10, 6, 14, 0.66), rgba(5, 3, 9, 0.9));
+}
+
+.scene-navy {
+  --scene-image: url('/backgrounds/pexels-6803550-b.webp');
+  /* Deep navy frame; mid-weight veil. */
+  --scene-scrim: linear-gradient(180deg, rgba(10, 6, 14, 0.56), rgba(5, 3, 9, 0.84));
+}
+
 /* Workspace views sit behind dense UI — veil the artwork a little harder. */
 .scene-app {
   --scene-scrim: linear-gradient(180deg, rgba(10, 6, 14, 0.62), rgba(5, 3, 9, 0.86));
