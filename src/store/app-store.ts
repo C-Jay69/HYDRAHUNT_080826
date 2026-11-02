@@ -86,8 +86,10 @@ export const useAppStore = create<AppState>()(
         }
       },
       setSelectedResume: (id) => {
-        set({ selectedResumeId: id })
-        if (id) set({ view: 'resume-edit' })
+        // Opening a resume switches into the editor; clearing the selection
+        // (Back, or after a delete) returns to the resume list so the header
+        // label stays in sync with what's on screen.
+        set({ selectedResumeId: id, view: id ? 'resume-edit' : 'resume-forge' })
       },
       setSelectedInterviewSession: (id) => {
         set({ selectedInterviewSessionId: id })

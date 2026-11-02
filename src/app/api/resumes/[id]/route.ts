@@ -100,10 +100,42 @@ export async function DELETE(
     if (!owned) {
       return NextResponse.json({ error: 'Not found' }, { status: 404 })
     }
-    await db.resume.delete({ where: { id } })
+
+    // Sections, versions, and analyses cascade with the resume. Payloads and
+    // applications only hold a loose `resumeId` string, so null those out to
+    // avoid dangling references. If we just deleted the default resume, promote
+    // the oldest remaining one so "Default" keeps meaning something.
+    const replacementDefault = owned.isDefault
+      ? await db.resume.findFirst({
+          where: { userId: user.id, id: { not: id } },
+          orderBy: { createdAt: 'asc' },
+        })
+      : null
+
+    await db.$transaction([
+      db.generatedPayload.updateMany({
+        where: { userId: user.id, resumeId: id },
+        data: { resumeId: null },
+      }),
+      db.jobApplication.updateMany({
+        where: { userId: user.id, resumeId: id },
+        data: { resumeId: null },
+      }),
+      db.resume.delete({ where: { id } }),
+      ...(replacementDefault
+        ? [
+            db.resume.update({
+              where: { id: replacementDefault.id },
+              data: { isDefault: true },
+            }),
+          ]
+        : []),
+    ])
+
     return NextResponse.json({ success: true })
   } catch (error) {
     if (error instanceof NextResponse) return error
+    console.error('Delete resume error:', error)
     return NextResponse.json({ error: 'Failed to delete resume' }, { status: 500 })
   }
 }

@@ -20,6 +20,7 @@ import {
   Brain,
   Search,
   Zap,
+  Trash2,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -40,6 +41,7 @@ import {
 } from '@/components/ui/select'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { useAppStore } from '@/store/app-store'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -781,6 +783,9 @@ export default function StrikeAnalysis() {
   const [targetRole, setTargetRole] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [loadingAnalyses, setLoadingAnalyses] = useState(true)
+  const [deleteTarget, setDeleteTarget] = useState<ResumeOption | null>(null)
+  const [deleting, setDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
   const selectedAnalysis = analyses.find((a) => a.id === selectedAnalysisId)
 
   // Fetch resumes for dialog
@@ -858,6 +863,29 @@ export default function StrikeAnalysis() {
     }
   }
 
+  // Delete the selected resume, plus any analyses attached to it.
+  const handleDeleteResume = async () => {
+    if (!deleteTarget) return
+    const deletedId = deleteTarget.id
+    setDeleting(true)
+    setDeleteError(null)
+    try {
+      const res = await fetch(`/api/resumes/${deletedId}`, { method: 'DELETE' })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data?.error || `Couldn't delete that resume (HTTP ${res.status}).`)
+      }
+      setResumes((prev) => prev.filter((r) => r.id !== deletedId))
+      setAnalyses((prev) => prev.filter((a) => a.resumeId !== deletedId))
+      setSelectedResumeId((prev) => (prev === deletedId ? '' : prev))
+      setDeleteTarget(null)
+    } catch (err) {
+      setDeleteError(err instanceof Error ? err.message : 'Failed to delete resume.')
+    } finally {
+      setDeleting(false)
+    }
+  }
+
   // Open detail view
   const openDetail = (id: string) => {
     setSelectedAnalysis(id)
@@ -916,36 +944,59 @@ export default function StrikeAnalysis() {
                 <Label className="text-foreground text-sm font-medium">
                   Select Resume
                 </Label>
-                <Select
-                  value={selectedResumeId}
-                  onValueChange={setSelectedResumeId}
-                >
-                  <SelectTrigger className="bg-hydra-surface-2 border-hydra-border text-foreground">
-                    <SelectValue placeholder="Choose a resume..." />
-                  </SelectTrigger>
-                  <SelectContent className="bg-hydra-surface-2 border-hydra-border">
-                    {resumes.map((r) => (
-                      <SelectItem
-                        key={r.id}
-                        value={r.id}
-                        className="text-foreground focus:bg-hydra-purple/10 focus:text-foreground"
-                      >
-                        <div className="flex items-center gap-2">
-                          <FileText className="w-4 h-4 text-hydra-muted" />
-                          <span>{r.title}</span>
-                          {r.isDefault && (
-                            <Badge
-                              variant="outline"
-                              className="border-hydra-cyan/30 text-hydra-cyan text-[10px] px-1.5 py-0"
-                            >
-                              Default
-                            </Badge>
-                          )}
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <div className="flex items-center gap-2">
+                  <div className="flex-1 min-w-0">
+                    <Select
+                      value={selectedResumeId}
+                      onValueChange={setSelectedResumeId}
+                    >
+                      <SelectTrigger className="w-full bg-hydra-surface-2 border-hydra-border text-foreground">
+                        <SelectValue placeholder="Choose a resume..." />
+                      </SelectTrigger>
+                      <SelectContent className="bg-hydra-surface-2 border-hydra-border">
+                        {resumes.map((r) => (
+                          <SelectItem
+                            key={r.id}
+                            value={r.id}
+                            className="text-foreground focus:bg-hydra-purple/10 focus:text-foreground"
+                          >
+                            <div className="flex items-center gap-2">
+                              <FileText className="w-4 h-4 text-hydra-muted" />
+                              <span>{r.title}</span>
+                              {r.isDefault && (
+                                <Badge
+                                  variant="outline"
+                                  className="border-hydra-cyan/30 text-hydra-cyan text-[10px] px-1.5 py-0"
+                                >
+                                  Default
+                                </Badge>
+                              )}
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  {selectedResumeId && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      title="Delete the selected resume"
+                      aria-label="Delete the selected resume"
+                      onClick={() => {
+                        const target = resumes.find((r) => r.id === selectedResumeId)
+                        if (target) {
+                          setDeleteError(null)
+                          setDeleteTarget(target)
+                        }
+                      }}
+                      className="shrink-0 text-hydra-muted hover:text-hydra-red hover:bg-hydra-red/10"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  )}
+                </div>
               </div>
 
               <div className="space-y-2">
@@ -1108,6 +1159,32 @@ export default function StrikeAnalysis() {
           })}
         </motion.div>
       )}
+
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        onOpenChange={(open) => {
+          if (!open && !deleting) {
+            setDeleteTarget(null)
+            setDeleteError(null)
+          }
+        }}
+        title="Delete this resume?"
+        description={
+          <>
+            <span className="font-medium text-foreground">
+              {deleteTarget?.title || 'This resume'}
+            </span>{' '}
+            and all analyses attached to it will be permanently deleted. This
+            cannot be undone.
+            {deleteError && (
+              <span className="block mt-2 text-hydra-red">{deleteError}</span>
+            )}
+          </>
+        }
+        confirmLabel={deleting ? 'Deleting...' : 'Delete Resume'}
+        onConfirm={handleDeleteResume}
+        isPending={deleting}
+      />
     </div>
   )
 }

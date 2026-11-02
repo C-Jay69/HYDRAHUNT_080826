@@ -2,12 +2,13 @@
 
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
-import { History, Clock, Plus, ArrowUpRight, ArrowDownRight, Minus, RotateCcw, FileText } from 'lucide-react'
+import { History, Clock, Plus, ArrowUpRight, ArrowDownRight, Minus, RotateCcw, FileText, Trash2 } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import {
   Dialog,
   DialogContent,
@@ -50,6 +51,9 @@ export default function VersionVault() {
   const [createOpen, setCreateOpen] = useState(false)
   const [newLabel, setNewLabel] = useState('')
   const [newNotes, setNewNotes] = useState('')
+  const [deleteTarget, setDeleteTarget] = useState<Version | null>(null)
+  const [deleting, setDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
 
   useEffect(() => {
     fetchVersions()
@@ -112,6 +116,25 @@ export default function VersionVault() {
       }
     } catch {
       setError("Couldn't save this version. Check your connection and try again.")
+    }
+  }
+
+  const handleDeleteVersion = async () => {
+    if (!deleteTarget) return
+    setDeleting(true)
+    setDeleteError(null)
+    try {
+      const res = await fetch(`/api/versions/${deleteTarget.id}`, { method: 'DELETE' })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data?.error || `Couldn't delete that version (HTTP ${res.status}).`)
+      }
+      setVersions((prev) => prev.filter((v) => v.id !== deleteTarget.id))
+      setDeleteTarget(null)
+    } catch (err) {
+      setDeleteError(err instanceof Error ? err.message : 'Failed to delete version.')
+    } finally {
+      setDeleting(false)
     }
   }
 
@@ -279,11 +302,26 @@ export default function VersionVault() {
                         ) : null}
                         <h3 className="font-semibold text-foreground truncate">{version.label}</h3>
                       </div>
-                      <div className="flex items-center gap-1.5 text-hydra-muted shrink-0">
-                        <Clock className="w-3.5 h-3.5" />
-                        <span className="text-xs" title={formatDateTime(version.createdAt)}>
-                          {formatDate(version.createdAt)}
-                        </span>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <div className="flex items-center gap-1.5 text-hydra-muted">
+                          <Clock className="w-3.5 h-3.5" />
+                          <span className="text-xs" title={formatDateTime(version.createdAt)}>
+                            {formatDate(version.createdAt)}
+                          </span>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          title={`Delete version "${version.label}"`}
+                          aria-label={`Delete version ${version.label}`}
+                          onClick={() => {
+                            setDeleteError(null)
+                            setDeleteTarget(version)
+                          }}
+                          className="size-7 text-hydra-muted hover:text-hydra-red hover:bg-hydra-red/10"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
                       </div>
                     </div>
 
@@ -350,6 +388,32 @@ export default function VersionVault() {
           </div>
         </motion.div>
       )}
+
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        onOpenChange={(open) => {
+          if (!open && !deleting) {
+            setDeleteTarget(null)
+            setDeleteError(null)
+          }
+        }}
+        title="Delete this saved version?"
+        description={
+          <>
+            <span className="font-medium text-foreground">
+              {deleteTarget?.label || 'This version'}
+            </span>{' '}
+            will be permanently removed from your history. The resume itself is
+            not affected. This cannot be undone.
+            {deleteError && (
+              <span className="block mt-2 text-hydra-red">{deleteError}</span>
+            )}
+          </>
+        }
+        confirmLabel={deleting ? 'Deleting...' : 'Delete Version'}
+        onConfirm={handleDeleteVersion}
+        isPending={deleting}
+      />
     </div>
   )
 }

@@ -44,11 +44,13 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import {
   Plus,
   ArrowLeft,
   Save,
   FileText,
+  Trash2,
   ChevronDown,
   ChevronRight,
   GripVertical,
@@ -214,6 +216,8 @@ function ListView() {
   const [importError, setImportError] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; title: string } | null>(null)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
 
   const { data: resumes = [], isLoading, error } = useQuery<Resume[]>({
     queryKey: ['resumes'],
@@ -271,6 +275,26 @@ function ListView() {
     },
     onError: (err: Error) => {
       setImportError(err.message)
+    },
+  })
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) =>
+      fetch(`/api/resumes/${id}`, { method: 'DELETE' }).then(async (r) => {
+        if (!r.ok) {
+          const data = await r.json().catch(() => ({}))
+          throw new Error(data?.error || `Failed to delete resume (${r.status})`)
+        }
+        return r.json()
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['resumes'] })
+      queryClient.invalidateQueries({ queryKey: ['versions'] })
+      setDeleteTarget(null)
+      setDeleteError(null)
+    },
+    onError: (err: Error) => {
+      setDeleteError(err.message)
     },
   })
 
@@ -540,15 +564,31 @@ function ListView() {
                         {resume.title}
                       </h3>
                     </div>
-                    {resume.isDefault && (
-                      <Badge
-                        variant="outline"
-                        className="border-hydra-cyan/40 text-hydra-cyan text-[10px] shrink-0"
+                    <div className="flex items-center gap-1 shrink-0">
+                      {resume.isDefault && (
+                        <Badge
+                          variant="outline"
+                          className="border-hydra-cyan/40 text-hydra-cyan text-[10px] shrink-0"
+                        >
+                          <Star className="size-3 mr-1" />
+                          Default
+                        </Badge>
+                      )}
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        title={`Delete ${resume.title}`}
+                        aria-label={`Delete ${resume.title}`}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setDeleteError(null)
+                          setDeleteTarget({ id: resume.id, title: resume.title })
+                        }}
+                        className="size-7 text-hydra-muted hover:text-hydra-red hover:bg-hydra-red/10"
                       >
-                        <Star className="size-3 mr-1" />
-                        Default
-                      </Badge>
-                    )}
+                        <Trash2 className="size-4" />
+                      </Button>
+                    </div>
                   </div>
 
                   <div className="flex items-center gap-1.5 text-xs text-hydra-muted">
@@ -587,6 +627,34 @@ function ListView() {
           ))}
         </motion.div>
       )}
+
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        onOpenChange={(open) => {
+          if (!open && !deleteMutation.isPending) {
+            setDeleteTarget(null)
+            setDeleteError(null)
+          }
+        }}
+        title="Delete this resume?"
+        description={
+          <>
+            <span className="font-medium text-foreground">
+              {deleteTarget?.title}
+            </span>{' '}
+            and all of its saved versions and fit-check analyses will be
+            permanently deleted. This cannot be undone.
+            {deleteError && (
+              <span className="block mt-2 text-hydra-red">{deleteError}</span>
+            )}
+          </>
+        }
+        confirmLabel={deleteMutation.isPending ? 'Deleting...' : 'Delete Resume'}
+        onConfirm={() => {
+          if (deleteTarget) deleteMutation.mutate(deleteTarget.id)
+        }}
+        isPending={deleteMutation.isPending}
+      />
     </div>
   )
 }
@@ -629,6 +697,8 @@ function EditorContent({ resume }: { resume: Resume }) {
   const [sections, setSections] = useState<ResumeSection[]>(resume.sections)
   const [saving, setSaving] = useState(false)
   const [exporting, setExporting] = useState<'pdf' | 'docx' | 'txt' | null>(null)
+  const [deleteOpen, setDeleteOpen] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
   const autosaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const firstLoad = useRef(true)
 
@@ -646,6 +716,27 @@ function EditorContent({ resume }: { resume: Resume }) {
       })
       .finally(() => setSaving(false))
   }, [title, sections, resumeId, queryClient])
+
+  /* ---- delete ---- */
+  const deleteMutation = useMutation({
+    mutationFn: () =>
+      fetch(`/api/resumes/${resumeId}`, { method: 'DELETE' }).then(async (r) => {
+        if (!r.ok) {
+          const data = await r.json().catch(() => ({}))
+          throw new Error(data?.error || `Failed to delete resume (${r.status})`)
+        }
+        return r.json()
+      }),
+    onSuccess: () => {
+      // Stop any queued autosave so it can't PUT to a deleted resume
+      if (autosaveTimer.current) clearTimeout(autosaveTimer.current)
+      queryClient.invalidateQueries({ queryKey: ['resumes'] })
+      queryClient.invalidateQueries({ queryKey: ['versions'] })
+      queryClient.removeQueries({ queryKey: ['resume', resumeId] })
+      setSelectedResume(null)
+    },
+    onError: (err: Error) => setDeleteError(err.message),
+  })
 
   /* ---- export ---- */
   const handleExport = async (format: 'pdf' | 'docx' | 'txt') => {
@@ -833,6 +924,21 @@ function EditorContent({ resume }: { resume: Resume }) {
           {exporting === 'docx' ? <Loader2 className="size-4 mr-1 animate-spin" /> : <FileDown className="size-4 mr-1" />}
           DOCX
         </Button>
+
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={() => {
+            setDeleteError(null)
+            setDeleteOpen(true)
+          }}
+          disabled={deleteMutation.isPending}
+          className="text-hydra-muted hover:text-hydra-red hover:bg-hydra-red/10 shrink-0"
+          title="Delete this resume"
+          aria-label={`Delete ${title}`}
+        >
+          <Trash2 className="size-4" />
+        </Button>
       </div>
 
       {/* ---- Split Pane ---- */}
@@ -894,6 +1000,34 @@ function EditorContent({ resume }: { resume: Resume }) {
           </div>
         </ResizablePanel>
       </ResizablePanelGroup>
+
+      <ConfirmDialog
+        open={deleteOpen}
+        onOpenChange={(open) => {
+          if (!open && !deleteMutation.isPending) {
+            setDeleteOpen(false)
+            setDeleteError(null)
+          }
+        }}
+        title="Delete this resume?"
+        description={
+          <>
+            <span className="font-medium text-foreground">{title}</span> and all
+            of its saved versions and fit-check analyses will be permanently
+            deleted. This cannot be undone.
+            {deleteError && (
+              <span className="block mt-2 text-hydra-red">{deleteError}</span>
+            )}
+          </>
+        }
+        confirmLabel={deleteMutation.isPending ? 'Deleting...' : 'Delete Resume'}
+        onConfirm={() => {
+          if (autosaveTimer.current) clearTimeout(autosaveTimer.current)
+          setDeleteError(null)
+          deleteMutation.mutate()
+        }}
+        isPending={deleteMutation.isPending}
+      />
     </motion.div>
   )
 }
