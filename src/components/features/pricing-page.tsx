@@ -286,7 +286,36 @@ function PlanCard({ plan }: { plan: Plan }) {
 
 export default function PricingPage() {
   const [packLoading, setPackLoading] = useState(false)
+  const [founderLoading, setFounderLoading] = useState(false)
   const { isAuthenticated, setView } = useAppStore()
+
+  async function handleFounderDeal() {
+    if (!isAuthenticated) {
+      toast({ title: 'Sign in required', description: 'Create an account before claiming the Founder Deal.' })
+      setView('signup')
+      return
+    }
+    setFounderLoading(true)
+    try {
+      const res = await fetch('/api/stripe/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ plan: 'lifetime_founder_deal' }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Checkout failed')
+      if (data.url) window.location.href = data.url
+      else toast({ title: 'Checkout unavailable', description: data.error })
+    } catch (err: unknown) {
+      toast({
+        title: 'Checkout failed',
+        description: err instanceof Error ? err.message : 'Something went wrong',
+        variant: 'destructive',
+      })
+    } finally {
+      setFounderLoading(false)
+    }
+  }
 
   async function handleMissionPack() {
     if (!isAuthenticated) {
@@ -357,6 +386,67 @@ export default function PricingPage() {
         <PlanCard plan={FREE_PLAN} />
         <PlanCard plan={HUNTER_PLAN} />
         <PlanCard plan={BEASTMASTER_PLAN} />
+      </motion.div>
+
+      {/* Lifetime Founder Deal */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.5 }}
+      >
+        <Card className="relative overflow-hidden border-hydra-yellow/40 bg-gradient-to-br from-hydra-yellow/10 via-hydra-surface-2 to-hydra-surface-2 shadow-[0_0_40px_rgba(250,204,21,0.12)]">
+          <div className="absolute top-0 right-0 w-56 h-56 bg-gradient-to-bl from-hydra-yellow/15 to-transparent rounded-bl-full" />
+          <CardContent className="p-6 relative">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-6">
+              <div className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0 bg-hydra-yellow/15">
+                <Crown className="w-6 h-6 text-hydra-yellow" />
+              </div>
+              <div className="flex-1">
+                <div className="flex flex-wrap items-center gap-2 mb-1">
+                  <h3 className="text-lg font-bold text-foreground">LIFETIME FOUNDER DEAL</h3>
+                  <Badge className="bg-hydra-yellow/15 text-hydra-yellow border-hydra-yellow/30 text-[10px]">
+                    ONE-TIME
+                  </Badge>
+                  <Badge className="bg-hydra-purple/15 text-hydra-purple border-hydra-purple/30 text-[10px]">
+                    FIRST 250 ONLY
+                  </Badge>
+                </div>
+                <p className="text-sm text-hydra-muted mb-3">
+                  Pay once and keep Apex-level access for life. Every current and future feature,
+                  no renewals, no price increases — reserved for the first 250 hunters.
+                </p>
+                <div className="flex flex-wrap gap-3">
+                  <div className="flex items-center gap-1.5 text-xs text-hydra-muted">
+                    <Sparkles className="w-3.5 h-3.5 text-hydra-yellow" />
+                    Everything in Apex
+                  </div>
+                  <div className="flex items-center gap-1.5 text-xs text-hydra-muted">
+                    <Shield className="w-3.5 h-3.5 text-hydra-purple" />
+                    Lifetime access
+                  </div>
+                  <div className="flex items-center gap-1.5 text-xs text-hydra-muted">
+                    <Star className="w-3.5 h-3.5 text-hydra-cyan" />
+                    Price locked forever
+                  </div>
+                </div>
+              </div>
+              <div className="text-right shrink-0">
+                <div className="flex items-baseline gap-1 mb-2 justify-end">
+                  <span className="text-2xl font-bold text-foreground">$599</span>
+                  <span className="text-sm text-hydra-muted">one-time</span>
+                </div>
+                <Button
+                  onClick={handleFounderDeal}
+                  disabled={founderLoading}
+                  className="bg-hydra-yellow hover:bg-hydra-yellow/80 text-hydra-dark h-10 px-6 text-sm font-semibold"
+                >
+                  {founderLoading ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : null}
+                  Claim Founder Deal
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </motion.div>
 
       {/* Boost Pack */}

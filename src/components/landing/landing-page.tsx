@@ -192,6 +192,15 @@ const plans = [
     cta: 'Go Apex',
     featured: false,
   },
+  {
+    name: 'Founder',
+    price: '$599',
+    period: 'one-time',
+    blurb: 'Lifetime Apex access.',
+    points: ['Everything in Apex, forever', 'First 250 hunters only', 'Price locked for life', 'No renewals, ever'],
+    cta: 'Claim founder deal',
+    featured: false,
+  },
 ]
 
 const faqs = [
@@ -1044,7 +1053,7 @@ export default function LandingPage() {
               whileInView="visible"
               viewport={{ once: true, amount: 0.2 }}
               variants={container}
-              className="mt-12 grid gap-4 sm:gap-6 md:grid-cols-3"
+              className="mt-12 grid gap-4 sm:gap-6 md:grid-cols-2 lg:grid-cols-4"
             >
               {plans.map((plan, i) => (
                 <motion.div
@@ -1098,7 +1107,7 @@ export default function LandingPage() {
                 onClick={() => setView('pricing')}
                 className="inline-flex items-center gap-1 text-sm text-hydra-cyan hover:text-hydra-purple"
               >
-                Compare every feature and the $12 boost pack
+                Compare every feature, the $12 boost pack, and the $599 founder deal
                 <ChevronRight className="h-3.5 w-3.5" />
               </button>
             </Reveal>

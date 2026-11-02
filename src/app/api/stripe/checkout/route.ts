@@ -1,10 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getStripe, PRICE_IDS } from '@/lib/stripe'
+import { getStripe, PRICE_IDS, ONE_TIME_PLANS } from '@/lib/stripe'
 import { requireUser } from '@/lib/auth'
 import { z } from 'zod'
 
 const checkoutSchema = z.object({
-  plan: z.enum(['mission_pack', 'hunter_monthly', 'hunter_yearly', 'beastmaster_monthly', 'beastmaster_yearly']),
+  plan: z.enum([
+    'mission_pack',
+    'hunter_monthly',
+    'hunter_yearly',
+    'beastmaster_monthly',
+    'beastmaster_yearly',
+    'lifetime_founder_deal',
+  ]),
 })
 
 // POST /api/stripe/checkout — create a Stripe Checkout Session
@@ -34,14 +41,15 @@ export async function POST(request: NextRequest) {
     }
 
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || request.nextUrl.origin
+    const plan = parsed.data.plan
 
     const session = await stripe.checkout.sessions.create({
-      mode: parsed.data.plan === 'mission_pack' ? 'payment' : 'subscription',
+      mode: (ONE_TIME_PLANS as readonly string[]).includes(plan) ? 'payment' : 'subscription',
       customer_email: user.email,
       line_items: [{ price: priceId, quantity: 1 }],
       success_url: `${baseUrl}/?billing=success&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${baseUrl}/?billing=cancelled`,
-      metadata: { userId: user.id },
+      metadata: { userId: user.id, plan },
     })
 
     return NextResponse.json({ success: true, url: session.url })

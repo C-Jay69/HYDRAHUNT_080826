@@ -65,6 +65,7 @@ export const STRIPE_PRICES: Record<string, string> = {
   hunter_yearly: process.env.STRIPE_PRICE_HUNTER_YEARLY || '',
   beastmaster_monthly: process.env.STRIPE_PRICE_BEASTMASTER_MONTHLY || '',
   beastmaster_yearly: process.env.STRIPE_PRICE_BEASTMASTER_YEARLY || '',
+  lifetime_founder_deal: process.env.STRIPE_PRICE_LIFETIME_FOUNDER_DEAL || '',
 }
 
 export function planFromPriceId(priceId: string): Plan | null {
@@ -72,6 +73,8 @@ export function planFromPriceId(priceId: string): Plan | null {
     if (id === priceId) {
       if (plan === 'hunter_monthly' || plan === 'hunter_yearly') return 'hunter'
       if (plan === 'beastmaster_monthly' || plan === 'beastmaster_yearly') return 'beastmaster'
+      // The lifetime founder deal grants permanent Apex-tier access.
+      if (plan === 'lifetime_founder_deal') return 'beastmaster'
       if (plan === 'mission_pack') return 'mission_pack'
     }
   }

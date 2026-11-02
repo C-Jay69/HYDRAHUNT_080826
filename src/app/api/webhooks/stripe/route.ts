@@ -113,6 +113,7 @@ async function syncSubscription(userId: string, object: {
   subscription?: string
   amount_total?: number
   currency?: string
+  metadata?: Record<string, string>
 }) {
   // For checkout.session.completed, fetch the subscription to learn the plan.
   const stripe = getStripe()
@@ -120,8 +121,12 @@ async function syncSubscription(userId: string, object: {
   if (stripe && object.subscription) {
     const sub = await stripe.subscriptions.retrieve(object.subscription)
     plan = planFromStripe(sub.items.data[0]?.price?.id || '')
+  } else if (object.metadata?.plan) {
+    // One-time purchases (Boost Pack / Lifetime Founder Deal) carry their plan in session metadata.
+    // The lifetime deal grants permanent Apex-tier access.
+    plan = object.metadata.plan === 'lifetime_founder_deal' ? 'beastmaster' : object.metadata.plan
   } else if (object.amount_total && object.currency) {
-    // One-time Mission Pack
+    // Legacy one-time Mission Pack sessions without metadata.
     plan = 'mission_pack'
   }
 
