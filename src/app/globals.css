@@ -245,6 +245,25 @@
   }
 }
 
+/* Job-board marquee on the landing page */
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
+.animate-marquee {
+  animation: marquee 38s linear infinite;
+}
+
+.marquee-mask {
+  mask-image: linear-gradient(to right, transparent, black 8%, black 92%, transparent);
+  -webkit-mask-image: linear-gradient(to right, transparent, black 8%, black 92%, transparent);
+}
+
+.marquee-mask:hover .animate-marquee {
+  animation-play-state: paused;
+}
+
 /* Pulse animation for status indicators */
 @keyframes pulse-glow {
   0%, 100% { opacity: 1; box-shadow: 0 0 4px currentColor; }
@@ -297,5 +316,8 @@
   }
   .scanlines::after {
     display: none;
+  }
+  .animate-marquee {
+    animation: none;
   }
 }
