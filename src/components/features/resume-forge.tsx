@@ -71,6 +71,7 @@ import {
   AlertTriangle,
 } from 'lucide-react'
 import { computeResumeAtsScore } from '@/lib/ats'
+import { toast } from '@/hooks/use-toast'
 
 /* -------------------------------------------------------------------------- */
 /*  Types                                                                      */
@@ -703,18 +704,33 @@ function EditorContent({ resume }: { resume: Resume }) {
   const firstLoad = useRef(true)
 
   /* ---- autosave ---- */
-  const saveResume = useCallback(() => {
+  const saveResume = useCallback(async () => {
     setSaving(true)
-    fetch(`/api/resumes/${resumeId}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ title, sections }),
-    })
-      .then(() => {
-        queryClient.invalidateQueries({ queryKey: ['resumes'] })
-        queryClient.invalidateQueries({ queryKey: ['resume', resumeId] })
+    try {
+      const res = await fetch(`/api/resumes/${resumeId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, sections }),
       })
-      .finally(() => setSaving(false))
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error(
+          data?.error || `Couldn't save your resume (HTTP ${res.status}).`,
+        )
+      }
+      queryClient.invalidateQueries({ queryKey: ['resumes'] })
+      queryClient.invalidateQueries({ queryKey: ['resume', resumeId] })
+    } catch (err) {
+      // A failed save used to be silent — the UI kept showing "saved" while the
+      // server still had the previous data. Surface it so the user can retry.
+      toast({
+        title: 'Save failed',
+        description: err instanceof Error ? err.message : 'Please try again.',
+        variant: 'destructive',
+      })
+    } finally {
+      setSaving(false)
+    }
   }, [title, sections, resumeId, queryClient])
 
   /* ---- delete ---- */
@@ -742,17 +758,27 @@ function EditorContent({ resume }: { resume: Resume }) {
   const handleExport = async (format: 'pdf' | 'docx' | 'txt') => {
     setExporting(format)
     try {
-      // Persist first so the export reflects the latest edits
-      await fetch(`/api/resumes/${resumeId}`, {
+      // Persist first so the export reflects the latest edits. A failed save
+      // would silently export stale data, so surface it instead.
+      const saved = await fetch(`/api/resumes/${resumeId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title, sections }),
       })
+      if (!saved.ok) {
+        const data = await saved.json().catch(() => ({}))
+        throw new Error(
+          data?.error ||
+            `Couldn't save your latest edits before exporting (HTTP ${saved.status}).`,
+        )
+      }
+
       const res = await fetch(`/api/resumes/${resumeId}/export?format=${format}`)
       if (!res.ok) {
         const data = await res.json().catch(() => ({}))
         throw new Error(data.error || `Export failed (${res.status})`)
       }
+
       const blob = await res.blob()
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
@@ -760,10 +786,26 @@ function EditorContent({ resume }: { resume: Resume }) {
       a.download = `${title.replace(/[^a-zA-Z0-9-_ ]/g, '').replace(/\s+/g, '-')}.${format}`
       document.body.appendChild(a)
       a.click()
-      a.remove()
-      URL.revokeObjectURL(url)
+
+      // Revoking the object URL synchronously after click() can cut the
+      // browser's save off mid-stream and leave a truncated file. Release the
+      // blob once the download has had time to start.
+      setTimeout(() => {
+        a.remove()
+        URL.revokeObjectURL(url)
+      }, 1500)
+
+      toast({
+        title: 'Download started',
+        description: `Your ${format.toUpperCase()} file is being saved.`,
+      })
     } catch (err) {
       console.error('Export error:', err)
+      toast({
+        title: 'Download failed',
+        description: err instanceof Error ? err.message : 'Please try again.',
+        variant: 'destructive',
+      })
     } finally {
       setExporting(null)
     }
@@ -854,6 +896,7 @@ function EditorContent({ resume }: { resume: Resume }) {
         <Input
           value={title}
           onChange={(e) => setTitle(e.target.value)}
+          maxLength={200}
           className="bg-hydra-surface-2 border-hydra-border text-white font-semibold max-w-xs"
         />
 
