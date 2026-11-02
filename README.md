@@ -120,7 +120,7 @@ Create `.env` in the project root. Never commit real values.
 | `AI_MAX_RETRIES`, `AI_TIMEOUT_MS` | AI | Optional retry/timeout tuning. |
 | `OPENAI_API_KEY`, `OPENAI_BASE_URL` | AI fallback | OpenAI-compatible gateway fallback. |
 | `CHOCODATA_API_KEY`, `CHOCODATA_RATE_LIMIT_RPM` | Scraping | ChocoData sources; default limit is 10 requests/minute. |
-| `JOBSPY_URL`, `JOBSPY_PORT` | Scraping | JobSpy worker endpoint/port. |
+| `JOBSPY_URL`, `JOBSPY_PORT`, `JOBSPY_TOKEN` | Scraping | JobSpy worker endpoint/port and shared auth secret (required for public workers). |
 | `BRIGHTDATA_API_KEY` | Backfill | Optional BrightData backfill. |
 | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` | Billing | Stripe API and webhook verification. |
 | `STRIPE_PRICE_HUNTER_MONTHLY`, `STRIPE_PRICE_HUNTER_YEARLY` | Billing | Hunter plan prices. |
@@ -200,6 +200,15 @@ bun run start   # NODE_ENV=production bun .next/standalone/server.js
 ```
 
 Deployment helpers in `.zscripts/` package the Python worker and runtime unless `JOBSPY_URL` points at an external service. Set `DATABASE_URL` to a production PostgreSQL instance (Supabase recommended) and run `prisma migrate deploy` before starting the server.
+
+### Vercel + external JobSpy worker
+
+Vercel can host the Next.js app but cannot run the Python worker. Deploy the worker as a container using `mini-services/jobspy-svc/Dockerfile` (see `mini-services/jobspy-svc/DEPLOY.md`), then set these in Vercel Production and Preview:
+
+- `JOBSPY_URL` — the worker's public `/scrape` URL
+- `JOBSPY_TOKEN` — the same shared secret configured on the worker
+
+Redeploy after changing environment variables. The worker binds `0.0.0.0` in the container and refuses to start without `JOBSPY_TOKEN`.
 
 ---
 

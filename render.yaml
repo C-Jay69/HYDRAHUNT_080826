@@ -1,0 +1,19 @@
+# Render Blueprint for the JobSpy worker used by the Vercel-hosted app.
+#
+# Create a Blueprint from this repository in the Render dashboard, then enter
+# JOBSPY_TOKEN when prompted. Copy the resulting service URL into Vercel as
+# JOBSPY_URL (append /scrape) and JOBSPY_TOKEN (same secret).
+#
+# plan: free spins the service down after inactivity, so the first search after
+# a quiet period pays a cold-start penalty. Change to `starter` to keep it warm.
+services:
+  - type: web
+    name: hydrahunt-jobspy
+    runtime: docker
+    dockerfilePath: ./mini-services/jobspy-svc/Dockerfile
+    dockerContext: .
+    healthCheckPath: /health
+    plan: free
+    envVars:
+      - key: JOBSPY_TOKEN
+        sync: false

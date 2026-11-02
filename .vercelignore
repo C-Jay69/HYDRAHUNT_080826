@@ -1,0 +1,18 @@
+# Secrets and local env
+.env
+.env.*
+!.env.example
+
+# Local dependencies and build output
+node_modules/
+.next/
+venv/
+.venv/
+mini-services/*/venv/
+
+# Local logs and scratch
+*.log
+dev.log
+next.log
+jobspy.log
+tsconfig.tsbuildinfo

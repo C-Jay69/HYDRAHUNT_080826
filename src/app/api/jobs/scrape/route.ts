@@ -7,6 +7,7 @@ import { fetchChocoJobs, waitForChocoRateLimit, normalizeJob, type JobSource, ty
 
 const encoder = new TextEncoder()
 const JOBSPY_URL = process.env.JOBSPY_URL || 'http://127.0.0.1:3001/scrape'
+const JOBSPY_TOKEN = process.env.JOBSPY_TOKEN
 const JOBSPY_SOURCES = new Set(['indeed', 'glassdoor', 'zip_recruiter', 'google'])
 // A broad search without querying every niche/remote board or consuming excessive API quota.
 const BROAD_SOURCES = ['linkedin', 'indeed', 'zip_recruiter', 'google'] as const
@@ -108,7 +109,10 @@ export async function GET(request: NextRequest) {
                 url.searchParams.set('site', board)
                 url.searchParams.set('n', String(Math.min(pages * 25, 100)))
                 requestCount++
-                const res = await fetch(url, { headers: { Accept: 'application/json' }, signal: AbortSignal.any([request.signal, AbortSignal.timeout(180_000)]) })
+                const headers: Record<string, string> = { Accept: 'application/json' }
+                if (JOBSPY_TOKEN) headers.Authorization = `Bearer ${JOBSPY_TOKEN}`
+                const res = await fetch(url, { headers, signal: AbortSignal.any([request.signal, AbortSignal.timeout(180_000)]) })
+                if (res.status === 401 || res.status === 403) throw new Error('JobSpy authorization failed. Check JOBSPY_TOKEN.')
                 if (!res.ok) throw new Error(`JobSpy returned HTTP ${res.status}`)
                 const data = await res.json() as { jobs?: unknown[]; errors?: string[]; success?: boolean; error?: string }
                 if (data.success === false) throw new Error(data.error || 'JobSpy request failed')
@@ -133,7 +137,21 @@ export async function GET(request: NextRequest) {
               sourceSucceeded = true
             } catch (err) {
               if (request.signal.aborted) break
-              warnings.push(`${board}: ${isJobSpy && err instanceof TypeError && err.message === 'fetch failed' ? 'JobSpy service is unreachable. Start it with npm run dev:services or check JOBSPY_URL.' : err instanceof Error ? err.message : String(err)}`)
+              if (isJobSpy) {
+                const detail = err instanceof Error ? err.message : String(err)
+                console.error(`[jobs/scrape] ${board} via JobSpy (${JOBSPY_URL}) failed: ${detail}`)
+                warnings.push(
+                  `${board}: ${
+                    process.env.NODE_ENV === 'production'
+                      ? 'source temporarily unavailable'
+                      : detail === 'fetch failed'
+                        ? 'JobSpy service is unreachable. Start it with npm run dev:services or check JOBSPY_URL.'
+                        : detail
+                  }`,
+                )
+              } else {
+                warnings.push(`${board}: ${err instanceof Error ? err.message : String(err)}`)
+              }
               break
             }
             warnings.push(...sourceErrors.map((error) => `${board}: ${error}`))

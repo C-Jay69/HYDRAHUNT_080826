@@ -29,10 +29,18 @@ Run:
   python3 mini-services/jobspy-svc/app.py
 Or via the wrapper:
   ./mini-services/jobspy-svc/serve.sh
+
+Environment:
+  JOBSPY_HOST   bind address (default 127.0.0.1; set 0.0.0.0 in a container)
+  JOBSPY_PORT   listen port (default 3001; falls back to PORT for cloud hosts)
+  JOBSPY_TOKEN  optional shared secret; REQUIRED when JOBSPY_HOST is not loopback.
+                Callers send `Authorization: Bearer <token>` (or X-JobSpy-Token).
+                /health stays public for platform health checks.
 """
 
 from __future__ import annotations
 
+import hmac
 import json
 import os
 import sys
@@ -59,7 +67,10 @@ ALLOWED_SITES = {
     "bdjobs",
 }
 
-DEFAULT_PORT = int(os.environ.get("JOBSPY_PORT", "3001"))
+JOBSPY_HOST = (os.environ.get("JOBSPY_HOST") or "127.0.0.1").strip()
+JOBSPY_TOKEN = (os.environ.get("JOBSPY_TOKEN") or "").strip()
+DEFAULT_PORT = int(os.environ.get("JOBSPY_PORT") or os.environ.get("PORT") or "3001")
+LOOPBACK_HOSTS = {"127.0.0.1", "::1", "localhost"}
 
 SALARY_FIELDS = [
     "min_amount",
@@ -172,17 +183,34 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+    def _authorized(self) -> bool:
+        """Check the shared secret. Auth is disabled when JOBSPY_TOKEN is unset."""
+        if not JOBSPY_TOKEN:
+            return True
+        expected = f"Bearer {JOBSPY_TOKEN}".encode()
+        auth = self.headers.get("Authorization", "").encode("utf-8", "ignore")
+        if hmac.compare_digest(auth, expected):
+            return True
+        alt = self.headers.get("X-JobSpy-Token", "").encode("utf-8", "ignore")
+        return hmac.compare_digest(alt, JOBSPY_TOKEN.encode())
+
     def do_OPTIONS(self):  # CORS preflight
         self.send_response(200)
         self.send_header("Access-Control-Allow-Origin", "*")
         self.send_header("Access-Control-Allow-Methods", "GET, OPTIONS")
-        self.send_header("Access-Control-Allow-Headers", "Content-Type")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization, X-JobSpy-Token")
         self.end_headers()
 
     def do_GET(self):
         parsed = urlparse(self.path)
+        if parsed.path == "/health":
+            self._send(200, {"success": True, "service": "jobspy", "status": "ok"})
+            return
         if parsed.path != "/scrape":
             self._send(404, {"success": False, "error": f"unknown path: {parsed.path}"})
+            return
+        if not self._authorized():
+            self._send(401, {"success": False, "error": "unauthorized"})
             return
 
         qs = parse_qs(parsed.query)
@@ -243,8 +271,15 @@ class Handler(BaseHTTPRequestHandler):
 
 if __name__ == "__main__":
     port = int(sys.argv[1]) if len(sys.argv) > 1 else DEFAULT_PORT
-    server = ThreadingHTTPServer(("127.0.0.1", port), Handler)
-    print(f"[jobspy-svc] listening on :{port}", file=sys.stderr)
+    if JOBSPY_HOST not in LOOPBACK_HOSTS and not JOBSPY_TOKEN:
+        print(
+            "[jobspy-svc] FATAL: JOBSPY_TOKEN is required when binding to a non-loopback host",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+    server = ThreadingHTTPServer((JOBSPY_HOST, port), Handler)
+    auth_state = "enabled" if JOBSPY_TOKEN else "disabled (loopback only)"
+    print(f"[jobspy-svc] listening on {JOBSPY_HOST}:{port}; auth {auth_state}", file=sys.stderr)
     try:
         server.serve_forever()
     except KeyboardInterrupt:
