@@ -1,0 +1,12 @@
+# Keep the Docker build context small and free of secrets.
+.git
+.github
+.next
+node_modules
+venv
+.venv
+mini-services/*/venv
+.env
+.env.*
+*.log
+tsconfig.tsbuildinfo
