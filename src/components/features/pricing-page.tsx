@@ -20,6 +20,8 @@ import {
   Crown,
   Loader2,
   ArrowLeft,
+  ArrowUpRight,
+  ChevronRight,
 } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -156,6 +158,64 @@ const item = {
   show: { opacity: 1, y: 0, transition: { duration: 0.5 } },
 }
 
+const fadeUp = {
+  hidden: { opacity: 0, y: 20 },
+  visible: (i: number = 0) => ({
+    opacity: 1,
+    y: 0,
+    transition: { delay: i * 0.08, duration: 0.55, ease: 'easeOut' as const },
+  }),
+}
+
+const fadeContainer = {
+  hidden: {},
+  visible: { transition: { staggerChildren: 0.07 } },
+}
+
+/** Copy of the landing page's compact Pricing section. */
+const LANDING_PLANS = [
+  {
+    name: 'Day One',
+    price: 'Free',
+    period: 'forever',
+    blurb: 'Test the whole workflow.',
+    points: ['1 resume', '3 AI kits / month', '10 job targets', 'A-List + Mock Room'],
+    cta: 'Start free',
+    featured: false,
+    checkoutPlan: undefined as string | undefined,
+  },
+  {
+    name: 'Stride',
+    price: '$24',
+    period: '/month',
+    blurb: 'For an active search.',
+    points: ['Unlimited resumes', '100 AI kits / month', 'ATS scoring + DOCX', 'Rewind version history'],
+    cta: 'Go Stride',
+    featured: true,
+    checkoutPlan: 'hunter_monthly',
+  },
+  {
+    name: 'Apex',
+    price: '$59',
+    period: '/month',
+    blurb: 'Everything, unmetered.',
+    points: ['Unlimited everything', 'Trajectory + analytics', 'Priority AI processing', 'Priority support'],
+    cta: 'Go Apex',
+    featured: false,
+    checkoutPlan: 'beastmaster_monthly',
+  },
+  {
+    name: 'Founder',
+    price: '$599',
+    period: 'one-time',
+    blurb: 'Lifetime Apex access.',
+    points: ['Everything in Apex, forever', 'First 250 hunters only', 'Price locked for life', 'No renewals, ever'],
+    cta: 'Claim founder deal',
+    featured: false,
+    checkoutPlan: 'lifetime_founder_deal',
+  },
+]
+
 function PlanCard({ plan }: { plan: Plan }) {
   const IconComp = plan.icon
   const [loading, setLoading] = useState(false)
@@ -287,7 +347,40 @@ function PlanCard({ plan }: { plan: Plan }) {
 export default function PricingPage() {
   const [packLoading, setPackLoading] = useState(false)
   const [founderLoading, setFounderLoading] = useState(false)
+  const [teaserLoading, setTeaserLoading] = useState<string | null>(null)
   const { isAuthenticated, setView } = useAppStore()
+
+  async function handleTeaserCheckout(plan: (typeof LANDING_PLANS)[number]) {
+    if (!plan.checkoutPlan) {
+      setView(isAuthenticated ? 'dashboard' : 'signup')
+      return
+    }
+    if (!isAuthenticated) {
+      toast({ title: 'Sign in required', description: 'Create an account before upgrading.' })
+      setView('signup')
+      return
+    }
+    setTeaserLoading(plan.name)
+    try {
+      const res = await fetch('/api/stripe/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ plan: plan.checkoutPlan }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Checkout failed')
+      if (data.url) window.location.href = data.url
+      else toast({ title: 'Checkout unavailable', description: data.error })
+    } catch (err: unknown) {
+      toast({
+        title: 'Checkout failed',
+        description: err instanceof Error ? err.message : 'Something went wrong',
+        variant: 'destructive',
+      })
+    } finally {
+      setTeaserLoading(null)
+    }
+  }
 
   async function handleFounderDeal() {
     if (!isAuthenticated) {
@@ -378,6 +471,7 @@ export default function PricingPage() {
 
       {/* Plan Cards */}
       <motion.div
+        id="pricing-plans"
         variants={container}
         initial="hidden"
         animate="show"
@@ -507,6 +601,102 @@ export default function PricingPage() {
           </CardContent>
         </Card>
       </motion.div>
+
+      {/* Pricing recap — mirror of the landing page Pricing section */}
+      <motion.section
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.7 }}
+        className="relative overflow-hidden border-y border-hydra-border py-16 sm:py-20"
+      >
+        <div className="pointer-events-none absolute bottom-0 left-1/2 h-[380px] w-[640px] -translate-x-1/2 rounded-full bg-hydra-cyan/8 blur-[120px]" />
+        <div className="relative mx-auto max-w-6xl px-4 sm:px-6">
+          <div className="mx-auto max-w-xl text-center">
+            <span className="text-xs font-semibold uppercase tracking-[0.18em] text-hydra-cyan">
+              Pricing
+            </span>
+            <h2 className="mt-3 text-3xl font-bold tracking-tight sm:text-4xl">
+              Start free. Upgrade when the search gets serious.
+            </h2>
+            <p className="mt-4 text-muted-foreground">
+              One offer is worth more than a year of any plan here.
+            </p>
+          </div>
+
+          <motion.div
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, amount: 0.2 }}
+            variants={fadeContainer}
+            className="mt-12 grid gap-4 sm:gap-6 md:grid-cols-2 lg:grid-cols-4"
+          >
+            {LANDING_PLANS.map((plan, i) => (
+              <motion.div
+                key={plan.name}
+                variants={fadeUp}
+                custom={i}
+                className={`relative flex h-full flex-col rounded-2xl border p-6 ${
+                  plan.featured
+                    ? 'border-hydra-purple/40 bg-hydra-surface shadow-[0_0_50px_-24px_rgba(177,84,248,0.9)]'
+                    : 'border-hydra-border bg-hydra-surface/60'
+                }`}
+              >
+                {plan.featured && (
+                  <span className="absolute -top-3 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-hydra-purple px-3 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white">
+                    Most popular
+                  </span>
+                )}
+                <p className="text-sm font-semibold uppercase tracking-wider text-foreground">
+                  {plan.name}
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground">{plan.blurb}</p>
+                <div className="mt-5 flex items-baseline gap-1">
+                  <span className="text-3xl font-bold text-foreground">{plan.price}</span>
+                  <span className="text-xs text-muted-foreground">{plan.period}</span>
+                </div>
+                <ul className="mt-5 flex-1 space-y-2">
+                  {plan.points.map((point) => (
+                    <li key={point} className="flex items-start gap-2 text-sm text-foreground/80">
+                      <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-hydra-green" />
+                      {point}
+                    </li>
+                  ))}
+                </ul>
+                <Button
+                  onClick={() => handleTeaserCheckout(plan)}
+                  disabled={teaserLoading === plan.name}
+                  className={`mt-6 w-full ${
+                    plan.featured
+                      ? 'bg-hydra-purple text-white hover:bg-hydra-purple/85'
+                      : 'border border-hydra-border bg-hydra-surface-2 text-foreground hover:border-hydra-purple/30 hover:bg-hydra-surface-2'
+                  }`}
+                >
+                  {teaserLoading === plan.name ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <>
+                      {plan.cta}
+                      <ArrowUpRight className="h-3.5 w-3.5" />
+                    </>
+                  )}
+                </Button>
+              </motion.div>
+            ))}
+          </motion.div>
+
+          <div className="mt-6 text-center">
+            <button
+              onClick={() =>
+                document.getElementById('pricing-plans')?.scrollIntoView({ behavior: 'smooth' })
+              }
+              className="inline-flex items-center gap-1 text-sm text-hydra-cyan hover:text-hydra-purple"
+            >
+              Compare every feature, the $12 boost pack, and the $599 founder deal
+              <ChevronRight className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        </div>
+      </motion.section>
 
       {/* FAQ / Bottom Note */}
       <motion.div
