@@ -46,11 +46,89 @@ import hmac
 import json
 import os
 import queue
+import re
 import sys
 import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlparse, parse_qs
+
+# Location text -> JobSpy country string. Order matters: longer/more specific
+# regions first ("northern ireland" must resolve to the UK, not Ireland).
+COUNTRY_HINTS = (
+    ("united states", ("usa", "u.s.", "u.s.a.", "us", "united states")),
+    ("canada", ("canada",)),
+    ("united kingdom", ("uk", "u.k.", "united kingdom", "england", "scotland", "wales", "northern ireland", "great britain", "britain")),
+    ("ireland", ("ireland", "eire", "éire")),
+    ("australia", ("australia",)),
+    ("new zealand", ("new zealand", "aotearoa")),
+    ("germany", ("germany", "deutschland")),
+    ("france", ("france",)),
+    ("netherlands", ("netherlands", "holland")),
+    ("spain", ("spain", "españa")),
+    ("italy", ("italy", "italia")),
+    ("portugal", ("portugal",)),
+    ("poland", ("poland",)),
+    ("switzerland", ("switzerland",)),
+    ("austria", ("austria",)),
+    ("belgium", ("belgium",)),
+    ("denmark", ("denmark",)),
+    ("sweden", ("sweden",)),
+    ("norway", ("norway",)),
+    ("finland", ("finland",)),
+    ("czech republic", ("czech republic", "czechia")),
+    ("greece", ("greece",)),
+    ("hungary", ("hungary",)),
+    ("romania", ("romania",)),
+    ("ukraine", ("ukraine",)),
+    ("croatia", ("croatia",)),
+    ("slovenia", ("slovenia",)),
+    ("slovakia", ("slovakia",)),
+    ("bulgaria", ("bulgaria",)),
+    ("cyprus", ("cyprus",)),
+    ("malta", ("malta",)),
+    ("luxembourg", ("luxembourg",)),
+    ("latvia", ("latvia",)),
+    ("lithuania", ("lithuania",)),
+    ("estonia", ("estonia",)),
+    ("brazil", ("brazil", "brasil")),
+    ("mexico", ("mexico", "méxico")),
+    ("argentina", ("argentina",)),
+    ("chile", ("chile",)),
+    ("colombia", ("colombia",)),
+    ("peru", ("peru", "perú")),
+    ("uruguay", ("uruguay",)),
+    ("ecuador", ("ecuador",)),
+    ("venezuela", ("venezuela",)),
+    ("costa rica", ("costa rica",)),
+    ("panama", ("panama", "panamá")),
+    ("india", ("india",)),
+    ("pakistan", ("pakistan",)),
+    ("bangladesh", ("bangladesh",)),
+    ("singapore", ("singapore",)),
+    ("malaysia", ("malaysia",)),
+    ("indonesia", ("indonesia",)),
+    ("philippines", ("philippines",)),
+    ("thailand", ("thailand",)),
+    ("vietnam", ("vietnam",)),
+    ("japan", ("japan",)),
+    ("china", ("china",)),
+    ("south korea", ("south korea", "korea")),
+    ("taiwan", ("taiwan",)),
+    ("hong kong", ("hong kong",)),
+    ("turkey", ("türkiye", "turkey")),
+    ("israel", ("israel",)),
+    ("united arab emirates", ("united arab emirates", "uae", "u.a.e.", "dubai", "abu dhabi")),
+    ("saudi arabia", ("saudi arabia", "saudi")),
+    ("qatar", ("qatar",)),
+    ("kuwait", ("kuwait",)),
+    ("oman", ("oman",)),
+    ("bahrain", ("bahrain",)),
+    ("south africa", ("south africa",)),
+    ("nigeria", ("nigeria",)),
+    ("egypt", ("egypt",)),
+    ("morocco", ("morocco",)),
+)
 
 try:
     from jobspy import scrape_jobs
@@ -148,6 +226,23 @@ def normalize_row(row: dict) -> dict:
     }
 
 
+def infer_country(location: str) -> str | None:
+    """Map a free-text location to a JobSpy country string.
+
+    Indeed defaults to the USA when `country_indeed` is omitted, so a search
+    for "Dublin, Ireland" quietly returns zero jobs. Match the country name (or
+    a common alias) anywhere in the location text and pass it through.
+    """
+    text = location.lower()
+    for country, aliases in COUNTRY_HINTS:
+        for alias in aliases:
+            # Letter lookarounds instead of \b so aliases with dots ("u.s.")
+            # work and "india" does not match "indianapolis".
+            if re.search(rf"(?<![a-z]){re.escape(alias)}(?![a-z])", text):
+                return country
+    return None
+
+
 def scrape_site(site: str, keywords: str, location: str | None, n: int, hours_old: int | None) -> tuple[list[dict], str | None]:
     """Scrape a single site. Returns (jobs, error)."""
     try:
@@ -168,12 +263,11 @@ def scrape_site(site: str, keywords: str, location: str | None, n: int, hours_ol
                 # Add distance parameter for location filtering (in miles)
                 # Controls how far from the specified location to search
                 kwargs["distance"] = 50
-                # Filter Indeed to specific country when location mentions it
-                location_lower = location.lower()
-                if "canada" in location_lower:
-                    kwargs["country_indeed"] = "canada"
-                elif "usa" in location_lower or "united states" in location_lower:
-                    kwargs["country_indeed"] = "usa"
+                # Filter Indeed to the country named in the location. Without
+                # this it searches the US and non-US locations return nothing.
+                country = infer_country(location)
+                if country:
+                    kwargs["country_indeed"] = country
         if hours_old is not None:
             kwargs["hours_old"] = hours_old
 
