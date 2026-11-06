@@ -21,35 +21,37 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { HydraLogo, HydraMark } from '@/components/brand/hydra-logo'
+import { useI18n, type Messages } from '@/lib/i18n'
 
 interface NavItem {
-  label: string
+  labelKey: keyof Messages['nav']
   view: AppView
   icon: LucideIcon
 }
 
 const navItems: NavItem[] = [
-  { label: 'Momentum', view: 'dashboard', icon: LayoutDashboard },
-  { label: 'A-List', view: 'kill-list', icon: ListChecks },
-  { label: 'Radar', view: 'job-opportunities', icon: Radar },
-  { label: 'Resume Studio', view: 'resume-forge', icon: FileText },
-  { label: 'Tailor', view: 'payload-forge', icon: Package },
-  { label: 'Mock Room', view: 'interview-drills', icon: Mic },
-  { label: 'Fit Check', view: 'analysis', icon: ScanSearch },
-  { label: 'Rewind', view: 'version-vault', icon: History },
-  { label: 'Trail', view: 'mission-log', icon: Route },
-  { label: 'Trajectory', view: 'career-map', icon: TrendingUp },
-  { label: 'Settings', view: 'settings', icon: Settings },
-  { label: 'Billing', view: 'billing', icon: CreditCard },
+  { labelKey: 'momentum', view: 'dashboard', icon: LayoutDashboard },
+  { labelKey: 'aList', view: 'kill-list', icon: ListChecks },
+  { labelKey: 'radar', view: 'job-opportunities', icon: Radar },
+  { labelKey: 'resumeStudio', view: 'resume-forge', icon: FileText },
+  { labelKey: 'tailor', view: 'payload-forge', icon: Package },
+  { labelKey: 'mockRoom', view: 'interview-drills', icon: Mic },
+  { labelKey: 'fitCheck', view: 'analysis', icon: ScanSearch },
+  { labelKey: 'rewind', view: 'version-vault', icon: History },
+  { labelKey: 'trail', view: 'mission-log', icon: Route },
+  { labelKey: 'trajectory', view: 'career-map', icon: TrendingUp },
+  { labelKey: 'settings', view: 'settings', icon: Settings },
+  { labelKey: 'billing', view: 'billing', icon: CreditCard },
 ]
 
 export default function Sidebar() {
   const { view, setView, user, logout, sidebarOpen, setSidebarOpen } =
     useAppStore()
+  const { m } = useI18n()
 
   const isAdmin = Boolean(user?.isAdmin)
   const items = isAdmin
-    ? [...navItems, { label: 'Admin Panel', view: 'admin' as AppView, icon: Gauge }]
+    ? [...navItems, { labelKey: 'admin' as const, view: 'admin' as AppView, icon: Gauge }]
     : navItems
 
   const handleNav = (itemView: AppView) => {
@@ -74,7 +76,7 @@ export default function Sidebar() {
           'absolute -right-3 top-6 z-10 flex h-6 w-6 items-center justify-center rounded-full border border-hydra-border bg-hydra-surface text-muted-foreground hover:text-hydra-purple transition-colors',
           !sidebarOpen && 'rotate-180'
         )}
-        aria-label={sidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'}
+        aria-label={sidebarOpen ? m.nav.collapse : m.nav.expand}
       >
         <ChevronLeft className="h-3 w-3" />
       </button>
@@ -97,11 +99,12 @@ export default function Sidebar() {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 overflow-y-auto px-2 py-3" aria-label="Main navigation">
+      <nav className="flex-1 overflow-y-auto px-2 py-3" aria-label={m.nav.mainLabel}>
         <ul className="flex flex-col gap-1">
           {items.map((item) => {
             const Icon = item.icon
             const isActive = view === item.view
+            const label = m.nav[item.labelKey]
             return (
               <li key={item.view}>
                 <button
@@ -114,10 +117,10 @@ export default function Sidebar() {
                     !sidebarOpen && 'justify-center px-2'
                   )}
                   aria-current={isActive ? 'page' : undefined}
-                  title={!sidebarOpen ? item.label : undefined}
+                  title={!sidebarOpen ? label : undefined}
                 >
                   <Icon className="h-4 w-4 shrink-0" />
-                  {sidebarOpen && <span>{item.label}</span>}
+                  {sidebarOpen && <span>{label}</span>}
                 </button>
               </li>
             )
@@ -140,7 +143,7 @@ export default function Sidebar() {
             {sidebarOpen && (
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-medium text-foreground">
-                  {user.name || 'Member'}
+                  {user.name || m.common.member}
                 </p>
                 <p className="truncate text-xs text-muted-foreground">
                   {user.email}
@@ -156,10 +159,10 @@ export default function Sidebar() {
             'hover:bg-hydra-red/10 hover:text-hydra-red',
             !sidebarOpen && 'justify-center px-2'
           )}
-          aria-label="Log out"
+          aria-label={m.common.logOutAria}
         >
           <LogOut className="h-4 w-4 shrink-0" />
-          {sidebarOpen && <span>Log Out</span>}
+          {sidebarOpen && <span>{m.common.logOut}</span>}
         </button>
       </div>
     </aside>

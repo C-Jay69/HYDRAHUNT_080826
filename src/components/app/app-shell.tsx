@@ -3,6 +3,7 @@
 import Sidebar from './sidebar'
 import Header from './header'
 import { useAppStore, type AppView } from '@/store/app-store'
+import { useI18n } from '@/lib/i18n'
 import { cn } from '@/lib/utils'
 import { Menu } from 'lucide-react'
 
@@ -32,6 +33,7 @@ const SCENE_BY_VIEW: Record<AppView, string> = {
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const { sidebarOpen, setSidebarOpen, view } = useAppStore()
+  const { m } = useI18n()
 
   return (
     <div className="flex h-screen w-full overflow-hidden bg-hydra-dark">
@@ -64,7 +66,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               'flex h-14 w-14 shrink-0 items-center justify-center text-muted-foreground',
               'hover:bg-hydra-surface-2 hover:text-foreground transition-colors md:hidden'
             )}
-            aria-label="Toggle menu"
+            aria-label={m.header.toggleMenu}
           >
             <Menu className="h-5 w-5" />
           </button>
