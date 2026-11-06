@@ -12,6 +12,27 @@ const JOBSPY_SOURCES = new Set(['indeed', 'glassdoor', 'zip_recruiter', 'google'
 // A broad search without querying every niche/remote board or consuming excessive API quota.
 const BROAD_SOURCES = ['linkedin', 'indeed', 'zip_recruiter', 'google'] as const
 
+// The Python worker runs locally on the developer's machine, where a loopback
+// URL is correct. A Vercel function cannot reach that: 127.0.0.1 is the
+// function's own sandbox, so every JobSpy board fails with "fetch failed".
+// Detect that misconfiguration and explain it instead of leaving the user with
+// a generic outage message.
+function jobSpyFailureHint(): string {
+  let host: string
+  try {
+    host = new URL(JOBSPY_URL).hostname
+  } catch {
+    return `JOBSPY_URL (${JOBSPY_URL}) is not a valid URL.`
+  }
+  const loopback = host === 'localhost' || host === '::1' || host === '[::1]' || host === '0.0.0.0' || /^127\./.test(host)
+  if (process.env.VERCEL) {
+    return loopback
+      ? `JOBSPY_URL points at ${host}, which a Vercel function cannot reach. Deploy the worker (see mini-services/jobspy-svc/DEPLOY.md) and set JOBSPY_URL to its public /scrape URL.`
+      : `the JobSpy worker at ${host} is offline or unreachable. Check that the service is running and that JOBSPY_URL is correct.`
+  }
+  return 'the JobSpy worker is offline or unresponsive. Start it with npm run dev:services, or point JOBSPY_URL at a running worker.'
+}
+
 type SavedJob = Awaited<ReturnType<typeof db.jobOpportunity.upsert>>
 
 function fromJobSpyJob(j: Record<string, unknown>): NormalizedJob {
@@ -107,6 +128,8 @@ export async function GET(request: NextRequest) {
         const warnings: string[] = []
         // JobSpy boards that never answered, collapsed into one warning below.
         const jobSpyUnavailable: string[] = []
+        // The operator hint is identical for every board; log it once per run.
+        let jobSpyHintLogged = false
         let successfulSources = 0
         let saveFailures = 0
 
@@ -159,11 +182,15 @@ export async function GET(request: NextRequest) {
               if (request.signal.aborted) break
               if (isJobSpy) {
                 const detail = err instanceof Error ? err.message : String(err)
-                console.error(`[jobs/scrape] ${board} via JobSpy (${JOBSPY_URL}) failed: ${detail}`)
+                const connectivityFailure = /fetch failed|ECONNREFUSED|ENOTFOUND|timed out|timeout|aborted/i.test(detail)
+                // The hint is for operators (Vercel logs), not end users.
+                const hint = connectivityFailure && !jobSpyHintLogged ? ` — ${jobSpyFailureHint()}` : ''
+                if (hint) jobSpyHintLogged = true
+                console.error(`[jobs/scrape] ${board} via JobSpy (${JOBSPY_URL}) failed: ${detail}${hint}`)
                 // Connectivity failures hit every JobSpy board the same way;
                 // collect them so the user sees one clear message, not one
                 // identical line per board.
-                if (/fetch failed|ECONNREFUSED|ENOTFOUND|timed out|timeout|aborted/i.test(detail)) {
+                if (connectivityFailure) {
                   jobSpyUnavailable.push(board)
                 } else {
                   warnings.push(`${board}: ${detail}`)
@@ -215,8 +242,10 @@ export async function GET(request: NextRequest) {
           if (sourceSucceeded) successfulSources++
         }
         if (jobSpyUnavailable.length) {
+          // Keep the user-facing text free of deployment details; the operator
+          // hint goes to the server log with the failure above.
           warnings.push(
-            `${jobSpyUnavailable.join(', ')}: scraping service unavailable — the JobSpy worker is offline or unresponsive. Start it with npm run dev:services, or check JOBSPY_URL in production.`,
+            `${jobSpyUnavailable.join(', ')}: scraping service unavailable — those sources could not be searched right now, so results include only the sources that responded.`,
           )
         }
         if (saveFailures) warnings.push(`${saveFailures} job(s) could not be saved.`)
