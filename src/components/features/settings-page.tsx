@@ -88,6 +88,8 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [loadError, setLoadError] = useState<string | null>(null)
+  const [saveError, setSaveError] = useState<string | null>(null)
 
   useEffect(() => {
     fetchProfile()
@@ -95,49 +97,39 @@ export default function SettingsPage() {
 
   const fetchProfile = async () => {
     setLoading(true)
+    setLoadError(null)
     try {
       const res = await fetch('/api/auth/me')
-      if (res.ok) {
-        const data = await res.json()
-        setProfile({
-          id: data.id || '',
-          name: data.name || '',
-          email: data.email || '',
-          headline: data.headline || '',
-          bio: data.bio || '',
-          location: data.location || '',
-          website: data.website || '',
-          linkedin: data.linkedin || '',
-          github: data.github || '',
-          phone: data.phone || '',
-          targetRole: data.targetRole || '',
-          targetSalary: data.targetSalary || '',
-          targetLocation: data.targetLocation || '',
-          experienceLevel: data.experienceLevel || '',
-          notificationsEnabled: data.notificationsEnabled ?? true,
-        })
-      } else {
-        // Demo profile
-        setProfile({
-          id: 'demo',
-          name: 'Alex Chen',
-          email: 'alex.chen@hydrahunt.io',
-          headline: 'Senior Product Manager',
-          bio: 'Passionate product leader with 8+ years of experience building B2B SaaS products. Specializing in AI/ML-driven features and growth strategies.',
-          location: 'San Francisco, CA',
-          website: 'https://alexchen.dev',
-          linkedin: 'linkedin.com/in/alexchen',
-          github: 'github.com/alexchen',
-          phone: '+1 (415) 555-0132',
-          targetRole: 'VP of Product',
-          targetSalary: '$250K - $350K',
-          targetLocation: 'San Francisco, CA | Remote',
-          experienceLevel: 'Director',
-          notificationsEnabled: true,
-        })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data?.error || `HTTP ${res.status}`)
       }
-    } catch {
-      // silent
+
+      // /api/auth/me returns { success, user: { name, email, profile } }.
+      const data = await res.json()
+      const user = data.user ?? {}
+      const profileData = user.profile ?? {}
+
+      setProfile({
+        id: user.id ?? '',
+        name: user.name ?? '',
+        email: user.email ?? '',
+        headline: profileData.headline ?? '',
+        bio: profileData.bio ?? '',
+        location: profileData.location ?? '',
+        website: profileData.website ?? '',
+        linkedin: profileData.linkedin ?? '',
+        github: profileData.github ?? '',
+        phone: profileData.phone ?? '',
+        targetRole: profileData.targetRole ?? '',
+        targetSalary: profileData.targetSalary != null ? String(profileData.targetSalary) : '',
+        targetLocation: profileData.targetLocation ?? '',
+        experienceLevel: profileData.experience ?? '',
+        notificationsEnabled: true,
+      })
+    } catch (err) {
+      // Never invent a fallback persona — show the failure honestly.
+      setLoadError(err instanceof Error ? err.message : 'Could not load your profile.')
     } finally {
       setLoading(false)
     }
@@ -146,18 +138,44 @@ export default function SettingsPage() {
   const handleSave = async () => {
     setSaving(true)
     setSaved(false)
+    setSaveError(null)
     try {
+      // Only send fields the API schema accepts. Empty optional values become
+      // null (the schema rejects '' for URL fields) and `experienceLevel` maps
+      // to the persisted `experience` column.
+      const salaryMatch = profile.targetSalary ? profile.targetSalary.match(/\d[\d,]*/) : null
+      const salary = salaryMatch ? Number(salaryMatch[0].replace(/,/g, '')) : NaN
+
+      const payload: Record<string, unknown> = {
+        headline: profile.headline?.trim() || null,
+        bio: profile.bio?.trim() || null,
+        location: profile.location?.trim() || null,
+        website: profile.website?.trim() || null,
+        linkedin: profile.linkedin?.trim() || null,
+        github: profile.github?.trim() || null,
+        phone: profile.phone?.trim() || null,
+        targetRole: profile.targetRole?.trim() || null,
+        targetSalary: Number.isFinite(salary) && salary > 0 ? salary : null,
+        targetLocation: profile.targetLocation?.trim() || null,
+        experience: profile.experienceLevel || null,
+      }
+      if (profile.name?.trim()) payload.name = profile.name.trim()
+
       const res = await fetch('/api/auth/me', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(profile),
+        body: JSON.stringify(payload),
       })
-      if (res.ok) {
-        setSaved(true)
-        setTimeout(() => setSaved(false), 3000)
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data?.error || `HTTP ${res.status}`)
       }
-    } catch {
-      // silent
+
+      setSaved(true)
+      setTimeout(() => setSaved(false), 3000)
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : 'Could not save your profile.')
     } finally {
       setSaving(false)
     }
@@ -193,6 +211,23 @@ export default function SettingsPage() {
           <p className="text-sm text-hydra-muted">Manage your profile and preferences</p>
         </div>
       </div>
+
+      {loadError && (
+        <div
+          role="alert"
+          className="flex items-center justify-between gap-3 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 max-w-3xl"
+        >
+          <p className="text-sm text-red-300">Couldn't load your profile: {loadError}</p>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => fetchProfile()}
+            className="text-red-300 hover:text-red-200 shrink-0"
+          >
+            Retry
+          </Button>
+        </div>
+      )}
 
       <motion.div
         variants={container}
@@ -339,7 +374,7 @@ export default function SettingsPage() {
                   <Input
                     value={profile.targetSalary || ''}
                     onChange={(e) => updateField('targetSalary', e.target.value)}
-                    placeholder="e.g. $250K - $350K"
+                    placeholder="e.g. 250000"
                     className="bg-hydra-surface border-hydra-border text-foreground"
                   />
                 </div>
@@ -482,7 +517,12 @@ export default function SettingsPage() {
         </motion.div>
 
         {/* Save Button */}
-        <motion.div variants={item} className="flex justify-end">
+        <motion.div variants={item} className="flex flex-col items-end gap-2">
+          {saveError && (
+            <p role="alert" className="text-xs text-red-400">
+              Couldn't save your profile: {saveError}
+            </p>
+          )}
           <Button
             onClick={handleSave}
             disabled={saving}

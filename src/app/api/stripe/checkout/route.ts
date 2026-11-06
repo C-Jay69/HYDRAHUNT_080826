@@ -43,13 +43,21 @@ export async function POST(request: NextRequest) {
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || request.nextUrl.origin
     const plan = parsed.data.plan
 
+    const isOneTime = (ONE_TIME_PLANS as readonly string[]).includes(plan)
+
     const session = await stripe.checkout.sessions.create({
-      mode: (ONE_TIME_PLANS as readonly string[]).includes(plan) ? 'payment' : 'subscription',
+      mode: isOneTime ? 'payment' : 'subscription',
       customer_email: user.email,
       line_items: [{ price: priceId, quantity: 1 }],
       success_url: `${baseUrl}/?billing=success&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${baseUrl}/?billing=cancelled`,
       metadata: { userId: user.id, plan },
+      // Lifecycle webhooks (subscription.updated/deleted, invoice.*) carry the
+      // subscription object, not the checkout session. Copy the ownership
+      // metadata onto the subscription so those events can resolve the user.
+      ...(isOneTime
+        ? {}
+        : { subscription_data: { metadata: { userId: user.id, plan } } }),
     })
 
     return NextResponse.json({ success: true, url: session.url })

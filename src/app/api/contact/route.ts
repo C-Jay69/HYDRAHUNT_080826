@@ -1,9 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { sendEmail } from '@/lib/email'
 import { contactSchema } from '@/lib/validators'
+import { CONTACT_RATE_LIMIT, getClientIp, rateLimitResponse } from '@/lib/rate-limit'
 
 export async function POST(request: NextRequest) {
   try {
+    const limited = rateLimitResponse(
+      `contact:${getClientIp(request)}`,
+      CONTACT_RATE_LIMIT.limit,
+      CONTACT_RATE_LIMIT.windowMs,
+    )
+    if (limited) return limited
+
     const body = await request.json()
     const parsed = contactSchema.safeParse(body)
     if (!parsed.success) {

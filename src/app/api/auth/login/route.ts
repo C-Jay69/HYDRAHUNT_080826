@@ -3,10 +3,15 @@ import { db } from '@/lib/db'
 import { setSessionCookie, verifyPassword } from '@/lib/auth'
 import { isAdminEmail } from '@/lib/admin'
 import { loginSchema } from '@/lib/validators'
+import { AUTH_RATE_LIMIT, getClientIp, rateLimitResponse } from '@/lib/rate-limit'
 
 // POST /api/auth/login — verify credentials, issue session cookie
 export async function POST(request: NextRequest) {
   try {
+    const ip = getClientIp(request)
+    const limited = rateLimitResponse(`login:${ip}`, AUTH_RATE_LIMIT.limit, AUTH_RATE_LIMIT.windowMs)
+    if (limited) return limited
+
     const body = await request.json()
     const parsed = loginSchema.safeParse(body)
     if (!parsed.success) {
@@ -17,6 +22,11 @@ export async function POST(request: NextRequest) {
     }
 
     const { email, password } = parsed.data
+
+    // Per-account throttle in addition to the per-IP limit, so one IP pool
+    // cannot grind a single account.
+    const emailLimited = rateLimitResponse(`login:email:${email}`, 5, 60 * 1000)
+    if (emailLimited) return emailLimited
 
     const user = await db.user.findUnique({
       where: { email },

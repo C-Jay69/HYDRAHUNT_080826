@@ -182,11 +182,13 @@ Admins listed in `ADMIN_EMAILS` bypass paywalls.
 
 ```bash
 # Job scraping regression tests
-npx tsx --test tests/job-scrape.test.ts
-python3 tests/jobspy-service.test.py
+npm test                      # npx tsx --test tests/job-scrape.test.ts
+npm run test:python           # python3 tests/jobspy-service.test.py
 ```
 
-CI (`.github/workflows/ci.yml`) runs `typecheck` and a production `build` on every push to `main` and on pull requests.
+Both suites are offline: they stub auth/DB and mock the job boards.
+
+CI (`.github/workflows/ci.yml`) runs `typecheck`, both test suites, and a production `build` on every push to `main` and on pull requests; the build waits on the tests.
 
 ---
 
@@ -200,6 +202,14 @@ bun run start   # NODE_ENV=production bun .next/standalone/server.js
 ```
 
 Deployment helpers in `.zscripts/` package the Python worker and runtime unless `JOBSPY_URL` points at an external service. Set `DATABASE_URL` to a production PostgreSQL instance (Supabase recommended) and run `prisma migrate deploy` before starting the server.
+
+`prisma/migrations/0_init` is the baseline migration matching the current schema. A database that was created with `prisma db push` before migrations existed must be baselined **once** so `migrate deploy` does not try to re-create existing tables:
+
+```bash
+npx prisma migrate resolve --applied 0_init
+```
+
+After that, `prisma migrate deploy` applies only new migrations. Use `prisma migrate dev` locally to create them.
 
 ### Vercel + external JobSpy worker
 

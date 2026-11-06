@@ -7,7 +7,11 @@ const globalForPrisma = globalThis as unknown as {
 export const db =
   globalForPrisma.prisma ??
   new PrismaClient({
-    log: ['query'],
+    // Query logging is noisy (and costly) in production; enable it with
+    // PRISMA_QUERY_LOG=true when debugging.
+    log: process.env.PRISMA_QUERY_LOG === 'true' ? ['query', 'warn', 'error'] : ['warn', 'error'],
   })
 
-if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = db
+// Cache the client across hot reloads in dev, and reuse it across invocations
+// in production to avoid exhausting the connection pool.
+globalForPrisma.prisma = db

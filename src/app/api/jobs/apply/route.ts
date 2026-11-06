@@ -37,7 +37,37 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Job not found' }, { status: 404 })
     }
 
-    const dryRun = isDryRun() || !autoApply
+    // JobApplication.resumeId has no foreign key. Validate ownership explicitly
+    // so a caller cannot attach another user's resume to their application.
+    if (resumeId) {
+      const resume = await db.resume.findFirst({
+        where: { id: resumeId, userId: user.id },
+        select: { id: true },
+      })
+      if (!resume) {
+        return NextResponse.json({ error: 'Resume not found' }, { status: 404 })
+      }
+    }
+
+    const existingApplication = await db.jobApplication.findFirst({
+      where: { userId: user.id, jobId: job.id },
+      select: { id: true, status: true },
+    })
+    if (existingApplication) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'You have already recorded an application for this job.',
+          application: existingApplication,
+        },
+        { status: 409 },
+      )
+    }
+
+    // No external application-delivery integration exists yet. Never record an
+    // application as "sent" when no message was actually delivered.
+    const deliveryConfigured = false
+    const dryRun = isDryRun() || !autoApply || !deliveryConfigured
 
     const application = await db.jobApplication.create({
       data: {

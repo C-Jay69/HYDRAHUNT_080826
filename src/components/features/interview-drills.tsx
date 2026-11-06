@@ -468,13 +468,11 @@ function ActiveSession({ sessionId, onBack }: { sessionId: string; onBack: () =>
     }
 
     try {
-      const history = updatedMessages.map(
-        (m) => ({ role: m.role === 'ai' ? 'assistant' : m.role, content: m.content })
-      )
+      // The server rebuilds conversation context from persisted messages.
       const res = await fetch(`/api/interviews/${sessionId}/chat?XTransformPort=3000`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: trimmed, history }),
+        body: JSON.stringify({ message: trimmed }),
       })
 
       if (!res.ok) {

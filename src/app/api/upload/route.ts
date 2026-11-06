@@ -1,12 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireUser } from '@/lib/auth'
-import { parseUpload } from '@/lib/file-upload'
+import { parseUpload, UploadError } from '@/lib/file-upload'
+import { enforcePlanGate } from '@/lib/plans'
 import { db } from '@/lib/db'
 
 // POST /api/upload — upload a resume file (PDF/DOCX/TXT), extract text, persist
 export async function POST(request: NextRequest) {
   try {
     const user = await requireUser()
+
+    // This route creates a resume, so it must respect the same resume cap as
+    // POST /api/resumes and /api/resumes/import.
+    await enforcePlanGate(user.id, 'resumes')
 
     const formData = await request.formData()
     const file = formData.get('file') as File | null
@@ -58,6 +63,9 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Upload error:', error)
     if (error instanceof NextResponse) return error
+    if (error instanceof UploadError) {
+      return NextResponse.json({ success: false, error: error.message }, { status: error.status })
+    }
     return NextResponse.json({ success: false, error: 'Failed to process upload' }, { status: 500 })
   }
 }

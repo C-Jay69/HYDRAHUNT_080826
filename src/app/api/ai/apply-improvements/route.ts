@@ -124,6 +124,18 @@ export async function POST(request: NextRequest) {
       include: { sections: { orderBy: { sortOrder: 'asc' } } },
     })
 
+    // Record the generation in the usage ledger. The `aiGenerations` plan gate
+    // counts GeneratedPayload rows, so every successful LLM call must create
+    // one or the free-tier limit can be bypassed indefinitely.
+    await db.generatedPayload.create({
+      data: {
+        userId: user.id,
+        resumeId,
+        jobDescription: '[resume-improvements] AI rewrite applied',
+        tailoredSummary: `Applied ${improvements.length} improvement(s)`,
+      },
+    })
+
     await db.activityLog.create({
       data: {
         userId: user.id,

@@ -3,7 +3,15 @@ import { requireUser } from '@/lib/auth'
 import { completeStream } from '@/lib/ai'
 import { buildInterviewSystemPrompt } from '@/lib/prompts'
 import { interviewChatSchema } from '@/lib/validators'
+import { AI_RATE_LIMIT, rateLimitResponse } from '@/lib/rate-limit'
 import { NextRequest } from 'next/server'
+
+/** Conversation context sent to the model: last N persisted messages. */
+const MAX_HISTORY_MESSAGES = 40
+/** Per-message cap so one huge answer cannot dominate the prompt. */
+const MAX_HISTORY_CHARS = 4000
+/** Keep replies to a plausible interview-answer length. */
+const MAX_REPLY_TOKENS = 800
 
 /**
  * POST /api/interviews/[sessionId]/chat
@@ -26,6 +34,15 @@ export async function POST(
 
   try {
     const user = await requireUser()
+
+    // One streamed LLM call per message; throttle per user to bound cost.
+    const limited = rateLimitResponse(
+      `interview-chat:${user.id}`,
+      AI_RATE_LIMIT.limit,
+      AI_RATE_LIMIT.windowMs,
+    )
+    if (limited) return limited
+
     const { sessionId } = await params
     const body = await request.json()
     const parsed = interviewChatSchema.safeParse(body)
@@ -35,7 +52,7 @@ export async function POST(
         { status: 400, headers: { 'Content-Type': 'text/event-stream' } },
       )
     }
-    const { message, history } = parsed.data
+    const { message } = parsed.data
 
     // Fetch session with ownership check
     const session = await db.interviewSession.findFirst({
@@ -53,9 +70,18 @@ export async function POST(
       { role: 'system', content: buildInterviewSystemPrompt(session.type, session.role, session.company) },
     ]
 
-    // If this is the first message (no prior history), add an opening question
-    const isFirstMessage = !history || (Array.isArray(history) && history.length === 0)
-    if (isFirstMessage) {
+    // Rebuild the conversation from persisted messages. Client-supplied
+    // `history` is ignored entirely: a caller could otherwise fabricate
+    // assistant turns, pick arbitrary roles, or inflate the prompt at will.
+    const recent = await db.interviewMessage.findMany({
+      where: { sessionId },
+      orderBy: { createdAt: 'desc' },
+      take: MAX_HISTORY_MESSAGES,
+      select: { role: true, content: true },
+    })
+
+    if (recent.length === 0) {
+      // First turn: seed the opening question.
       const openingQuestions: Record<string, string> = {
         behavioral: 'To start, could you tell me about a recent professional achievement you\'re proud of and why it mattered?',
         technical: 'To start, could you walk me through a recent technical challenge you solved and your approach?',
@@ -64,12 +90,13 @@ export async function POST(
       const question = openingQuestions[session.type] || openingQuestions.behavioral
       messages.push({ role: 'assistant', content: question })
     } else {
-      if (Array.isArray(history)) {
-        for (const msg of history) {
-          if (msg.role && msg.content) {
-            messages.push({ role: msg.role === 'assistant' ? 'assistant' : 'user', content: msg.content })
-          }
-        }
+      for (const msg of recent.reverse()) {
+        const content = msg.content?.trim()
+        if (!content) continue
+        messages.push({
+          role: msg.role === 'ai' ? 'assistant' : 'user',
+          content: content.slice(0, MAX_HISTORY_CHARS),
+        })
       }
     }
     messages.push({ role: 'user', content: message })
@@ -77,7 +104,7 @@ export async function POST(
     // Persist the user message immediately
     await db.interviewMessage.create({ data: { sessionId, role: 'user', content: message } })
 
-    const stream = await completeStream({ messages })
+    const stream = await completeStream({ messages, maxTokens: MAX_REPLY_TOKENS })
 
     // Rough heuristic score based on answer length/depth (stored per AI message).
     const contentLength = message.trim().split(/\s+/).length
