@@ -5,6 +5,7 @@ const PUBLIC_API_PREFIXES = [
   '/api/auth/login',
   '/api/auth/signup',
   '/api/auth/magic-link',
+  '/api/auth/google',
   '/api/webhooks/stripe',
   '/api/health',
   '/api/contact',

@@ -77,7 +77,7 @@ function SafeView({ children }: { children: ReactNode }) {
 const PUBLIC_VIEWS: AppView[] = ['landing', 'pricing', 'login', 'signup', 'contact']
 
 function AppRouter() {
-  const { view, isAuthenticated, sessionChecked, restoreSession } = useAppStore()
+  const { view, isAuthenticated, sessionChecked, restoreSession, setView } = useAppStore()
 
   // Restore persisted session on first mount
   useEffect(() => {
@@ -85,6 +85,14 @@ function AppRouter() {
       restoreSession()
     }
   }, [sessionChecked, restoreSession])
+
+  // A failed Google round-trip lands on /?authError=... — surface it on the
+  // login view even when another public view was persisted.
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).has('authError')) {
+      setView('login')
+    }
+  }, [setView])
 
   const isPublicView = PUBLIC_VIEWS.includes(view)
 

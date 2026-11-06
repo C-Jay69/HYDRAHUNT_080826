@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { motion } from 'framer-motion'
 import { Eye, EyeOff, Mail, Lock, Loader2 } from 'lucide-react'
 import { HydraMark } from '@/components/brand/hydra-logo'
@@ -32,6 +32,30 @@ export default function LoginPage() {
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
+
+  // Surface a failed Google round-trip (?authError=...) once, then clean the URL.
+  useEffect(() => {
+    const code = new URLSearchParams(window.location.search).get('authError')
+    if (!code) return
+    const messages: Record<string, string> = {
+      cancelled: 'Google sign-in was cancelled.',
+      state: 'That sign-in attempt expired. Please try again.',
+      exchange: 'Google sign-in failed. Please try again.',
+      unverified: 'Google has not verified that email address.',
+      admin: 'This email is reserved. Sign in with your admin password.',
+      unavailable: 'Google sign-in is not configured on this deployment.',
+    }
+    toast({
+      title: 'Google Sign-In Failed',
+      description: messages[code] || 'Google sign-in failed. Please try again.',
+      variant: 'destructive',
+    })
+    window.history.replaceState({}, '', window.location.pathname)
+  }, [])
+
+  function startGoogleSignIn() {
+    window.location.assign('/api/auth/google')
+  }
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
@@ -165,19 +189,11 @@ export default function LoginPage() {
                   role="button"
                   tabIndex={0}
                   className="flex items-center justify-center gap-2 w-full h-11 rounded-md border border-hydra-border bg-transparent hover:bg-hydra-surface-2 transition-colors cursor-pointer text-sm font-medium"
-                  onClick={() =>
-                    toast({
-                      title: 'Coming Soon',
-                      description: 'Google sign-in will be available in a future update.',
-                    })
-                  }
+                  onClick={startGoogleSignIn}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' || e.key === ' ') {
                       e.preventDefault()
-                      toast({
-                        title: 'Coming Soon',
-                        description: 'Google sign-in will be available in a future update.',
-                      })
+                      startGoogleSignIn()
                     }
                   }}
                 >
