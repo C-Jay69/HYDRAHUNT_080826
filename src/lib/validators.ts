@@ -78,15 +78,8 @@ export const interviewSessionUpdateSchema = z.object({
 
 export const interviewChatSchema = z.object({
   message: z.string().trim().min(1).max(4000),
-  history: z
-    .array(
-      z.object({
-        role: z.enum(['user', 'assistant']),
-        content: z.string().max(10000),
-      }),
-    )
-    .max(200)
-    .optional(),
+  // Conversation context is rebuilt server-side from persisted interview
+  // messages; client-supplied history is deliberately not accepted.
 })
 
 export const versionCreateSchema = z.object({

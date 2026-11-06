@@ -110,7 +110,9 @@ Create `.env` in the project root. Never commit real values.
 | --- | --- | --- |
 | `DATABASE_URL` | Yes | PostgreSQL connection string. |
 | `AUTH_SECRET` or `SESSION_SECRET` | Yes | Signs session cookies and magic-link tokens. Generate with `openssl rand -base64 32`. |
-| `NEXT_PUBLIC_APP_URL` | Yes | Public base URL used in emails and redirects. |
+| `NEXT_PUBLIC_APP_URL` | Yes | Public base URL used in emails, redirects and the Google OAuth redirect URI. |
+| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | Google sign-in | OAuth 2.0 web client. Leave unset to disable the Google button. Register `<NEXT_PUBLIC_APP_URL>/api/auth/google/callback` as an authorized redirect URI. |
+| `GOOGLE_REDIRECT_URI` | Optional | Overrides the derived Google redirect URI (must match Google Cloud byte-for-byte). |
 | `ADMIN_EMAILS` | Recommended | Comma-separated emails with admin access and paywall bypass. |
 | `ADMIN_EMAIL`, `ADMIN_PASSWORD` | Seed only | Credentials for `db:seed-admin`. |
 | `SENDER_API_KEY`, `MAIL_FROM` | Email | Sender.net transactional email for magic links and contact form. |
@@ -135,8 +137,8 @@ Create `.env` in the project root. Never commit real values.
 ## Architecture
 
 - **Single-page app shell.** `src/app/page.tsx` lazy-loads the views and switches between them through the Zustand store. Only `/privacy` and `/field-guide` (a redirect to the landing anchor) are separate routes.
-- **API route handlers** in `src/app/api/**` back every feature. `src/proxy.ts` (Next.js 16's replacement for middleware) enforces session auth on all API routes except `/api/auth/login`, `/api/auth/signup`, `/api/auth/magic-link*`, `/api/webhooks/stripe` and `/api/health`.
-- **Auth** is custom: scrypt password hashing, 15-minute magic links, and 7-day HMAC-signed session cookies. No NextAuth runtime is used.
+- **API route handlers** in `src/app/api/**` back every feature. `src/proxy.ts` (Next.js 16's replacement for middleware) enforces session auth on all API routes except `/api/auth/login`, `/api/auth/signup`, `/api/auth/magic-link*`, `/api/auth/google*`, `/api/webhooks/stripe`, `/api/health` and `/api/contact`.
+- **Auth** is custom: scrypt password hashing, 15-minute magic links, 7-day HMAC-signed session cookies, and optional Google OAuth (authorization code + PKCE) that issues the same session cookie. No NextAuth runtime is used.
 - **Data layer** is Prisma over PostgreSQL with 21 models spanning users, resumes, analyses, job targets, opportunities, interview sessions, career maps, scraping runs and billing.
 - **Runtime** is a Next.js standalone build served by Bun. Deployment scripts live in `.zscripts/`.
 
@@ -182,11 +184,13 @@ Admins listed in `ADMIN_EMAILS` bypass paywalls.
 
 ```bash
 # Job scraping regression tests
-npx tsx --test tests/job-scrape.test.ts
-python3 tests/jobspy-service.test.py
+npm test                      # npx tsx --test tests/job-scrape.test.ts
+npm run test:python           # python3 tests/jobspy-service.test.py
 ```
 
-CI (`.github/workflows/ci.yml`) runs `typecheck` and a production `build` on every push to `main` and on pull requests.
+Both suites are offline: they stub auth/DB and mock the job boards.
+
+CI (`.github/workflows/ci.yml`) runs `typecheck`, both test suites, and a production `build` on every push to `main` and on pull requests; the build waits on the tests.
 
 ---
 
@@ -200,6 +204,14 @@ bun run start   # NODE_ENV=production bun .next/standalone/server.js
 ```
 
 Deployment helpers in `.zscripts/` package the Python worker and runtime unless `JOBSPY_URL` points at an external service. Set `DATABASE_URL` to a production PostgreSQL instance (Supabase recommended) and run `prisma migrate deploy` before starting the server.
+
+`prisma/migrations/0_init` is the baseline migration matching the current schema. A database that was created with `prisma db push` before migrations existed must be baselined **once** so `migrate deploy` does not try to re-create existing tables:
+
+```bash
+npx prisma migrate resolve --applied 0_init
+```
+
+After that, `prisma migrate deploy` applies only new migrations. Use `prisma migrate dev` locally to create them.
 
 ### Vercel + external JobSpy worker
 

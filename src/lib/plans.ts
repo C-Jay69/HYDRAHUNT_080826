@@ -10,6 +10,8 @@ export interface PlanLimits {
   analyses: number | null
   interviews: number | null
   jobTargets: number | null
+  /** Radar job-search runs per calendar month. */
+  scrapes: number | null
   storageMb: number
   exportFormats: string[]
   watermarkPdf: boolean
@@ -22,6 +24,7 @@ export const SUBSCRIPTION_LIMITS: Record<Plan, PlanLimits> = {
     analyses: 1,
     interviews: 1,
     jobTargets: 10,
+    scrapes: 5,
     storageMb: 100,
     exportFormats: ['pdf'],
     watermarkPdf: true,
@@ -32,6 +35,7 @@ export const SUBSCRIPTION_LIMITS: Record<Plan, PlanLimits> = {
     analyses: 1,
     interviews: 1,
     jobTargets: 10,
+    scrapes: 10,
     storageMb: 100,
     exportFormats: ['pdf'],
     watermarkPdf: true,
@@ -42,6 +46,7 @@ export const SUBSCRIPTION_LIMITS: Record<Plan, PlanLimits> = {
     analyses: 10,
     interviews: 20,
     jobTargets: null,
+    scrapes: 100,
     storageMb: 2 * 1024,
     exportFormats: ['pdf', 'docx'],
     watermarkPdf: false,
@@ -52,6 +57,7 @@ export const SUBSCRIPTION_LIMITS: Record<Plan, PlanLimits> = {
     analyses: null,
     interviews: null,
     jobTargets: null,
+    scrapes: null,
     storageMb: 20 * 1024,
     exportFormats: ['pdf', 'docx'],
     watermarkPdf: false,
@@ -123,6 +129,17 @@ export async function usageExceeded(userId: string, category: keyof Omit<PlanLim
     case 'jobTargets':
       count = await db.jobTarget.count({ where: { userId } })
       break
+    case 'scrapes':
+      // Radar runs are metered monthly. A run that failed before reaching any
+      // provider (outage, misconfiguration) should not burn the user's quota.
+      count = await db.scrapingRun.count({
+        where: {
+          userId,
+          createdAt: { gte: startOfMonth },
+          OR: [{ status: { not: 'failed' } }, { requestCount: { gt: 0 } }],
+        },
+      })
+      break
     case 'resumes':
       count = await db.resume.count({ where: { userId } })
       break
@@ -130,6 +147,19 @@ export async function usageExceeded(userId: string, category: keyof Omit<PlanLim
 
   return count >= limit
 }
+
+/** Human-readable names for gate categories, used in upgrade errors. */
+const CATEGORY_LABELS: Record<string, string> = {
+  resumes: 'resume',
+  aiGenerations: 'AI generation',
+  analyses: 'resume analysis',
+  interviews: 'mock interview',
+  jobTargets: 'job target',
+  scrapes: 'Radar search',
+}
+
+/** Categories whose counter resets on the first of each month. */
+const MONTHLY_CATEGORIES = new Set(['aiGenerations', 'analyses', 'interviews', 'scrapes'])
 
 /**
  * Throws a NextResponse (403) when the user's plan cannot perform `category`.
@@ -161,10 +191,12 @@ export async function enforcePlanGate(
 
   const exceeded = await usageExceeded(userId, category)
   if (exceeded) {
+    const label = CATEGORY_LABELS[category] || category
+    const windowNote = MONTHLY_CATEGORIES.has(category) ? ' this month' : ''
     throw new NextResponse(
       JSON.stringify({
         success: false,
-        error: `Your ${plan} plan has reached its ${category.replace(/([A-Z])/g, ' $1').toLowerCase()} limit. Upgrade to continue.`,
+        error: `Your ${plan} plan has reached its ${label} limit${windowNote}. Upgrade to continue.`,
         upgradeRequired: true,
       }),
       { status: 403, headers: { 'Content-Type': 'application/json' } },

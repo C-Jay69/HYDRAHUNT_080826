@@ -47,6 +47,8 @@ export default function VersionVault() {
   const [versions, setVersions] = useState<Version[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [successMessage, setSuccessMessage] = useState<string | null>(null)
+  const [resumeId, setResumeId] = useState<string | null>(null)
   const [restoring, setRestoring] = useState<string | null>(null)
   const [createOpen, setCreateOpen] = useState(false)
   const [newLabel, setNewLabel] = useState('')
@@ -63,17 +65,35 @@ export default function VersionVault() {
     setLoading(true)
     setError(null)
     try {
-      const res = await fetch('/api/versions')
-      if (res.ok) {
-        const data = await res.json()
+      // A version always belongs to a resume, so resolve which resume to
+      // snapshot alongside the version list.
+      const [versionsRes, resumesRes] = await Promise.all([
+        fetch('/api/versions'),
+        fetch('/api/resumes'),
+      ])
+
+      if (versionsRes.ok) {
+        const data = await versionsRes.json()
         setVersions(Array.isArray(data) ? data : data.versions || [])
       } else {
         // No invented fallback data — surface the failure and show the honest empty state.
         setVersions([])
-        setError(`Couldn't load your saved versions (HTTP ${res.status}).`)
+        setError(`Couldn't load your saved versions (HTTP ${versionsRes.status}).`)
+      }
+
+      if (resumesRes.ok) {
+        const data = await resumesRes.json()
+        const list: Array<{ id: string; isDefault?: boolean }> = Array.isArray(data)
+          ? data
+          : data.resumes || []
+        const preferred = list.find((resume) => resume.isDefault) ?? list[0]
+        setResumeId(preferred?.id ?? null)
+      } else {
+        setResumeId(null)
       }
     } catch {
       setVersions([])
+      setResumeId(null)
       setError("Couldn't reach the server to load your saved versions.")
     } finally {
       setLoading(false)
@@ -86,7 +106,8 @@ export default function VersionVault() {
     try {
       const res = await fetch(`/api/versions/${versionId}/restore`, { method: 'PUT' })
       if (res.ok) {
-        // Success — could navigate to resume editor
+        setSuccessMessage('Version restored to your resume.')
+        setTimeout(() => setSuccessMessage(null), 4000)
       } else {
         setError(`Couldn't restore that version (HTTP ${res.status}).`)
       }
@@ -98,21 +119,25 @@ export default function VersionVault() {
   }
 
   const handleCreateVersion = async () => {
-    if (!newLabel.trim()) return
+    if (!newLabel.trim() || !resumeId) return
     setError(null)
     try {
+      // versionCreateSchema requires a resumeId; the API snapshots that resume.
       const res = await fetch('/api/versions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ label: newLabel, notes: newNotes }),
+        body: JSON.stringify({ resumeId, label: newLabel, notes: newNotes }),
       })
       if (res.ok) {
         setCreateOpen(false)
         setNewLabel('')
         setNewNotes('')
+        setSuccessMessage('Version saved.')
+        setTimeout(() => setSuccessMessage(null), 4000)
         fetchVersions()
       } else {
-        setError(`Couldn't save this version (HTTP ${res.status}). Please try again.`)
+        const data = await res.json().catch(() => ({}))
+        setError(data?.error || `Couldn't save this version (HTTP ${res.status}). Please try again.`)
       }
     } catch {
       setError("Couldn't save this version. Check your connection and try again.")
@@ -207,13 +232,18 @@ export default function VersionVault() {
                   className="bg-hydra-surface-2 border-hydra-border text-foreground mt-1"
                 />
               </div>
+              {!resumeId && (
+                <p className="text-xs text-red-400">
+                  Create a resume first — a version is a snapshot of a resume.
+                </p>
+              )}
               <div className="flex justify-end gap-2">
                 <Button variant="ghost" onClick={() => setCreateOpen(false)}>
                   Cancel
                 </Button>
                 <Button
                   onClick={handleCreateVersion}
-                  disabled={!newLabel.trim()}
+                  disabled={!newLabel.trim() || !resumeId}
                   className="bg-hydra-purple hover:bg-hydra-purple/80 text-white"
                 >
                   Save Version
@@ -245,6 +275,16 @@ export default function VersionVault() {
           >
             Retry
           </Button>
+        </div>
+      )}
+
+      {/* Action success */}
+      {!loading && successMessage && (
+        <div
+          role="status"
+          className="rounded-lg border border-hydra-green/30 bg-hydra-green/10 px-4 py-3 text-sm text-hydra-green"
+        >
+          {successMessage}
         </div>
       )}
 

@@ -36,6 +36,8 @@ Environment:
   JOBSPY_TOKEN  optional shared secret; REQUIRED when JOBSPY_HOST is not loopback.
                 Callers send `Authorization: Bearer <token>` (or X-JobSpy-Token).
                 /health stays public for platform health checks.
+  JOBSPY_SCRAPE_TIMEOUT  wall-clock seconds allowed per /scrape request (default 60).
+  JOBSPY_MAX_WORKERS     concurrent boards scraped per request (default 4).
 """
 
 from __future__ import annotations
@@ -43,7 +45,10 @@ from __future__ import annotations
 import hmac
 import json
 import os
+import queue
 import sys
+import threading
+import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlparse, parse_qs
 
@@ -71,6 +76,19 @@ JOBSPY_HOST = (os.environ.get("JOBSPY_HOST") or "127.0.0.1").strip()
 JOBSPY_TOKEN = (os.environ.get("JOBSPY_TOKEN") or "").strip()
 DEFAULT_PORT = int(os.environ.get("JOBSPY_PORT") or os.environ.get("PORT") or "3001")
 LOOPBACK_HOSTS = {"127.0.0.1", "::1", "localhost"}
+
+# Bound total work per request: a single wedged board must not hold the request
+# (or a client) open indefinitely. Sites are scraped concurrently, so this is a
+# wall-clock ceiling for the whole request, not per site.
+SCRAPE_TIMEOUT = float(os.environ.get("JOBSPY_SCRAPE_TIMEOUT") or "60")
+# Caps concurrent scraper threads spawned by one request.
+MAX_SCRAPE_WORKERS = int(os.environ.get("JOBSPY_MAX_WORKERS") or "4")
+
+# Observable state for /health so a busy-but-alive worker can be told apart
+# from a wedged one.
+_INFLIGHT = 0
+_INFLIGHT_LOCK = threading.Lock()
+_LAST_COMPLETED_AT = None
 
 SALARY_FIELDS = [
     "min_amount",
@@ -173,6 +191,56 @@ def scrape_site(site: str, keywords: str, location: str | None, n: int, hours_ol
         return [], msg
 
 
+def scrape_sites(
+    sites: list[str],
+    keywords: str,
+    location: str | None,
+    n: int,
+    hours_old: int | None,
+    timeout: float | None = None,
+) -> tuple[list[dict], list[str]]:
+    """Scrape several boards concurrently with a wall-clock deadline.
+
+    Each board runs on a daemon thread so a wedged provider cannot keep the
+    process alive, and no more than MAX_SCRAPE_WORKERS call JobSpy at once.
+    Boards that miss the deadline are reported as errors instead of silently
+    vanishing.
+    """
+    timeout = SCRAPE_TIMEOUT if timeout is None else timeout
+    results: queue.Queue = queue.Queue()
+    semaphore = threading.Semaphore(MAX_SCRAPE_WORKERS)
+
+    def worker(site: str) -> None:
+        with semaphore:
+            results.put((site, *scrape_site(site, keywords, location, n, hours_old)))
+
+    for site in sites:
+        threading.Thread(target=worker, args=(site,), daemon=True, name=f"jobspy-{site}").start()
+
+    jobs: list[dict] = []
+    errors: list[str] = []
+    received: set[str] = set()
+    deadline = time.monotonic() + timeout
+    while len(received) < len(sites):
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            break
+        try:
+            site, site_jobs, err = results.get(timeout=remaining)
+        except queue.Empty:
+            break
+        received.add(site)
+        jobs.extend(site_jobs)
+        if err:
+            errors.append(err)
+
+    for site in sites:
+        if site not in received:
+            errors.append(f"{site}: timed out after {timeout:.0f}s")
+
+    return jobs, errors
+
+
 class Handler(BaseHTTPRequestHandler):
     def _send(self, code: int, payload: dict):
         body = json.dumps(payload, default=str).encode()
@@ -202,9 +270,25 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
 
     def do_GET(self):
+        global _INFLIGHT, _LAST_COMPLETED_AT
         parsed = urlparse(self.path)
         if parsed.path == "/health":
-            self._send(200, {"success": True, "service": "jobspy", "status": "ok"})
+            with _INFLIGHT_LOCK:
+                inflight = _INFLIGHT
+                last_completed = _LAST_COMPLETED_AT
+            self._send(
+                200,
+                {
+                    "success": True,
+                    "service": "jobspy",
+                    # "busy" still means healthy: it distinguishes a working
+                    # worker under load from one that has stopped answering.
+                    "status": "busy" if inflight else "ok",
+                    "inFlight": inflight,
+                    "lastCompletedAt": last_completed,
+                    "scrapeTimeoutSeconds": SCRAPE_TIMEOUT,
+                },
+            )
             return
         if parsed.path != "/scrape":
             self._send(404, {"success": False, "error": f"unknown path: {parsed.path}"})
@@ -236,13 +320,14 @@ class Handler(BaseHTTPRequestHandler):
         except (TypeError, ValueError):
             hours_old = None
 
-        all_jobs: list[dict] = []
-        errors: list[str] = []
-        for site in sites:
-            jobs, err = scrape_site(site, keywords, location, n, hours_old)
-            all_jobs.extend(jobs)
-            if err:
-                errors.append(err)
+        with _INFLIGHT_LOCK:
+            _INFLIGHT += 1
+        try:
+            all_jobs, errors = scrape_sites(sites, keywords, location, n, hours_old)
+        finally:
+            with _INFLIGHT_LOCK:
+                _INFLIGHT -= 1
+                _LAST_COMPLETED_AT = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
 
         # De-duplicate by job_url keeping the first (best-ranked) hit.
         seen: set[str] = set()
@@ -278,6 +363,8 @@ if __name__ == "__main__":
         )
         sys.exit(1)
     server = ThreadingHTTPServer((JOBSPY_HOST, port), Handler)
+    # A stuck scraper thread must never hold up shutdown/restart.
+    server.daemon_threads = True
     auth_state = "enabled" if JOBSPY_TOKEN else "disabled (loopback only)"
     print(f"[jobspy-svc] listening on {JOBSPY_HOST}:{port}; auth {auth_state}", file=sys.stderr)
     try:

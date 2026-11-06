@@ -39,14 +39,28 @@ async function upsertOpportunity(userId: string, job: NormalizedJob): Promise<Sa
     postedLabel: job.postedLabel || null, salary: job.salary || null,
     companyLogo: job.companyLogo || null, raw: job.raw || null,
   }
+  // Re-scrapes frequently return partial records. Only overwrite values this
+  // scrape actually produced so a sparse result does not erase a good field.
+  const updateFields = {
+    ...(fields.title ? { title: fields.title } : {}),
+    ...(fields.company ? { company: fields.company } : {}),
+    ...(fields.companyUrl ? { companyUrl: fields.companyUrl } : {}),
+    ...(fields.location ? { location: fields.location } : {}),
+    ...(fields.jobUrl ? { jobUrl: fields.jobUrl } : {}),
+    ...(fields.postedDate ? { postedDate: fields.postedDate } : {}),
+    ...(fields.postedLabel ? { postedLabel: fields.postedLabel } : {}),
+    ...(fields.salary ? { salary: fields.salary } : {}),
+    ...(fields.companyLogo ? { companyLogo: fields.companyLogo } : {}),
+    ...(fields.raw ? { raw: fields.raw } : {}),
+  }
   // Reuse records found through another source without changing their ID or status.
   if (job.jobUrl) {
     const existing = await db.jobOpportunity.findFirst({ where: { userId, jobUrl: job.jobUrl } })
-    if (existing) return db.jobOpportunity.update({ where: { id: existing.id }, data: fields })
+    if (existing) return db.jobOpportunity.update({ where: { id: existing.id }, data: updateFields })
   }
   return db.jobOpportunity.upsert({
     where: { externalId_userId: { externalId: job.externalId!, userId } },
-    update: fields,
+    update: updateFields,
     create: { ...fields, externalId: job.externalId!, userId },
   })
 }
@@ -81,7 +95,10 @@ export async function GET(request: NextRequest) {
         })
         if (!parsed.success) throw new Error(parsed.error.issues[0]?.message || 'Invalid search')
         const { keywords, location, pages, source } = parsed.data
-        await enforcePlanGate(user.id, 'jobTargets')
+        // Meter Radar by scrape runs, not by A-List size: a user with zero
+        // tracked targets used to scrape without limit, while a user at the
+        // 10-target cap was blocked from searching at all.
+        await enforcePlanGate(user.id, 'scrapes')
         const run = await db.scrapingRun.create({ data: { userId: user.id, keywords, location: location || null, pages, status: 'active' } })
         runId = run.id
         const sources: readonly string[] = source === 'all' ? BROAD_SOURCES : [source]
@@ -96,6 +113,7 @@ export async function GET(request: NextRequest) {
           const isJobSpy = JOBSPY_SOURCES.has(board)
           const pageCount = isJobSpy ? 1 : pages
           let sourceSucceeded = false
+          let duplicatePages = 0
           for (let page = 1; page <= pageCount; page++) {
             if (request.signal.aborted || disconnected) break
             send({ type: 'progress', source: board, page, pages: pageCount, totalFound })
@@ -173,8 +191,25 @@ export async function GET(request: NextRequest) {
             }
             totalFound = collected.length
             send({ type: 'page', source: board, page, pages: pageCount, found: savedPage.length, totalFound, jobs: savedPage })
-            // Some providers repeat the final page instead of returning an empty one.
-            if (!isJobSpy && (jobs.length === 0 || savedPage.length === 0)) break
+            if (!isJobSpy) {
+              // Provider exhausted.
+              if (jobs.length === 0) break
+              // Some providers repeat the final page instead of returning an
+              // empty one. Require two consecutive pages with no new listings
+              // before stopping, so one duplicate-heavy page does not silently
+              // truncate the remaining results.
+              if (savedPage.length === 0) {
+                duplicatePages += 1
+                if (duplicatePages >= 2) {
+                  warnings.push(
+                    `${board}: stopped after ${duplicatePages} pages with no new listings`,
+                  )
+                  break
+                }
+              } else {
+                duplicatePages = 0
+              }
+            }
           }
           if (sourceSucceeded) successfulSources++
         }

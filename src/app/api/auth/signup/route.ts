@@ -3,10 +3,18 @@ import { db } from '@/lib/db'
 import { hashPassword, setSessionCookie } from '@/lib/auth'
 import { isAdminEmail } from '@/lib/admin'
 import { signupSchema } from '@/lib/validators'
+import { getClientIp, rateLimitResponse, SIGNUP_RATE_LIMIT } from '@/lib/rate-limit'
 
 // POST /api/auth/signup — create account with hashed password, issue session cookie
 export async function POST(request: NextRequest) {
   try {
+    const limited = rateLimitResponse(
+      `signup:${getClientIp(request)}`,
+      SIGNUP_RATE_LIMIT.limit,
+      SIGNUP_RATE_LIMIT.windowMs,
+    )
+    if (limited) return limited
+
     const body = await request.json()
     const parsed = signupSchema.safeParse(body)
     if (!parsed.success) {

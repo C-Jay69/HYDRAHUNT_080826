@@ -221,7 +221,8 @@ export default function CareerMap() {
       const res = await fetch('/api/career-map')
       if (res.ok) {
         const data = await res.json()
-        setNodes(Array.isArray(data) ? data : data.nodes || [])
+        // GET /api/career-map returns { success, map: { nodes } }.
+        setNodes(Array.isArray(data) ? data : data.map?.nodes ?? data.nodes ?? [])
       } else {
         // No invented fallback data — surface the failure and show the honest empty state.
         setNodes([])

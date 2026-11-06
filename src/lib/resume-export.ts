@@ -232,6 +232,23 @@ export async function generateDocx(data: ResumeExportData): Promise<Buffer> {
 
 const SKILL_NAMES = ['skills', 'skill', 'technical skills']
 
+/**
+ * pdf-lib's standard fonts only encode WinAnsi (CP1252). Emoji, CJK, arrows
+ * and other non-CP1252 characters make `drawText`/`widthOfTextAtSize` throw,
+ * which used to crash the whole export. Normalize what can be folded to ASCII
+ * (ligatures, full-width forms) and drop what cannot be encoded, so one odd
+ * character costs that character instead of the entire PDF.
+ */
+const NON_WIN_ANSI = /[^\x20-\x7E\xA0-\xFF€‚ƒ„…†‡ˆ‰Š‹ŒŽ‘’“”•–—˜™š›œžŸ]/g
+
+function sanitizePdfText(text: string): string {
+  return text
+    .normalize('NFKC')
+    .replace(NON_WIN_ANSI, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
 export async function generatePdf(data: ResumeExportData): Promise<Buffer> {
   const pdfDoc = await PDFDocument.create()
   const font = await pdfDoc.embedFont(StandardFonts.Helvetica)
@@ -253,7 +270,9 @@ export async function generatePdf(data: ResumeExportData): Promise<Buffer> {
     fontType: typeof font,
     color = rgb(0, 0, 0),
   ) {
-    const lines = wrapText(text, fontType, size, maxWidth)
+    const safeText = sanitizePdfText(text)
+    if (!safeText) return 0
+    const lines = wrapText(safeText, fontType, size, maxWidth)
     for (const line of lines) {
       if (y < margin) {
         // Start a fresh page and keep drawing there. The old code added a new

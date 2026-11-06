@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { requireUser } from '@/lib/auth'
-import { parseUpload } from '@/lib/file-upload'
+import { parseUpload, UploadError } from '@/lib/file-upload'
 import { complete, extractJson } from '@/lib/ai'
 import {
   RESUME_RESTRUCTURE_SYSTEM_PROMPT,
@@ -96,6 +96,16 @@ export async function POST(request: NextRequest) {
       include: { sections: { orderBy: { sortOrder: 'asc' } } },
     })
 
+    // Count the restructuring LLM call against the aiGenerations quota.
+    await db.generatedPayload.create({
+      data: {
+        userId: user.id,
+        resumeId: resume.id,
+        jobDescription: '[resume-import] Resume imported and restructured',
+        tailoredSummary: title,
+      },
+    })
+
     await db.activityLog.create({
       data: {
         userId: user.id,
@@ -109,6 +119,9 @@ export async function POST(request: NextRequest) {
   } catch (error: any) {
     console.error('Resume import error:', error)
     if (error instanceof NextResponse) return error
-    return NextResponse.json({ error: error?.message || 'Failed to import resume' }, { status: 500 })
+    if (error instanceof UploadError) {
+      return NextResponse.json({ error: error.message }, { status: error.status })
+    }
+    return NextResponse.json({ error: 'Failed to import resume' }, { status: 500 })
   }
 }

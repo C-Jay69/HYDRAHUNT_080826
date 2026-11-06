@@ -65,12 +65,14 @@ export default function ContactPage() {
   const [message, setMessage] = useState('')
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
     if (!subject) return
 
     setLoading(true)
+    setError(null)
 
     try {
       const res = await fetch('/api/contact', {
@@ -79,11 +81,15 @@ export default function ContactPage() {
         body: JSON.stringify({ name, email, subject, message }),
       })
 
-      if (!res.ok) throw new Error('Failed to send message')
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data?.error || `Couldn't send your message (HTTP ${res.status}).`)
+      }
 
       setSuccess(true)
-    } catch {
+    } catch (err) {
       setSuccess(false)
+      setError(err instanceof Error ? err.message : "Couldn't send your message. Please try again.")
     } finally {
       setLoading(false)
     }
@@ -246,7 +252,12 @@ export default function ContactPage() {
                       </motion.div>
 
                       {/* Submit */}
-                      <motion.div variants={fadeUp}>
+                      <motion.div variants={fadeUp} className="space-y-3">
+                        {error && (
+                          <p role="alert" className="text-sm text-red-400">
+                            {error}
+                          </p>
+                        )}
                         <Button
                           type="submit"
                           disabled={loading || !subject}
