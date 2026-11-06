@@ -105,6 +105,8 @@ export async function GET(request: NextRequest) {
         const seen = new Set<string>()
         const collected: SavedJob[] = []
         const warnings: string[] = []
+        // JobSpy boards that never answered, collapsed into one warning below.
+        const jobSpyUnavailable: string[] = []
         let successfulSources = 0
         let saveFailures = 0
 
@@ -158,15 +160,14 @@ export async function GET(request: NextRequest) {
               if (isJobSpy) {
                 const detail = err instanceof Error ? err.message : String(err)
                 console.error(`[jobs/scrape] ${board} via JobSpy (${JOBSPY_URL}) failed: ${detail}`)
-                warnings.push(
-                  `${board}: ${
-                    process.env.NODE_ENV === 'production'
-                      ? 'source temporarily unavailable'
-                      : detail === 'fetch failed'
-                        ? 'JobSpy service is unreachable. Start it with npm run dev:services or check JOBSPY_URL.'
-                        : detail
-                  }`,
-                )
+                // Connectivity failures hit every JobSpy board the same way;
+                // collect them so the user sees one clear message, not one
+                // identical line per board.
+                if (/fetch failed|ECONNREFUSED|ENOTFOUND|timed out|timeout|aborted/i.test(detail)) {
+                  jobSpyUnavailable.push(board)
+                } else {
+                  warnings.push(`${board}: ${detail}`)
+                }
               } else {
                 warnings.push(`${board}: ${err instanceof Error ? err.message : String(err)}`)
               }
@@ -202,7 +203,7 @@ export async function GET(request: NextRequest) {
                 duplicatePages += 1
                 if (duplicatePages >= 2) {
                   warnings.push(
-                    `${board}: stopped after ${duplicatePages} pages with no new listings`,
+                    `${board}: no new listings after page ${page - 1} (provider exhausted)`,
                   )
                   break
                 }
@@ -212,6 +213,11 @@ export async function GET(request: NextRequest) {
             }
           }
           if (sourceSucceeded) successfulSources++
+        }
+        if (jobSpyUnavailable.length) {
+          warnings.push(
+            `${jobSpyUnavailable.join(', ')}: scraping service unavailable — the JobSpy worker is offline or unresponsive. Start it with npm run dev:services, or check JOBSPY_URL in production.`,
+          )
         }
         if (saveFailures) warnings.push(`${saveFailures} job(s) could not be saved.`)
         const cancelled = request.signal.aborted || disconnected

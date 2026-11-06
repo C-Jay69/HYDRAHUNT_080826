@@ -98,6 +98,25 @@ test('single source failures and invalid depths are reported', async () => {
 })
 
 
+test('an unreachable JobSpy worker is reported once, not once per board', async () => {
+  saved.clear(); runs.length = 0
+  const originalFetch = globalThis.fetch
+  globalThis.fetch = async (input) => {
+    const url = new URL(String(input))
+    if (url.host === 'api.chocodata.com') {
+      return Response.json({ results: [{ job_id: '9', title: 'Engineer', company: 'Acme', url: 'https://jobs.test/9' }] })
+    }
+    throw new Error('fetch failed')
+  }
+  try {
+    const done = (await events('keywords=engineer&pages=1&source=all')).at(-1)
+    assert.equal(done.type, 'done')
+    const report = done.warnings.join('; ')
+    assert.equal(report.match(/scraping service unavailable/g)?.length, 1)
+    assert.match(report, /indeed, zip_recruiter, google/)
+  } finally { globalThis.fetch = originalFetch }
+})
+
 test('saved jobs can be retrieved beyond the first 100 without including other users', async () => {
   saved.clear()
   for (let i = 0; i < 250; i++) saved.set(`key-${i}`, { id: `id-${String(i).padStart(3, '0')}`, userId: 'user-1' })

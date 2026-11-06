@@ -318,6 +318,8 @@ export default function JobOpportunities() {
     totalFound: number
     source?: JobSource
     error?: string
+    /** True when the text reports incomplete sources rather than a hard failure. */
+    warning?: boolean
   } | null>(null)
   const [previewJob, setPreviewJob] = useState<JobOpportunity | null>(null)
   const [resumes, setResumes] = useState<Resume[]>([])
@@ -439,6 +441,7 @@ export default function JobOpportunities() {
           found: payload.found ?? 0,
           totalFound: payload.totalFound ?? 0,
           error: payload.warnings?.length ? `Some sources were incomplete: ${payload.warnings.join('; ')}` : undefined,
+          warning: Boolean(payload.warnings?.length),
         })
         setScraping(false)
         evt.close()
@@ -668,7 +671,12 @@ export default function JobOpportunities() {
                     {scrapeProgress.totalFound} jobs found
                   </span>
                   {scrapeProgress.error && (
-                    <span className="min-w-0 break-words text-hydra-red">
+                    <span
+                      className={cn(
+                        'min-w-0 break-words',
+                        scrapeProgress.warning ? 'text-hydra-yellow' : 'text-hydra-red',
+                      )}
+                    >
                       {scrapeProgress.error}
                     </span>
                   )}
