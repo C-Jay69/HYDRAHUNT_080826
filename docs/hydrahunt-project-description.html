@@ -1,0 +1,1111 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>HydraHunt Project Description</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&display=swap">
+
+<style>
+  /* ============================================================
+     Design plan
+     Color: cool paper + near-black ink, deep teal accent carried
+     from the product, oxblood reserved for risk notes.
+     Type: Newsreader (display) / IBM Plex Sans (body) /
+           IBM Plex Mono (labels, data).
+     Layout: single-column deal memorandum, full-bleed dark cover,
+           hairline-ruled sections, one spec sheet per topic.
+     ============================================================ */
+
+  :root {
+    --bg: #F5F6F7;
+    --surface: #FFFFFF;
+    --ink: #121A21;
+    --ink-2: #4E5B66;
+    --line: #D9DFE4;
+    --line-strong: #B9C4CC;
+    --accent: #0F6A66;
+    --accent-ink: #0A4D4A;
+    --accent-soft: #E3EFEE;
+    --warn: #9A3B2C;
+    --warn-soft: #F7E9E5;
+
+    --cover-bg: #0D151A;
+    --cover-fg: #F2F6F7;
+    --cover-muted: #93A6B0;
+    --cover-line: #26343C;
+    --cover-accent: #5FD3C6;
+
+    --sans: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+    --serif: 'Newsreader', Georgia, 'Times New Roman', serif;
+    --mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+    --measure: 66ch;
+    --wrap: 1040px;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0B1014;
+      --surface: #11181E;
+      --ink: #E7EDF1;
+      --ink-2: #9AA9B3;
+      --line: #243039;
+      --line-strong: #35454F;
+      --accent: #5FD3C6;
+      --accent-ink: #9BE7DE;
+      --accent-soft: #14302F;
+      --warn: #E79C8C;
+      --warn-soft: #2B1A17;
+
+      --cover-bg: #11181E;
+      --cover-fg: #F2F6F7;
+      --cover-muted: #9AA9B3;
+      --cover-line: #243039;
+      --cover-accent: #5FD3C6;
+      color-scheme: dark;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --bg: #0B1014;
+    --surface: #11181E;
+    --ink: #E7EDF1;
+    --ink-2: #9AA9B3;
+    --line: #243039;
+    --line-strong: #35454F;
+    --accent: #5FD3C6;
+    --accent-ink: #9BE7DE;
+    --accent-soft: #14302F;
+    --warn: #E79C8C;
+    --warn-soft: #2B1A17;
+
+    --cover-bg: #11181E;
+    --cover-fg: #F2F6F7;
+    --cover-muted: #9AA9B3;
+    --cover-line: #243039;
+    --cover-accent: #5FD3C6;
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 16px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  img { max-width: 100%; }
+
+  a {
+    color: var(--accent);
+    text-decoration-thickness: 1px;
+    text-underline-offset: 2px;
+  }
+
+  a:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
+  }
+
+  .wrap {
+    width: 100%;
+    max-width: var(--wrap);
+    margin-inline: auto;
+    padding-left: max(20px, env(safe-area-inset-left, 0px));
+    padding-right: max(20px, env(safe-area-inset-right, 0px));
+  }
+
+  /* ---------- Cover ---------- */
+
+  .cover {
+    background: var(--cover-bg);
+    color: var(--cover-fg);
+    padding-block: clamp(40px, 7vw, 88px);
+    border-bottom: 1px solid var(--cover-line);
+  }
+
+  .cover__meta {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 8px 24px;
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--cover-muted);
+    padding-bottom: 18px;
+    border-bottom: 1px solid var(--cover-line);
+  }
+
+  .cover__meta strong {
+    color: var(--cover-fg);
+    font-weight: 500;
+    letter-spacing: 0.2em;
+  }
+
+  .cover h1 {
+    font-family: var(--serif);
+    font-weight: 500;
+    font-size: clamp(2.5rem, 6.2vw, 4.1rem);
+    line-height: 1.02;
+    letter-spacing: -0.02em;
+    text-wrap: balance;
+    margin: clamp(28px, 5vw, 52px) 0 0;
+    max-width: 19ch;
+  }
+
+  .cover__dek {
+    margin: 22px 0 0;
+    max-width: 62ch;
+    font-size: clamp(1rem, 1.6vw, 1.125rem);
+    line-height: 1.58;
+    color: var(--cover-muted);
+  }
+
+  .cover__dek strong { color: var(--cover-fg); font-weight: 500; }
+
+  .facts {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 1px;
+    background: var(--cover-line);
+    border: 1px solid var(--cover-line);
+    margin-top: clamp(30px, 5vw, 46px);
+  }
+
+  .fact {
+    background: var(--cover-bg);
+    padding: 14px 16px 16px;
+    min-width: 0;
+  }
+
+  .fact b {
+    display: block;
+    font-family: var(--mono);
+    font-weight: 500;
+    font-size: 1.45rem;
+    line-height: 1.2;
+    letter-spacing: -0.02em;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .fact span {
+    display: block;
+    margin-top: 4px;
+    font-family: var(--mono);
+    font-size: 0.66rem;
+    letter-spacing: 0.13em;
+    text-transform: uppercase;
+    color: var(--cover-muted);
+  }
+
+  .boards {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    margin-top: 26px;
+    font-family: var(--mono);
+    font-size: 0.68rem;
+    letter-spacing: 0.13em;
+    text-transform: uppercase;
+    color: var(--cover-muted);
+  }
+
+  .boards span { display: inline-flex; align-items: center; }
+
+  .boards span + span::before {
+    content: "";
+    width: 3px;
+    height: 3px;
+    background: var(--cover-accent);
+    opacity: 0.65;
+    margin-inline: 11px;
+    flex: none;
+  }
+
+  /* ---------- Sections ---------- */
+
+  main { padding-bottom: 24px; }
+
+  .section {
+    padding-block: clamp(40px, 6vw, 66px);
+    border-top: 1px solid var(--line);
+  }
+
+  .section:first-child { border-top: 0; }
+
+  .eyebrow {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    margin: 0;
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--ink-2);
+  }
+
+  .eyebrow b {
+    font-weight: 500;
+    color: var(--accent);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .section h2 {
+    font-family: var(--serif);
+    font-weight: 500;
+    font-size: clamp(1.7rem, 3.4vw, 2.3rem);
+    line-height: 1.14;
+    letter-spacing: -0.015em;
+    text-wrap: balance;
+    margin: 14px 0 0;
+    max-width: 26ch;
+  }
+
+  .section p {
+    max-width: var(--measure);
+    margin: 18px 0 0;
+    color: var(--ink-2);
+  }
+
+  .section p strong { color: var(--ink); font-weight: 600; }
+
+  .lede {
+    margin-top: 20px !important;
+    max-width: 62ch !important;
+    color: var(--ink) !important;
+    font-size: clamp(1.02rem, 1.5vw, 1.12rem);
+    line-height: 1.55;
+  }
+
+  /* ---------- Module spec sheet ---------- */
+
+  .modules {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0 44px;
+    margin-top: 30px;
+  }
+
+  .module {
+    min-width: 0;
+    padding-block: 15px;
+    border-top: 1px solid var(--line);
+  }
+
+  .module h3 {
+    margin: 0 0 3px;
+    font-family: var(--mono);
+    font-size: 0.76rem;
+    font-weight: 500;
+    letter-spacing: 0.11em;
+    text-transform: uppercase;
+    color: var(--accent-ink);
+  }
+
+  .module p {
+    margin: 0;
+    max-width: 42ch;
+    font-size: 0.94rem;
+    line-height: 1.5;
+    color: var(--ink-2);
+  }
+
+  /* ---------- Plans ---------- */
+
+  .plans {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+    margin-top: 30px;
+  }
+
+  .plan {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    padding: 18px 18px 20px;
+    border: 1px solid var(--line);
+    background: var(--surface);
+  }
+
+  .plan--featured {
+    border-color: var(--accent);
+    box-shadow: inset 0 3px 0 var(--accent);
+  }
+
+  .plan__name {
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-2);
+    margin: 0;
+  }
+
+  .plan__price {
+    font-family: var(--serif);
+    font-size: 2rem;
+    line-height: 1.1;
+    font-weight: 500;
+    letter-spacing: -0.02em;
+    margin: 8px 0 0;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .plan__period {
+    margin: 2px 0 0;
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.06em;
+    color: var(--ink-2);
+  }
+
+  .plan ul {
+    list-style: none;
+    margin: 16px 0 0;
+    padding: 0;
+    display: grid;
+    gap: 7px;
+    font-size: 0.86rem;
+    line-height: 1.4;
+    color: var(--ink-2);
+  }
+
+  .plan li {
+    position: relative;
+    padding-left: 14px;
+  }
+
+  .plan li::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0.52em;
+    width: 5px;
+    height: 5px;
+    border: 1px solid var(--accent);
+  }
+
+  .fine {
+    font-size: 0.88rem;
+    color: var(--ink-2);
+    max-width: 72ch !important;
+  }
+
+  /* ---------- Stack chips ---------- */
+
+  .chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 24px;
+    padding: 0;
+    list-style: none;
+  }
+
+  .chips li {
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.04em;
+    padding: 5px 9px;
+    border: 1px solid var(--line-strong);
+    background: var(--surface);
+    color: var(--ink-2);
+  }
+
+  .gates {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 1px;
+    background: var(--line);
+    border: 1px solid var(--line);
+    margin-top: 28px;
+  }
+
+  .gate {
+    background: var(--surface);
+    padding: 14px 16px;
+    min-width: 0;
+  }
+
+  .gate b {
+    display: block;
+    font-family: var(--mono);
+    font-size: 0.74rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink);
+  }
+
+  .gate span {
+    display: block;
+    margin-top: 3px;
+    font-size: 0.86rem;
+    line-height: 1.45;
+    color: var(--ink-2);
+  }
+
+  /* ---------- Lever list ---------- */
+
+  .levers {
+    list-style: none;
+    margin: 28px 0 0;
+    padding: 0;
+    display: grid;
+    gap: 0;
+  }
+
+  .levers li {
+    padding-block: 16px;
+    border-top: 1px solid var(--line);
+    max-width: var(--measure);
+    color: var(--ink-2);
+    min-width: 0;
+  }
+
+  .levers li strong {
+    display: block;
+    color: var(--ink);
+    font-weight: 600;
+    margin-bottom: 2px;
+  }
+
+  /* ---------- Included ---------- */
+
+  .included {
+    list-style: none;
+    margin: 28px 0 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0 40px;
+  }
+
+  .included li {
+    display: grid;
+    grid-template-columns: 12px minmax(0, 1fr);
+    gap: 12px;
+    padding-block: 11px;
+    border-bottom: 1px solid var(--line);
+    font-size: 0.94rem;
+    color: var(--ink-2);
+    min-width: 0;
+  }
+
+  .included li::before {
+    content: "";
+    width: 8px;
+    height: 8px;
+    margin-top: 0.5em;
+    border: 1px solid var(--accent);
+    flex: none;
+  }
+
+  .included li strong { color: var(--ink); font-weight: 600; }
+
+  /* ---------- Note ---------- */
+
+  .note {
+    margin-top: 30px;
+    padding: 18px 20px;
+    border-left: 3px solid var(--warn);
+    background: var(--warn-soft);
+    max-width: 76ch;
+  }
+
+  .note p {
+    margin: 0;
+    max-width: none;
+    color: var(--ink);
+    font-size: 0.95rem;
+    line-height: 1.55;
+  }
+
+  .note p + p { margin-top: 10px; }
+
+  .note .note__label {
+    display: block;
+    margin-bottom: 6px;
+    font-family: var(--mono);
+    font-size: 0.68rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--warn);
+  }
+
+  /* ---------- Tables ---------- */
+
+  .tablewrap {
+    margin-top: 28px;
+    border: 1px solid var(--line);
+    background: var(--surface);
+    overflow-x: auto;
+  }
+
+  table {
+    width: 100%;
+    min-width: 600px;
+    border-collapse: collapse;
+    font-size: 0.92rem;
+  }
+
+  caption {
+    caption-side: top;
+    text-align: left;
+    padding: 14px 16px;
+    font-family: var(--mono);
+    font-size: 0.68rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-2);
+    border-bottom: 1px solid var(--line);
+    background: var(--bg);
+  }
+
+  th, td {
+    text-align: left;
+    padding: 11px 16px;
+    border-bottom: 1px solid var(--line);
+    vertical-align: top;
+  }
+
+  thead th {
+    font-family: var(--mono);
+    font-size: 0.68rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    font-weight: 500;
+    color: var(--ink-2);
+    background: var(--bg);
+  }
+
+  tbody th {
+    font-weight: 500;
+    color: var(--ink);
+    white-space: nowrap;
+  }
+
+  tbody tr:last-child th,
+  tbody tr:last-child td { border-bottom: 0; }
+
+  td.metric-note { color: var(--ink-2); }
+
+  td.blank {
+    width: 190px;
+    font-family: var(--mono);
+    font-size: 0.8rem;
+    color: var(--ink-2);
+  }
+
+  td.blank span {
+    display: block;
+    border-bottom: 1px dashed var(--line-strong);
+    min-height: 1.35em;
+  }
+
+  /* ---------- Terms ---------- */
+
+  .terms {
+    display: grid;
+    grid-template-columns: minmax(150px, 210px) minmax(0, 1fr);
+    margin: 28px 0 0;
+    border-top: 1px solid var(--line);
+  }
+
+  .terms dt {
+    padding: 14px 20px 14px 0;
+    border-bottom: 1px solid var(--line);
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-2);
+  }
+
+  .terms dd {
+    margin: 0;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--line);
+    color: var(--ink);
+    min-width: 0;
+  }
+
+  .tbc {
+    color: var(--ink-2);
+    font-style: italic;
+    border-bottom: 1px dashed var(--line-strong);
+  }
+
+  /* ---------- Footer ---------- */
+
+  .foot {
+    border-top: 1px solid var(--line);
+    padding-block: 28px 40px;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 10px 32px;
+    font-family: var(--mono);
+    font-size: 0.68rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-2);
+  }
+
+  /* ---------- Responsive ---------- */
+
+  @media (max-width: 900px) {
+    .plans { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .modules { gap: 0 32px; }
+  }
+
+  @media (max-width: 720px) {
+    .modules { grid-template-columns: minmax(0, 1fr); }
+    .included { grid-template-columns: minmax(0, 1fr); }
+  }
+
+  @media (max-width: 520px) {
+    .plans { grid-template-columns: minmax(0, 1fr); }
+    .cover h1 { max-width: none; }
+    .boards { font-size: 0.62rem; }
+    .boards span + span::before { margin-inline: 8px; }
+    .terms { grid-template-columns: minmax(0, 1fr); }
+    .terms dt {
+      border-bottom: 0;
+      padding-bottom: 2px;
+      padding-top: 16px;
+    }
+    .terms dd { padding-top: 0; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { scroll-behavior: auto; }
+  }
+</style>
+</head>
+<body>
+
+<header class="cover">
+  <div class="wrap">
+    <p class="cover__meta">
+      <strong>HydraHunt</strong>
+      <span>Sale memorandum &middot; November 2026</span>
+    </p>
+
+    <h1>One workspace from first search to signed offer.</h1>
+
+    <p class="cover__dek">
+      HydraHunt searches <strong>nine job boards in one run</strong>, judges the resume against each posting,
+      drafts the tailored application, rehearses the interview and keeps every move in one tracker.
+      The product, the brand and the billing are built. This document sets out what a buyer would own.
+    </p>
+
+    <div class="facts">
+      <div class="fact"><b>9</b><span>job boards searched</span></div>
+      <div class="fact"><b>11</b><span>product modules</span></div>
+      <div class="fact"><b>4</b><span>languages shipped</span></div>
+      <div class="fact"><b>27.8k</b><span>lines of TypeScript</span></div>
+      <div class="fact"><b>43</b><span>API routes</span></div>
+      <div class="fact"><b>21</b><span>database models</span></div>
+    </div>
+
+    <div class="boards">
+      <span>LinkedIn</span><span>Indeed</span><span>Glassdoor</span><span>ZipRecruiter</span><span>Google Jobs</span><span>We Work Remotely</span><span>RemoteOK</span><span>Remotive</span><span>Dice</span>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <section class="section">
+    <p class="eyebrow"><b>01</b><span>The product</span></p>
+    <h2>A job search that runs as one system.</h2>
+
+    <p class="lede">
+      Job hunting splits across boards, inboxes, spreadsheets and half-remembered notes.
+      HydraHunt puts one loop around it: search the boards in a single run, score each posting
+      against the resume, produce the tailored application, rehearse the interview, and record
+      every move until an offer is signed.
+    </p>
+
+    <p>
+      The customer-facing promise is narrow and easy to repeat: <strong>apply to fewer jobs, better.</strong>
+      The user sees one dashboard, one set of plans and one record of what was sent where.
+    </p>
+
+    <p>
+      This is a complete application, not a prototype. Accounts, sessions, plans and server-side
+      quotas, Stripe subscriptions and one-time packs, resume import and PDF or DOCX export,
+      version history, AI interview scoring and an admin panel all exist and run against Postgres.
+      The landing page, pricing page, FAQ and a public field guide ship in English, Spanish, French
+      and Chinese.
+    </p>
+
+    <p>
+      The buyer is an individual in an active search, most willing to pay during a career change,
+      a relocation or the weeks after a layoff. Plans suit a single search that lasts weeks, with
+      annual and lifetime options for people who expect to hunt again.
+    </p>
+  </section>
+
+  <section class="section">
+    <p class="eyebrow"><b>02</b><span>What is built</span></p>
+    <h2>Eleven modules, each doing one job well.</h2>
+
+    <div class="modules">
+      <div class="module">
+        <h3>Momentum</h3>
+        <p>The home screen: streak, progress and the next action in the search.</p>
+      </div>
+      <div class="module">
+        <h3>Radar</h3>
+        <p>Multi-board job search with live progress over server-sent events and a per-board result count for every run.</p>
+      </div>
+      <div class="module">
+        <h3>A-List</h3>
+        <p>The job target tracker: status, notes and application activity for every role the user is chasing.</p>
+      </div>
+      <div class="module">
+        <h3>Resume Studio</h3>
+        <p>Structured resume editor with sections, import and export to PDF and DOCX.</p>
+      </div>
+      <div class="module">
+        <h3>Fit Check</h3>
+        <p>AI analysis of a resume against a specific posting, with a score and concrete gaps.</p>
+      </div>
+      <div class="module">
+        <h3>Tailor</h3>
+        <p>Generates the tailored application payload for a role, with an apply-improvements loop that rewrites from the analysis.</p>
+      </div>
+      <div class="module">
+        <h3>Mock Room</h3>
+        <p>AI mock interviews with per-answer scoring and a session history.</p>
+      </div>
+      <div class="module">
+        <h3>Rewind</h3>
+        <p>Resume version history with one-click restore, so a tailored edit never costs the original.</p>
+      </div>
+      <div class="module">
+        <h3>Trail</h3>
+        <p>Account-wide activity log: every search, analysis, application and change in order.</p>
+      </div>
+      <div class="module">
+        <h3>Trajectory</h3>
+        <p>Career map: current skills, adjacent roles and the branches between them.</p>
+      </div>
+      <div class="module">
+        <h3>Settings &amp; Billing</h3>
+        <p>Plan, usage, storage, account deletion and the Stripe customer portal.</p>
+      </div>
+      <div class="module">
+        <h3>Platform</h3>
+        <p>Google sign-in, email magic links, an admin panel with user-level controls, and a public field guide for organic search.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <p class="eyebrow"><b>03</b><span>How it earns</span></p>
+    <h2>Three subscriptions, one lifetime deal, one top-up.</h2>
+
+    <div class="plans">
+      <div class="plan">
+        <p class="plan__name">Day One</p>
+        <p class="plan__price">Free</p>
+        <p class="plan__period">forever</p>
+        <ul>
+          <li>1 resume</li>
+          <li>3 AI generations / month</li>
+          <li>1 resume analysis</li>
+          <li>1 mock interview</li>
+          <li>10 job targets</li>
+          <li>5 Radar runs / month</li>
+          <li>Watermarked PDF</li>
+        </ul>
+      </div>
+
+      <div class="plan plan--featured">
+        <p class="plan__name">Stride</p>
+        <p class="plan__price">$24</p>
+        <p class="plan__period">/ month &middot; or $228 / year</p>
+        <ul>
+          <li>Unlimited resumes</li>
+          <li>Unlimited job targets</li>
+          <li>100 AI generations / month</li>
+          <li>10 analyses, 20 interviews</li>
+          <li>100 Radar runs / month</li>
+          <li>2 GB storage</li>
+          <li>DOCX export, no watermark</li>
+        </ul>
+      </div>
+
+      <div class="plan">
+        <p class="plan__name">Apex</p>
+        <p class="plan__price">$59</p>
+        <p class="plan__period">/ month &middot; or $588 / year</p>
+        <ul>
+          <li>Every module, unmetered</li>
+          <li>Unlimited AI generations</li>
+          <li>Unlimited analyses and interviews</li>
+          <li>Unlimited Radar runs</li>
+          <li>20 GB storage</li>
+          <li>DOCX export, no watermark</li>
+        </ul>
+      </div>
+
+      <div class="plan">
+        <p class="plan__name">Founder</p>
+        <p class="plan__price">$599</p>
+        <p class="plan__period">one-time</p>
+        <ul>
+          <li>Lifetime Apex access</li>
+          <li>First 250 accounts only</li>
+          <li>Price locked for life</li>
+          <li>No renewals</li>
+        </ul>
+      </div>
+    </div>
+
+    <p class="fine">
+      Prices are live Stripe products with monthly and annual price IDs already configured. Quotas are
+      enforced server-side by plan, with counters that reset on the first of each month; a failed search
+      that never reached a provider does not burn a run. Admins bypass every gate.
+    </p>
+
+    <p class="fine">
+      The Boost Pack is a $12 one-time top-up that adds 10 AI generations, one analysis, one interview
+      and 10 Radar runs without a subscription. It gives a short, single-search user a way to pay.
+    </p>
+  </section>
+
+  <section class="section">
+    <p class="eyebrow"><b>04</b><span>The technology</span></p>
+    <h2>Small infrastructure. Nothing exotic to operate.</h2>
+
+    <ul class="chips">
+      <li>Next.js 16 App Router</li>
+      <li>React 19</li>
+      <li>TypeScript strict</li>
+      <li>Tailwind CSS 4</li>
+      <li>Prisma 6</li>
+      <li>PostgreSQL</li>
+      <li>Stripe</li>
+      <li>OpenRouter</li>
+      <li>Resend</li>
+      <li>Google OAuth 2.0 + PKCE</li>
+      <li>Python JobSpy worker</li>
+      <li>Vercel + Render</li>
+    </ul>
+
+    <p>
+      One Next.js application serves the interface, authentication, billing webhooks and AI routes.
+      Search splits in two: a hosted provider covers LinkedIn, We Work Remotely, RemoteOK, Remotive
+      and Dice; a small self-hosted Python worker running JobSpy covers Indeed, Glassdoor,
+      ZipRecruiter and Google. Results stream to the browser over server-sent events, so a long run
+      reports progress board by board instead of holding a spinner.
+    </p>
+
+    <p>
+      The worker is a single-file standard-library HTTP server with a shared-secret token, a
+      per-request deadline, bounded concurrency and a health endpoint. App and worker deploy
+      separately: Vercel for the app, any container host for the worker, with a Render blueprint in
+      the repository. Postgres runs on Supabase.
+    </p>
+
+    <p>
+      Twenty-one Prisma models cover users, profiles, resumes and versions, analyses, generated
+      payloads, targets, notes, interviews and scores, career maps, jobs, applications, scrape runs,
+      subscriptions, billing events and an activity log.
+    </p>
+
+    <div class="gates">
+      <div class="gate"><b>Typecheck</b><span>Strict TypeScript, enforced on every build.</span></div>
+      <div class="gate"><b>Scrape tests</b><span>Offline suite exercises the real route, SSE stream, deduplication and per-board failure reporting.</span></div>
+      <div class="gate"><b>Worker tests</b><span>Python suite covers normalisation, country inference and auth.</span></div>
+      <div class="gate"><b>Build</b><span>Production build gated on the three checks above.</span></div>
+    </div>
+  </section>
+
+  <section class="section">
+    <p class="eyebrow"><b>05</b><span>What a buyer can switch on</span></p>
+    <h2>Four levers already paid for.</h2>
+
+    <ul class="levers">
+      <li>
+        <strong>Residential egress for the worker.</strong>
+        All nine boards are queried today and every run reports its per-board count. Indeed and
+        Glassdoor can return empty results to datacenter IPs; a proxy list in one environment
+        variable fixes it. The change is documented and takes a redeploy, not a rewrite.
+      </li>
+      <li>
+        <strong>Localized reach.</strong>
+        Four locales ship with the product. Localized landing pages, search copy and ad creative are
+        a growth channel that needs marketing work, not engineering.
+      </li>
+      <li>
+        <strong>Annual and lifetime pricing.</strong>
+        Both are configured in Stripe. The 250-account founder cap is a scarcity device already
+        written into the product copy.
+      </li>
+      <li>
+        <strong>Adjacent buyers.</strong>
+        Career coaches, bootcamps and outplacement firms buy the same workflow in bulk. Team seats
+        and invoicing are not built; the plan model and billing layer are where they would attach.
+      </li>
+    </ul>
+  </section>
+
+  <section class="section">
+    <p class="eyebrow"><b>06</b><span>What transfers</span></p>
+    <h2>The whole stack, not a licence to it.</h2>
+
+    <ul class="included">
+      <li><span><strong>Source repository</strong> &mdash; full history, documentation, environment template and deployment notes.</span></li>
+      <li><span><strong>Domain</strong> &mdash; hydrahunt.online, with the Vercel project and deployment configuration.</span></li>
+      <li><span><strong>Brand and copy</strong> &mdash; name, visual system, landing, pricing, FAQ and field guide text in four languages.</span></li>
+      <li><span><strong>Data schema</strong> &mdash; Supabase Postgres database, 21 Prisma models and migrations.</span></li>
+      <li><span><strong>Billing configuration</strong> &mdash; Stripe products, price IDs, webhook handler and customer portal.</span></li>
+      <li><span><strong>Scraping worker</strong> &mdash; JobSpy service, Dockerfile, render.yaml blueprint and DEPLOY.md.</span></li>
+      <li><span><strong>CI pipeline</strong> &mdash; typecheck, two test suites and a production build on every push and pull request.</span></li>
+      <li><span><strong>Customer records</strong> &mdash; <span class="tbc">export to be prepared</span>.</span></li>
+      <li><span><strong>Third-party accounts</strong> &mdash; <span class="tbc">transfer method to be set</span>.</span></li>
+      <li><span><strong>Handover</strong> &mdash; <span class="tbc">hours and window to be set</span>.</span></li>
+    </ul>
+
+    <div class="note">
+      <span class="note__label">Read this before bidding</span>
+      <p>
+        The application is complete and deployed at hydrahunt.online. Search depends on two upstream
+        providers, and board markup changes from time to time; the worker is isolated so it can be
+        repaired or replaced without touching the product.
+      </p>
+      <p>
+        No revenue, traffic or user figures appear anywhere in this document. They belong in the
+        section below, completed by the seller from Stripe and analytics before the listing is
+        published.
+      </p>
+    </div>
+  </section>
+
+  <section class="section">
+    <p class="eyebrow"><b>07</b><span>The numbers</span></p>
+    <h2>Trading figures to complete.</h2>
+
+    <p>
+      Every value in this table is a blank on purpose. Fill it from source systems, not estimates,
+      and attach a screenshot or export for each line a buyer is likely to challenge.
+    </p>
+
+    <div class="tablewrap">
+      <table>
+        <caption>Seller to complete before listing</caption>
+        <thead>
+          <tr>
+            <th scope="col">Metric</th>
+            <th scope="col">What it measures</th>
+            <th scope="col">Value</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <th scope="row">Accounts</th>
+            <td class="metric-note">Total registered, and new in the last 30 days</td>
+            <td class="blank"><span></span></td>
+          </tr>
+          <tr>
+            <th scope="row">Paying subscribers</th>
+            <td class="metric-note">Active Stride, Apex and Founder accounts, split by plan</td>
+            <td class="blank"><span></span></td>
+          </tr>
+          <tr>
+            <th scope="row">MRR / ARR</th>
+            <td class="metric-note">Recurring revenue, excluding one-time packs</td>
+            <td class="blank"><span></span></td>
+          </tr>
+          <tr>
+            <th scope="row">Churn</th>
+            <td class="metric-note">Monthly subscription churn over the last six months</td>
+            <td class="blank"><span></span></td>
+          </tr>
+          <tr>
+            <th scope="row">Boost Pack units</th>
+            <td class="metric-note">One-time top-ups sold, and revenue from them</td>
+            <td class="blank"><span></span></td>
+          </tr>
+          <tr>
+            <th scope="row">Radar runs</th>
+            <td class="metric-note">Searches per month, and average boards per run</td>
+            <td class="blank"><span></span></td>
+          </tr>
+          <tr>
+            <th scope="row">AI cost</th>
+            <td class="metric-note">Monthly inference spend across all generation routes</td>
+            <td class="blank"><span></span></td>
+          </tr>
+          <tr>
+            <th scope="row">Infrastructure cost</th>
+            <td class="metric-note">Vercel, Render, Supabase and scraping provider, per month</td>
+            <td class="blank"><span></span></td>
+          </tr>
+          <tr>
+            <th scope="row">Gross margin</th>
+            <td class="metric-note">Revenue less AI and infrastructure cost</td>
+            <td class="blank"><span></span></td>
+          </tr>
+          <tr>
+            <th scope="row">Organic traffic</th>
+            <td class="metric-note">Monthly sessions and sign-up conversion</td>
+            <td class="blank"><span></span></td>
+          </tr>
+          <tr>
+            <th scope="row">Support load</th>
+            <td class="metric-note">Hours per week the owner currently spends running it</td>
+            <td class="blank"><span></span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="section">
+    <p class="eyebrow"><b>08</b><span>The transaction</span></p>
+    <h2>Terms to agree.</h2>
+
+    <dl class="terms">
+      <dt>Asking price</dt>
+      <dd><span class="tbc">to be set</span></dd>
+
+      <dt>Structure</dt>
+      <dd><span class="tbc">asset sale, share sale or licensing, to be confirmed</span></dd>
+
+      <dt>Included</dt>
+      <dd>Code, domain, brand, content, data schema, billing configuration and deployment setup, as listed in section 06.</dd>
+
+      <dt>Handover</dt>
+      <dd><span class="tbc">hours of walkthrough over a stated window, to be set</span></dd>
+
+      <dt>Reason for sale</dt>
+      <dd><span class="tbc">to be completed by the seller</span></dd>
+
+      <dt>Exclusivity and timetable</dt>
+      <dd><span class="tbc">to be agreed</span></dd>
+    </dl>
+  </section>
+
+</main>
+
+<footer class="foot">
+  <span>HydraHunt &middot; Sale memorandum</span>
+  <span>Figures marked as blanks are placeholders for the seller</span>
+</footer>
+</body>
+</html>

@@ -44,6 +44,19 @@ import { cn } from '@/lib/utils'
 
 type JobSource = 'all' | 'linkedin' | 'weworkremotely' | 'remoteok' | 'remotive' | 'dice' | 'indeed' | 'glassdoor' | 'zip_recruiter' | 'google'
 
+/** Display names for the per-board result summary. */
+const SOURCE_LABELS: Record<string, string> = {
+  linkedin: 'LinkedIn',
+  indeed: 'Indeed',
+  glassdoor: 'Glassdoor',
+  zip_recruiter: 'ZipRecruiter',
+  google: 'Google Jobs',
+  weworkremotely: 'We Work Remotely',
+  remoteok: 'RemoteOK',
+  remotive: 'Remotive',
+  dice: 'Dice',
+}
+
 /** True when a search location string is remote-flavored (Remote, Anywhere, Worldwide…). */
 function isRemoteSearch(location: string | undefined | null): boolean {
   if (!location) return false
@@ -89,6 +102,15 @@ interface ScrapeEvent {
   jobs?: JobOpportunity[]
   requestCount?: number
   warnings?: string[]
+  error?: string
+  /** Per-board outcome for the finished run. */
+  sources?: SourceResult[]
+}
+
+interface SourceResult {
+  source: string
+  found: number
+  status: 'ok' | 'empty' | 'error'
   error?: string
 }
 
@@ -320,6 +342,8 @@ export default function JobOpportunities() {
     error?: string
     /** True when the text reports incomplete sources rather than a hard failure. */
     warning?: boolean
+    /** Per-board outcome of the finished run. */
+    sources?: SourceResult[]
   } | null>(null)
   const [previewJob, setPreviewJob] = useState<JobOpportunity | null>(null)
   const [resumes, setResumes] = useState<Resume[]>([])
@@ -442,6 +466,7 @@ export default function JobOpportunities() {
           totalFound: payload.totalFound ?? 0,
           error: payload.warnings?.length ? `Some sources were incomplete: ${payload.warnings.join('; ')}` : undefined,
           warning: Boolean(payload.warnings?.length),
+          sources: payload.sources,
         })
         setScraping(false)
         evt.close()
@@ -623,7 +648,7 @@ export default function JobOpportunities() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent className="border-hydra-border bg-hydra-surface">
-                    <SelectItem value="all">Broad search (4 sources)</SelectItem>
+                    <SelectItem value="all">All sources (9)</SelectItem>
                     <SelectItem value="linkedin">LinkedIn (ChocoData)</SelectItem>
                     <SelectItem value="indeed">Indeed (JobSpy)</SelectItem>
                     <SelectItem value="glassdoor">Glassdoor (JobSpy)</SelectItem>
@@ -658,39 +683,62 @@ export default function JobOpportunities() {
               </div>
             </div>
 
-            <p className="text-xs text-muted-foreground">Broad search checks LinkedIn, Indeed, ZipRecruiter and Google Jobs. Depth is up to 10 pages for ChocoData or 25 results per depth level (up to 100) for JobSpy. More depth takes longer and uses more provider requests; availability varies by board.</p>
+            <p className="text-xs text-muted-foreground">Broad search checks every connected board: LinkedIn, Indeed, Glassdoor, ZipRecruiter, Google Jobs, We Work Remotely, RemoteOK, Remotive and Dice. Depth is up to 10 pages for ChocoData boards or 25 results per depth level (up to 100) for JobSpy. More depth takes longer and uses more provider requests; availability varies by board.</p>
             {/* Scrape Progress */}
             {scrapeProgress && (
-              <div className="flex flex-col gap-2 rounded-md border border-hydra-border bg-hydra-surface p-2.5 text-sm sm:flex-row sm:items-start sm:justify-between">
-                <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
-                  <RefreshCw
-                    className={cn('h-4 w-4 shrink-0 text-hydra-cyan', scraping && 'animate-spin')}
-                  />
-                  <span className="whitespace-nowrap">
-                    {scrapeProgress.source && `${scrapeProgress.source} · `}Page {scrapeProgress.page}/{scrapeProgress.pages} ·{' '}
-                    {scrapeProgress.totalFound} jobs found
-                  </span>
-                  {scrapeProgress.error && (
-                    <span
-                      className={cn(
-                        'min-w-0 break-words',
-                        scrapeProgress.warning ? 'text-hydra-yellow' : 'text-hydra-red',
-                      )}
-                    >
-                      {scrapeProgress.error}
+              <div className="space-y-2">
+                <div className="flex flex-col gap-2 rounded-md border border-hydra-border bg-hydra-surface p-2.5 text-sm sm:flex-row sm:items-start sm:justify-between">
+                  <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
+                    <RefreshCw
+                      className={cn('h-4 w-4 shrink-0 text-hydra-cyan', scraping && 'animate-spin')}
+                    />
+                    <span className="whitespace-nowrap">
+                      {scrapeProgress.source && `${scrapeProgress.source} · `}Page {scrapeProgress.page}/{scrapeProgress.pages} ·{' '}
+                      {scrapeProgress.totalFound} jobs found
                     </span>
+                    {scrapeProgress.error && (
+                      <span
+                        className={cn(
+                          'min-w-0 break-words',
+                          scrapeProgress.warning ? 'text-hydra-yellow' : 'text-hydra-red',
+                        )}
+                      >
+                        {scrapeProgress.error}
+                      </span>
+                    )}
+                  </div>
+                  {!scraping && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={clearScrape}
+                      className="h-6 shrink-0 self-start text-xs sm:self-auto"
+                    >
+                      Show All Jobs
+                    </Button>
                   )}
                 </div>
-                {!scraping && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={clearScrape}
-                    className="h-6 shrink-0 self-start text-xs sm:self-auto"
-                  >
-                    Show All Jobs
-                  </Button>
-                )}
+                {scrapeProgress.sources?.length ? (
+                  <div className="flex flex-wrap gap-1.5 text-xs">
+                    {scrapeProgress.sources.map((result) => (
+                      <span
+                        key={result.source}
+                        title={result.error || (result.status === 'empty' ? 'No results returned' : undefined)}
+                        className={cn(
+                          'rounded border px-1.5 py-0.5',
+                          result.status === 'error'
+                            ? 'border-hydra-red/40 text-hydra-red'
+                            : result.status === 'empty'
+                              ? 'border-hydra-border text-muted-foreground'
+                              : 'border-hydra-cyan/40 text-hydra-cyan',
+                        )}
+                      >
+                        {SOURCE_LABELS[result.source] ?? result.source}{' '}
+                        {result.status === 'error' ? 'failed' : result.found}
+                      </span>
+                    ))}
+                  </div>
+                ) : null}
               </div>
             )}
           </CardContent>

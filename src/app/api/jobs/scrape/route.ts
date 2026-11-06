@@ -9,8 +9,20 @@ const encoder = new TextEncoder()
 const JOBSPY_URL = process.env.JOBSPY_URL || 'http://127.0.0.1:3001/scrape'
 const JOBSPY_TOKEN = process.env.JOBSPY_TOKEN
 const JOBSPY_SOURCES = new Set(['indeed', 'glassdoor', 'zip_recruiter', 'google'])
-// A broad search without querying every niche/remote board or consuming excessive API quota.
-const BROAD_SOURCES = ['linkedin', 'indeed', 'zip_recruiter', 'google'] as const
+// Broad search covers every board the UI offers. A board that returns nothing
+// or is blocked still runs: it reports its own outcome instead of silently
+// disappearing from the result set (which made the app look LinkedIn-only).
+const BROAD_SOURCES = [
+  'linkedin',
+  'indeed',
+  'glassdoor',
+  'zip_recruiter',
+  'google',
+  'weworkremotely',
+  'remoteok',
+  'remotive',
+  'dice',
+] as const
 
 // The Python worker runs locally on the developer's machine, where a loopback
 // URL is correct. A Vercel function cannot reach that: 127.0.0.1 is the
@@ -132,6 +144,9 @@ export async function GET(request: NextRequest) {
         let jobSpyHintLogged = false
         let successfulSources = 0
         let saveFailures = 0
+        // Per-board outcome, streamed to the UI so "only LinkedIn" is visible
+        // as "these other boards returned nothing" rather than a silent gap.
+        const sourceSummary: Array<{ source: string; found: number; status: 'ok' | 'empty' | 'error'; error?: string }> = []
 
         for (const board of sources) {
           if (request.signal.aborted || disconnected) break
@@ -139,6 +154,8 @@ export async function GET(request: NextRequest) {
           const pageCount = isJobSpy ? 1 : pages
           let sourceSucceeded = false
           let duplicatePages = 0
+          let boardFound = 0
+          let boardError: string | undefined
           for (let page = 1; page <= pageCount; page++) {
             if (request.signal.aborted || disconnected) break
             send({ type: 'progress', source: board, page, pages: pageCount, totalFound })
@@ -182,6 +199,7 @@ export async function GET(request: NextRequest) {
               if (request.signal.aborted) break
               if (isJobSpy) {
                 const detail = err instanceof Error ? err.message : String(err)
+                boardError = detail
                 const connectivityFailure = /fetch failed|ECONNREFUSED|ENOTFOUND|timed out|timeout|aborted/i.test(detail)
                 // The hint is for operators (Vercel logs), not end users.
                 const hint = connectivityFailure && !jobSpyHintLogged ? ` — ${jobSpyFailureHint()}` : ''
@@ -196,7 +214,8 @@ export async function GET(request: NextRequest) {
                   warnings.push(`${board}: ${detail}`)
                 }
               } else {
-                warnings.push(`${board}: ${err instanceof Error ? err.message : String(err)}`)
+                boardError = err instanceof Error ? err.message : String(err)
+                warnings.push(`${board}: ${boardError}`)
               }
               break
             }
@@ -218,6 +237,7 @@ export async function GET(request: NextRequest) {
               }
             }
             totalFound = collected.length
+            boardFound += savedPage.length
             send({ type: 'page', source: board, page, pages: pageCount, found: savedPage.length, totalFound, jobs: savedPage })
             if (!isJobSpy) {
               // Provider exhausted.
@@ -239,7 +259,24 @@ export async function GET(request: NextRequest) {
               }
             }
           }
+          sourceSummary.push({
+            source: board,
+            found: boardFound,
+            status: boardError ? 'error' : boardFound > 0 ? 'ok' : 'empty',
+            ...(boardError ? { error: boardError } : {}),
+          })
           if (sourceSucceeded) successfulSources++
+        }
+        // A JobSpy board that answers but returns nothing is the usual reason a
+        // broad search looks LinkedIn-only: hosted datacenter IPs are frequently
+        // served empty (or blocked) listings by Indeed/Glassdoor/Google.
+        const emptyJobSpy = sourceSummary
+          .filter((entry) => JOBSPY_SOURCES.has(entry.source) && entry.status === 'empty')
+          .map((entry) => entry.source)
+        if (emptyJobSpy.length) {
+          warnings.push(
+            `${emptyJobSpy.join(', ')}: no results returned — these boards often block or return nothing to hosted scraping services.`,
+          )
         }
         if (jobSpyUnavailable.length) {
           // Keep the user-facing text free of deployment details; the operator
@@ -254,7 +291,7 @@ export async function GET(request: NextRequest) {
         await db.scrapingRun.update({ where: { id: runId }, data: { status, totalFound, requestCount } })
         if (!cancelled) {
           if (!successfulSources) send({ type: 'error', totalFound, error: warnings.join('; ') || 'No sources could be searched.' })
-          else send({ type: 'done', source, page: pages, pages, totalFound, found: totalFound, jobs: collected, requestCount, warnings })
+          else send({ type: 'done', source, page: pages, pages, totalFound, found: totalFound, jobs: collected, requestCount, warnings, sources: sourceSummary })
         }
       } catch (err) {
         if (runId) await db.scrapingRun.update({ where: { id: runId }, data: { status: 'failed', totalFound, requestCount } }).catch(console.error)

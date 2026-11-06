@@ -79,7 +79,9 @@ test('broad search paginates, normalizes and saves IDs, deduplicates, and report
     assert.ok(done.jobs.every((job: { id?: string }) => job.id))
     assert.ok(done.warnings.some((warning: string) => warning.includes('zip_recruiter') && warning.includes('blocked')))
     assert.equal(runs.at(-1)?.status, 'partial')
-    assert.equal(calls.length, 6)
+    // Every advertised board is queried: 5 ChocoData boards (up to 3 pages,
+    // stopping early on duplicates) plus 4 JobSpy boards (1 request each).
+    assert.equal(calls.length, 15)
     assert.equal(saved.get('linkedin:123')?.jobUrl, 'https://jobs.test/123')
     const second = await events('keywords=engineer&pages=3&source=indeed')
     assert.equal(second.at(-1).jobs[0].id, 'id-1')
@@ -113,7 +115,7 @@ test('an unreachable JobSpy worker is reported once, not once per board', async 
     assert.equal(done.type, 'done')
     const report = done.warnings.join('; ')
     assert.equal(report.match(/scraping service unavailable/g)?.length, 1)
-    assert.match(report, /indeed, zip_recruiter, google/)
+    assert.match(report, /indeed, glassdoor, zip_recruiter, google/)
   } finally { globalThis.fetch = originalFetch }
 })
 

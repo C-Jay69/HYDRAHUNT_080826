@@ -120,6 +120,20 @@ should disappear when Indeed/ZipRecruiter/Google return results.
 
 - Rotate the token by updating the worker host and Vercel together.
 - The worker is a scraper: respect each board's rate limits and terms.
+- **Datacenter IPs are the main reason a broad search looks LinkedIn-only.** From
+  a hosted worker (Render, Fly, Cloud Run) Indeed commonly answers with an empty
+  page and ZipRecruiter with `403 forbidden cf-waf`, while the same request from a
+  home connection returns dozens of jobs. Verify with:
+
+  ```bash
+  curl -H "Authorization: Bearer $TOKEN" \
+    "https://<worker-host>/scrape?keywords=manager&location=Dublin,%20Ireland&site=indeed&n=5"
+  ```
+
+  If `jobs` is empty there but works from your laptop, give the worker residential
+  egress with `JOBSPY_PROXIES` (comma-separated `user:pass@host:port`) and redeploy.
+  Without proxies, the UI still reports the board as returning 0 instead of
+  hiding it, but no jobs can be recovered.
 - Vercel serverless functions have duration limits. Very deep broad searches may
   still time out. If that happens, reduce the depth or move the whole app to a
   container host so Next.js and JobSpy run together (the standalone `.zscripts`

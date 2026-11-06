@@ -38,6 +38,9 @@ Environment:
                 /health stays public for platform health checks.
   JOBSPY_SCRAPE_TIMEOUT  wall-clock seconds allowed per /scrape request (default 60).
   JOBSPY_MAX_WORKERS     concurrent boards scraped per request (default 4).
+  JOBSPY_PROXIES         optional comma-separated egress proxies
+                         ("user:pass@host:port"). Needed when the worker runs on
+                         a datacenter IP that Indeed/Glassdoor serve empty pages to.
 """
 
 from __future__ import annotations
@@ -162,6 +165,14 @@ SCRAPE_TIMEOUT = float(os.environ.get("JOBSPY_SCRAPE_TIMEOUT") or "60")
 # Caps concurrent scraper threads spawned by one request.
 MAX_SCRAPE_WORKERS = int(os.environ.get("JOBSPY_MAX_WORKERS") or "4")
 
+# Optional egress proxies, comma-separated, in JobSpy's "user:pass@host:port"
+# or "http://user:pass@host:port" form. Hosted workers run on datacenter IPs,
+# which Indeed/Glassdoor frequently answer with an empty (or blocked) page; a
+# residential proxy list is the supported way to get real listings there.
+JOBSPY_PROXIES = [
+    p.strip() for p in (os.environ.get("JOBSPY_PROXIES") or "").split(",") if p.strip()
+]
+
 # Observable state for /health so a busy-but-alive worker can be told apart
 # from a wedged one.
 _INFLIGHT = 0
@@ -270,6 +281,8 @@ def scrape_site(site: str, keywords: str, location: str | None, n: int, hours_ol
                     kwargs["country_indeed"] = country
         if hours_old is not None:
             kwargs["hours_old"] = hours_old
+        if JOBSPY_PROXIES:
+            kwargs["proxies"] = JOBSPY_PROXIES
 
         df = scrape_jobs(**kwargs)
         if df is None or len(df) == 0:
