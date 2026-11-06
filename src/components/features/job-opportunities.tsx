@@ -583,7 +583,7 @@ export default function JobOpportunities() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
               <div className="space-y-2">
                 <Label className="text-xs text-muted-foreground">Keywords</Label>
                 <Input
@@ -633,7 +633,7 @@ export default function JobOpportunities() {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="flex items-end gap-2">
+              <div className="flex items-end">
                 <Button
                   onClick={startScrape}
                   disabled={scraping || !scrapeKeyword.trim()}
@@ -658,17 +658,19 @@ export default function JobOpportunities() {
             <p className="text-xs text-muted-foreground">Broad search checks LinkedIn, Indeed, ZipRecruiter and Google Jobs. Depth is up to 10 pages for ChocoData or 25 results per depth level (up to 100) for JobSpy. More depth takes longer and uses more provider requests; availability varies by board.</p>
             {/* Scrape Progress */}
             {scrapeProgress && (
-              <div className="flex items-center justify-between rounded-md border border-hydra-border bg-hydra-surface p-2.5 text-sm">
-                <div className="flex items-center gap-3">
+              <div className="flex flex-col gap-2 rounded-md border border-hydra-border bg-hydra-surface p-2.5 text-sm sm:flex-row sm:items-start sm:justify-between">
+                <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
                   <RefreshCw
-                    className={cn('h-4 w-4 text-hydra-cyan', scraping && 'animate-spin')}
+                    className={cn('h-4 w-4 shrink-0 text-hydra-cyan', scraping && 'animate-spin')}
                   />
-                  <span>
+                  <span className="whitespace-nowrap">
                     {scrapeProgress.source && `${scrapeProgress.source} · `}Page {scrapeProgress.page}/{scrapeProgress.pages} ·{' '}
                     {scrapeProgress.totalFound} jobs found
                   </span>
                   {scrapeProgress.error && (
-                    <span className="text-hydra-red">{scrapeProgress.error}</span>
+                    <span className="min-w-0 break-words text-hydra-red">
+                      {scrapeProgress.error}
+                    </span>
                   )}
                 </div>
                 {!scraping && (
@@ -676,7 +678,7 @@ export default function JobOpportunities() {
                     variant="ghost"
                     size="sm"
                     onClick={clearScrape}
-                    className="h-6 text-xs"
+                    className="h-6 shrink-0 self-start text-xs sm:self-auto"
                   >
                     Show All Jobs
                   </Button>
