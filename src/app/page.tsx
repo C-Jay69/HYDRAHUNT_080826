@@ -1,6 +1,7 @@
 'use client'
 
 import { useAppStore, type AppView } from '@/store/app-store'
+import { useI18n, LOCALE_META } from '@/lib/i18n'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { useState, lazy, Suspense, Component, useEffect, type ReactNode } from 'react'
 
@@ -26,18 +27,19 @@ const ContactPage = lazy(() => import('@/components/features/contact-page'))
 const AdminPanel = lazy(() => import('@/components/features/admin-panel'))
 
 function LoadingSpinner() {
+  const { m } = useI18n()
   return (
     <div className="flex items-center justify-center min-h-[60vh]">
       <div className="flex flex-col items-center gap-4">
         <div className="w-10 h-10 border-2 border-hydra-purple/30 border-t-hydra-purple rounded-full animate-spin" />
-        <p className="text-sm text-muted-foreground">Loading your workspace...</p>
+        <p className="text-sm text-muted-foreground">{m.shell.loading}</p>
       </div>
     </div>
   )
 }
 
 class ViewErrorBoundary extends Component<
-  { children: ReactNode },
+  { children: ReactNode; title: string; body: string; retry: string },
   { hasError: boolean; error: Error | null }
 > {
   state: { hasError: boolean; error: Error | null } = { hasError: false, error: null }
@@ -49,15 +51,15 @@ class ViewErrorBoundary extends Component<
       return (
         <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4 p-8">
           <div className="text-5xl mb-2 text-hydra-purple/50">⚠</div>
-          <h2 className="text-xl font-semibold text-foreground">Something went wrong</h2>
+          <h2 className="text-xl font-semibold text-foreground">{this.props.title}</h2>
           <p className="text-sm text-hydra-muted max-w-md text-center">
-            {this.state.error?.message || 'This module encountered an unexpected error.'}
+            {this.state.error?.message || this.props.body}
           </p>
           <button
             onClick={() => this.setState({ hasError: false, error: null })}
             className="mt-4 px-6 py-2.5 bg-hydra-purple text-white rounded-lg text-sm hover:bg-hydra-purple/90 transition-colors"
           >
-            Try again
+            {this.props.retry}
           </button>
         </div>
       )
@@ -67,8 +69,13 @@ class ViewErrorBoundary extends Component<
 }
 
 function SafeView({ children }: { children: ReactNode }) {
+  const { m } = useI18n()
   return (
-    <ViewErrorBoundary>
+    <ViewErrorBoundary
+      title={m.shell.errorTitle}
+      body={m.shell.errorBody}
+      retry={m.shell.retry}
+    >
       {children}
     </ViewErrorBoundary>
   )
@@ -163,6 +170,12 @@ function AppRouter() {
 }
 
 export default function Home() {
+  const locale = useAppStore((state) => state.locale)
+
+  useEffect(() => {
+    document.documentElement.lang = LOCALE_META[locale]?.htmlLang ?? 'en'
+  }, [locale])
+
   const [queryClient] = useState(
     () =>
       new QueryClient({

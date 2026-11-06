@@ -3,35 +3,39 @@
 import { useAppStore, type AppView } from '@/store/app-store'
 import { Input } from '@/components/ui/input'
 import { HydraMark } from '@/components/brand/hydra-logo'
+import { LanguageSwitcher } from '@/components/i18n/language-switcher'
+import { useI18n } from '@/lib/i18n'
+import type { Messages } from '@/lib/i18n'
 import { Bell } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
-const viewTitles: Record<AppView, string> = {
-  landing: 'Welcome',
-  pricing: 'Pricing',
-  login: 'Login',
-  signup: 'Sign Up',
-  dashboard: 'Momentum',
-  'kill-list': 'A-List',
-  'resume-forge': 'Resume Studio',
-  'resume-edit': 'Resume Editor',
-  'payload-forge': 'Tailor',
-  'interview-drills': 'Mock Room',
-  'interview-session': 'Mock Interview',
-  analysis: 'Fit Check',
-  'version-vault': 'Rewind',
-  'mission-log': 'Trail',
-  'career-map': 'Trajectory',
-  'job-opportunities': 'Radar',
-  settings: 'Settings',
-  billing: 'Billing',
-  contact: 'Contact',
-  admin: 'Admin Panel',
+const VIEW_TITLE_KEYS: Record<AppView, keyof Messages['header']['titles']> = {
+  landing: 'landing',
+  pricing: 'pricing',
+  login: 'login',
+  signup: 'signup',
+  dashboard: 'dashboard',
+  'kill-list': 'killList',
+  'resume-forge': 'resumeForge',
+  'resume-edit': 'resumeEdit',
+  'payload-forge': 'payloadForge',
+  'interview-drills': 'interviewDrills',
+  'interview-session': 'interviewSession',
+  analysis: 'analysis',
+  'version-vault': 'versionVault',
+  'mission-log': 'missionLog',
+  'career-map': 'careerMap',
+  'job-opportunities': 'jobOpportunities',
+  settings: 'settings',
+  billing: 'billing',
+  contact: 'contact',
+  admin: 'admin',
 }
 
 export default function Header() {
   const { view } = useAppStore()
-  const title = viewTitles[view] || 'Dashboard'
+  const { m } = useI18n()
+  const title = m.header.titles[VIEW_TITLE_KEYS[view]] ?? m.header.titles.dashboard
 
   return (
     <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b border-hydra-border bg-hydra-surface/80 px-6 backdrop-blur-sm">
@@ -50,7 +54,7 @@ export default function Header() {
       <div className="relative hidden sm:block w-64">
         <Input
           type="search"
-          placeholder="Search..."
+          placeholder={m.header.search}
           className={cn(
             'h-8 border-hydra-border bg-hydra-surface-2 text-sm',
             'focus-visible:border-hydra-purple/50 focus-visible:ring-hydra-purple/20',
@@ -59,6 +63,9 @@ export default function Header() {
         />
       </div>
 
+      {/* Language */}
+      <LanguageSwitcher variant="full" />
+
       {/* Notification bell */}
       <button
         className={cn(
@@ -66,7 +73,7 @@ export default function Header() {
           'text-muted-foreground hover:bg-hydra-surface-2 hover:text-foreground',
           'transition-colors'
         )}
-        aria-label="Notifications"
+        aria-label={m.header.notifications}
       >
         <Bell className="h-4 w-4" />
         <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-hydra-purple pulse-glow" />

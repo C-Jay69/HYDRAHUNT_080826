@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { useAppStore } from '@/store/app-store'
+import { useI18n, type Messages } from '@/lib/i18n'
 import {
   ListChecks,
   Package,
@@ -42,49 +43,35 @@ interface ActivityEntry {
   time: string
 }
 
-function getRelativeTime(dateStr: string): string {
+function getRelativeTime(dateStr: string, t: Messages['dashboard']): string {
   const d = new Date(dateStr)
   const diffMins = Math.floor((Date.now() - d.getTime()) / 60000)
-  if (diffMins < 1) return 'Just now'
-  if (diffMins < 60) return `${diffMins}m ago`
+  if (diffMins < 1) return t.justNow
+  if (diffMins < 60) return t.minutesAgo.replace('{n}', String(diffMins))
   const diffHours = Math.floor(diffMins / 60)
-  if (diffHours < 24) return `${diffHours}h ago`
+  if (diffHours < 24) return t.hoursAgo.replace('{n}', String(diffHours))
   const diffDays = Math.floor(diffHours / 24)
-  if (diffDays < 7) return `${diffDays}d ago`
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+  if (diffDays < 7) return t.daysAgo.replace('{n}', String(diffDays))
+  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
 }
 
 export default function Dashboard() {
   const { setView } = useAppStore()
+  const { m } = useI18n()
+  const t = m.dashboard
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
-  const [metrics, setMetrics] = useState<MetricCard[]>([
-    {
-      label: 'Companies Tracked',
-      value: '—',
-      icon: <ListChecks className="h-5 w-5" />,
-      color: 'text-hydra-purple',
-    },
-    {
-      label: 'Applications Sent',
-      value: '—',
-      icon: <Package className="h-5 w-5" />,
-      color: 'text-hydra-cyan',
-    },
-    {
-      label: 'Resume Score',
-      value: '—',
-      icon: <FileText className="h-5 w-5" />,
-      suffix: '%',
-      color: 'text-hydra-green',
-    },
-    {
-      label: 'Interview Sessions',
-      value: '—',
-      icon: <Mic className="h-5 w-5" />,
-      color: 'text-hydra-yellow',
-    },
-  ])
+  const [counts, setCounts] = useState<{
+    companies: number | string
+    applications: number | string
+    score: number | string
+    sessions: number | string
+  }>({
+    companies: '—',
+    applications: '—',
+    score: '—',
+    sessions: '—',
+  })
   const [activity, setActivity] = useState<ActivityEntry[]>([])
 
   useEffect(() => {
@@ -126,44 +113,23 @@ export default function Dashboard() {
         ? Math.round(scores.reduce((sum, s) => sum + s, 0) / scores.length)
         : null
 
-      setMetrics([
-        {
-          label: 'Companies Tracked',
-          value: targets.length,
-          icon: <ListChecks className="h-5 w-5" />,
-          color: 'text-hydra-purple',
-        },
-        {
-          label: 'Applications Sent',
-          value: applied,
-          icon: <Package className="h-5 w-5" />,
-          color: 'text-hydra-cyan',
-        },
-        {
-          label: 'Resume Score',
-          value: averageScore ?? '—',
-          icon: <FileText className="h-5 w-5" />,
-          suffix: '%',
-          color: 'text-hydra-green',
-        },
-        {
-          label: 'Interview Sessions',
-          value: sessions.length,
-          icon: <Mic className="h-5 w-5" />,
-          color: 'text-hydra-yellow',
-        },
-      ])
+      setCounts({
+        companies: targets.length,
+        applications: applied,
+        score: averageScore ?? '—',
+        sessions: sessions.length,
+      })
 
       setActivity(
         logs.slice(0, 5).map((log) => ({
           id: String(log.id),
           text: String(log.action ?? ''),
-          time: getRelativeTime(String(log.createdAt ?? new Date().toISOString())),
+          time: getRelativeTime(String(log.createdAt ?? new Date().toISOString()), t),
         })),
       )
 
       if (results.some((r) => r === null)) {
-        setLoadError("Some dashboard data couldn't be loaded. Refresh to try again.")
+        setLoadError(t.loadError)
       }
       setLoading(false)
     }
@@ -172,13 +138,41 @@ export default function Dashboard() {
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [t])
 
   const quickActions = [
-    { label: 'New Resume', view: 'resume-forge' as const, icon: <FileText className="h-4 w-4" /> },
-    { label: 'Build Application Kit', view: 'payload-forge' as const, icon: <Package className="h-4 w-4" /> },
-    { label: 'Start Mock Interview', view: 'interview-drills' as const, icon: <Mic className="h-4 w-4" /> },
-    { label: 'Add Company', view: 'kill-list' as const, icon: <Plus className="h-4 w-4" /> },
+    { label: t.newResume, view: 'resume-forge' as const, icon: <FileText className="h-4 w-4" /> },
+    { label: t.buildKit, view: 'payload-forge' as const, icon: <Package className="h-4 w-4" /> },
+    { label: t.startInterview, view: 'interview-drills' as const, icon: <Mic className="h-4 w-4" /> },
+    { label: t.addCompany, view: 'kill-list' as const, icon: <Plus className="h-4 w-4" /> },
+  ]
+
+  const metrics: MetricCard[] = [
+    {
+      label: t.companies,
+      value: counts.companies,
+      icon: <ListChecks className="h-5 w-5" />,
+      color: 'text-hydra-purple',
+    },
+    {
+      label: t.applications,
+      value: counts.applications,
+      icon: <Package className="h-5 w-5" />,
+      color: 'text-hydra-cyan',
+    },
+    {
+      label: t.resumeScore,
+      value: counts.score,
+      icon: <FileText className="h-5 w-5" />,
+      suffix: '%',
+      color: 'text-hydra-green',
+    },
+    {
+      label: t.interviewSessions,
+      value: counts.sessions,
+      icon: <Mic className="h-5 w-5" />,
+      color: 'text-hydra-yellow',
+    },
   ]
 
   return (
@@ -191,10 +185,10 @@ export default function Dashboard() {
       {/* Welcome banner */}
       <motion.div variants={item}>
         <h2 className="text-2xl font-bold tracking-tight text-foreground">
-          Momentum
+          {t.title}
         </h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Your search at a glance — targets, applications, resume strength, and interview prep.
+          {t.subtitle}
         </p>
       </motion.div>
 
@@ -207,7 +201,7 @@ export default function Dashboard() {
             onClick={() => window.location.reload()}
             className="text-red-300 hover:text-red-200 shrink-0"
           >
-            Refresh
+            {m.common.refresh}
           </Button>
         </div>
       )}
@@ -242,7 +236,7 @@ export default function Dashboard() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-sm">
                 <Activity className="h-4 w-4 text-hydra-purple" />
-                Recent Activity
+                {t.recentActivity}
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -254,7 +248,7 @@ export default function Dashboard() {
                 </div>
               ) : activity.length === 0 ? (
                 <p className="text-sm text-muted-foreground">
-                  No activity yet. Actions you take will appear here.
+                  {t.noActivity}
                 </p>
               ) : (
                 <ul className="flex flex-col gap-3">
@@ -279,7 +273,7 @@ export default function Dashboard() {
         <motion.div variants={item}>
           <Card className="card-hover">
             <CardHeader>
-              <CardTitle className="text-sm">Quick Actions</CardTitle>
+              <CardTitle className="text-sm">{t.quickActions}</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="flex flex-col gap-2">

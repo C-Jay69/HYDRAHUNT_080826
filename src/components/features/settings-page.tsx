@@ -29,6 +29,8 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Switch } from '@/components/ui/switch'
 import { Separator } from '@/components/ui/separator'
+import { LanguageSwitcher } from '@/components/i18n/language-switcher'
+import { useI18n } from '@/lib/i18n'
 
 interface UserProfile {
   id: string
@@ -49,7 +51,17 @@ interface UserProfile {
   notificationsEnabled?: boolean
 }
 
-const EXPERIENCE_LEVELS = ['Entry Level', 'Mid Level', 'Senior', 'Lead', 'Manager', 'Director', 'VP', 'C-Suite', 'Executive']
+const EXPERIENCE_LEVELS = [
+  ['Entry Level', 'entry'],
+  ['Mid Level', 'mid'],
+  ['Senior', 'senior'],
+  ['Lead', 'lead'],
+  ['Manager', 'manager'],
+  ['Director', 'director'],
+  ['VP', 'vp'],
+  ['C-Suite', 'cSuite'],
+  ['Executive', 'executive'],
+] as const
 
 const container = {
   hidden: { opacity: 0 },
@@ -65,6 +77,8 @@ const item = {
 }
 
 export default function SettingsPage() {
+  const { m, format } = useI18n()
+  const t = m.settings
   const [deleteConfirm, setDeleteConfirm] = useState('')
   const [deleting, setDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
@@ -129,7 +143,7 @@ export default function SettingsPage() {
       })
     } catch (err) {
       // Never invent a fallback persona — show the failure honestly.
-      setLoadError(err instanceof Error ? err.message : 'Could not load your profile.')
+      setLoadError(err instanceof Error ? err.message : t.loadFailure)
     } finally {
       setLoading(false)
     }
@@ -175,7 +189,7 @@ export default function SettingsPage() {
       setSaved(true)
       setTimeout(() => setSaved(false), 3000)
     } catch (err) {
-      setSaveError(err instanceof Error ? err.message : 'Could not save your profile.')
+      setSaveError(err instanceof Error ? err.message : t.saveFailure)
     } finally {
       setSaving(false)
     }
@@ -207,8 +221,8 @@ export default function SettingsPage() {
           <Settings className="w-5 h-5 text-hydra-purple" />
         </div>
         <div>
-          <h1 className="text-xl font-bold text-foreground">Settings</h1>
-          <p className="text-sm text-hydra-muted">Manage your profile and preferences</p>
+          <h1 className="text-xl font-bold text-foreground">{t.title}</h1>
+          <p className="text-sm text-hydra-muted">{t.subtitle}</p>
         </div>
       </div>
 
@@ -217,14 +231,14 @@ export default function SettingsPage() {
           role="alert"
           className="flex items-center justify-between gap-3 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 max-w-3xl"
         >
-          <p className="text-sm text-red-300">Couldn't load your profile: {loadError}</p>
+          <p className="text-sm text-red-300">{format(t.loadError, { error: loadError })}</p>
           <Button
             variant="ghost"
             size="sm"
             onClick={() => fetchProfile()}
             className="text-red-300 hover:text-red-200 shrink-0"
           >
-            Retry
+            {t.retry}
           </Button>
         </div>
       )}
@@ -241,24 +255,24 @@ export default function SettingsPage() {
             <CardContent className="p-6">
               <div className="flex items-center gap-2 mb-5">
                 <User className="w-5 h-5 text-hydra-purple" />
-                <h2 className="text-base font-semibold text-foreground">Profile</h2>
+                <h2 className="text-base font-semibold text-foreground">{t.profile}</h2>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <Label className="text-hydra-muted text-xs mb-1.5 block">Name</Label>
+                  <Label className="text-hydra-muted text-xs mb-1.5 block">{t.name}</Label>
                   <Input
                     value={profile.name || ''}
                     onChange={(e) => updateField('name', e.target.value)}
-                    placeholder="Your name"
+                    placeholder={t.namePlaceholder}
                     className="bg-hydra-surface border-hydra-border text-foreground"
                   />
                 </div>
                 <div>
                   <Label className="text-hydra-muted text-xs mb-1.5 block">
-                    Email
+                    {t.email}
                     <Badge variant="outline" className="ml-2 text-[10px] py-0 px-1 text-hydra-muted border-hydra-border">
-                      Read Only
+                      {t.readOnly}
                     </Badge>
                   </Label>
                   <Input
@@ -268,76 +282,76 @@ export default function SettingsPage() {
                   />
                 </div>
                 <div className="md:col-span-2">
-                  <Label className="text-hydra-muted text-xs mb-1.5 block">Headline</Label>
+                  <Label className="text-hydra-muted text-xs mb-1.5 block">{t.headline}</Label>
                   <Input
                     value={profile.headline || ''}
                     onChange={(e) => updateField('headline', e.target.value)}
-                    placeholder="e.g. Senior Product Manager"
+                    placeholder={t.headlinePlaceholder}
                     className="bg-hydra-surface border-hydra-border text-foreground"
                   />
                 </div>
                 <div className="md:col-span-2">
-                  <Label className="text-hydra-muted text-xs mb-1.5 block">Bio</Label>
+                  <Label className="text-hydra-muted text-xs mb-1.5 block">{t.bio}</Label>
                   <Textarea
                     value={profile.bio || ''}
                     onChange={(e) => updateField('bio', e.target.value)}
-                    placeholder="Tell us about yourself..."
+                    placeholder={t.bioPlaceholder}
                     rows={3}
                     className="bg-hydra-surface border-hydra-border text-foreground resize-none custom-scrollbar"
                   />
                 </div>
                 <div>
                   <Label className="text-hydra-muted text-xs mb-1.5 flex items-center gap-1.5">
-                    <MapPin className="w-3 h-3" /> Location
+                    <MapPin className="w-3 h-3" /> {t.location}
                   </Label>
                   <Input
                     value={profile.location || ''}
                     onChange={(e) => updateField('location', e.target.value)}
-                    placeholder="e.g. San Francisco, CA"
+                    placeholder={t.locationPlaceholder}
                     className="bg-hydra-surface border-hydra-border text-foreground"
                   />
                 </div>
                 <div>
                   <Label className="text-hydra-muted text-xs mb-1.5 flex items-center gap-1.5">
-                    <Globe className="w-3 h-3" /> Website
+                    <Globe className="w-3 h-3" /> {t.website}
                   </Label>
                   <Input
                     value={profile.website || ''}
                     onChange={(e) => updateField('website', e.target.value)}
-                    placeholder="https://yourwebsite.com"
+                    placeholder={t.websitePlaceholder}
                     className="bg-hydra-surface border-hydra-border text-foreground"
                   />
                 </div>
                 <div>
                   <Label className="text-hydra-muted text-xs mb-1.5 flex items-center gap-1.5">
-                    <Linkedin className="w-3 h-3" /> LinkedIn
+                    <Linkedin className="w-3 h-3" /> {t.linkedin}
                   </Label>
                   <Input
                     value={profile.linkedin || ''}
                     onChange={(e) => updateField('linkedin', e.target.value)}
-                    placeholder="linkedin.com/in/yourprofile"
+                    placeholder={t.linkedinPlaceholder}
                     className="bg-hydra-surface border-hydra-border text-foreground"
                   />
                 </div>
                 <div>
                   <Label className="text-hydra-muted text-xs mb-1.5 flex items-center gap-1.5">
-                    <Github className="w-3 h-3" /> GitHub
+                    <Github className="w-3 h-3" /> {t.github}
                   </Label>
                   <Input
                     value={profile.github || ''}
                     onChange={(e) => updateField('github', e.target.value)}
-                    placeholder="github.com/yourusername"
+                    placeholder={t.githubPlaceholder}
                     className="bg-hydra-surface border-hydra-border text-foreground"
                   />
                 </div>
                 <div>
                   <Label className="text-hydra-muted text-xs mb-1.5 flex items-center gap-1.5">
-                    <Phone className="w-3 h-3" /> Phone
+                    <Phone className="w-3 h-3" /> {t.phone}
                   </Label>
                   <Input
                     value={profile.phone || ''}
                     onChange={(e) => updateField('phone', e.target.value)}
-                    placeholder="+1 (555) 000-0000"
+                    placeholder={t.phonePlaceholder}
                     className="bg-hydra-surface border-hydra-border text-foreground"
                   />
                 </div>
@@ -352,56 +366,56 @@ export default function SettingsPage() {
             <CardContent className="p-6">
               <div className="flex items-center gap-2 mb-5">
                 <Target className="w-5 h-5 text-hydra-cyan" />
-                <h2 className="text-base font-semibold text-foreground">Target</h2>
+                <h2 className="text-base font-semibold text-foreground">{t.target}</h2>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <Label className="text-hydra-muted text-xs mb-1.5 flex items-center gap-1.5">
-                    <Briefcase className="w-3 h-3" /> Target Role
+                    <Briefcase className="w-3 h-3" /> {t.targetRole}
                   </Label>
                   <Input
                     value={profile.targetRole || ''}
                     onChange={(e) => updateField('targetRole', e.target.value)}
-                    placeholder="e.g. VP of Product"
+                    placeholder={t.targetRolePlaceholder}
                     className="bg-hydra-surface border-hydra-border text-foreground"
                   />
                 </div>
                 <div>
                   <Label className="text-hydra-muted text-xs mb-1.5 flex items-center gap-1.5">
-                    <DollarSign className="w-3 h-3" /> Target Salary
+                    <DollarSign className="w-3 h-3" /> {t.targetSalary}
                   </Label>
                   <Input
                     value={profile.targetSalary || ''}
                     onChange={(e) => updateField('targetSalary', e.target.value)}
-                    placeholder="e.g. 250000"
+                    placeholder={t.targetSalaryPlaceholder}
                     className="bg-hydra-surface border-hydra-border text-foreground"
                   />
                 </div>
                 <div>
                   <Label className="text-hydra-muted text-xs mb-1.5 flex items-center gap-1.5">
-                    <MapPin className="w-3 h-3" /> Target Location
+                    <MapPin className="w-3 h-3" /> {t.targetLocation}
                   </Label>
                   <Input
                     value={profile.targetLocation || ''}
                     onChange={(e) => updateField('targetLocation', e.target.value)}
-                    placeholder="e.g. Remote | San Francisco"
+                    placeholder={t.targetLocationPlaceholder}
                     className="bg-hydra-surface border-hydra-border text-foreground"
                   />
                 </div>
                 <div>
                   <Label className="text-hydra-muted text-xs mb-1.5 flex items-center gap-1.5">
-                    <BarChart3 className="w-3 h-3" /> Experience Level
+                    <BarChart3 className="w-3 h-3" /> {t.experienceLevel}
                   </Label>
                   <select
                     value={profile.experienceLevel || ''}
                     onChange={(e) => updateField('experienceLevel', e.target.value)}
                     className="w-full px-3 py-2 rounded-md bg-hydra-surface border border-hydra-border text-foreground text-sm focus:outline-none focus:ring-1 focus:ring-hydra-purple"
                   >
-                    <option value="">Select level...</option>
-                    {EXPERIENCE_LEVELS.map((level) => (
-                      <option key={level} value={level}>
-                        {level}
+                    <option value="">{t.selectLevel}</option>
+                    {EXPERIENCE_LEVELS.map(([value, key]) => (
+                      <option key={value} value={value}>
+                        {t.experienceLevels[key]}
                       </option>
                     ))}
                   </select>
@@ -417,7 +431,7 @@ export default function SettingsPage() {
             <CardContent className="p-6">
               <div className="flex items-center gap-2 mb-5">
                 <Settings className="w-5 h-5 text-hydra-yellow" />
-                <h2 className="text-base font-semibold text-foreground">Preferences</h2>
+                <h2 className="text-base font-semibold text-foreground">{t.preferences}</h2>
               </div>
 
               <div className="space-y-4">
@@ -425,8 +439,8 @@ export default function SettingsPage() {
                   <div className="flex items-center gap-3">
                     <Bell className="w-4 h-4 text-hydra-muted" />
                     <div>
-                      <p className="text-sm font-medium text-foreground">Notifications</p>
-                      <p className="text-xs text-hydra-muted">Receive email notifications for important updates</p>
+                      <p className="text-sm font-medium text-foreground">{t.notifications}</p>
+                      <p className="text-xs text-hydra-muted">{t.notificationsBody}</p>
                     </div>
                   </div>
                   <Switch
@@ -438,12 +452,25 @@ export default function SettingsPage() {
 
                 <Separator className="bg-hydra-border" />
 
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <Globe className="w-4 h-4 text-hydra-muted" />
+                    <div>
+                      <p className="text-sm font-medium text-foreground">{t.language}</p>
+                      <p className="text-xs text-hydra-muted">{t.languageBody}</p>
+                    </div>
+                  </div>
+                  <LanguageSwitcher />
+                </div>
+
+                <Separator className="bg-hydra-border" />
+
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <Moon className="w-4 h-4 text-hydra-muted" />
                     <div>
-                      <p className="text-sm font-medium text-foreground">Dark Mode</p>
-                      <p className="text-xs text-hydra-muted">Easy on the eyes, day or night</p>
+                      <p className="text-sm font-medium text-foreground">{t.darkMode}</p>
+                      <p className="text-xs text-hydra-muted">{t.darkModeBody}</p>
                     </div>
                   </div>
                   <Switch checked disabled className="data-[state=checked]:bg-hydra-purple opacity-60" />
@@ -459,17 +486,14 @@ export default function SettingsPage() {
             <CardContent className="p-6">
               <div className="flex items-center gap-2 mb-2">
                 <Trash2 className="w-5 h-5 text-red-400" />
-                <h2 className="text-base font-semibold text-foreground">Delete account</h2>
+                <h2 className="text-base font-semibold text-foreground">{t.deleteTitle}</h2>
               </div>
-              <p className="text-xs text-hydra-muted mb-4">
-                Permanently deletes your resumes, application kits, interview sessions, tracker entries and
-                subscription. This cannot be undone. Type DELETE to confirm.
-              </p>
+              <p className="text-xs text-hydra-muted mb-4">{t.deleteBody}</p>
               <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
                 <Input
                   value={deleteConfirm}
                   onChange={(e) => setDeleteConfirm(e.target.value)}
-                  placeholder="DELETE"
+                  placeholder={t.deletePlaceholder}
                   className="bg-hydra-surface border-hydra-border text-foreground max-w-[200px]"
                 />
                 <Button
@@ -485,12 +509,12 @@ export default function SettingsPage() {
                         body: JSON.stringify({ confirm: 'DELETE' }),
                       })
                       if (!res.ok) {
-                        setDeleteError(`Couldn't delete your account (HTTP ${res.status}). Please contact support.`)
+                        setDeleteError(format(t.deleteFailure, { status: res.status }))
                       } else {
                         window.location.href = '/'
                       }
                     } catch {
-                      setDeleteError("Couldn't reach the server. Please try again.")
+                      setDeleteError(t.deleteNetwork)
                     } finally {
                       setDeleting(false)
                     }
@@ -500,10 +524,10 @@ export default function SettingsPage() {
                   {deleting ? (
                     <>
                       <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Deleting...
+                      {t.deleting}
                     </>
                   ) : (
-                    'Delete my account'
+                    t.deleteButton
                   )}
                 </Button>
               </div>
@@ -520,7 +544,7 @@ export default function SettingsPage() {
         <motion.div variants={item} className="flex flex-col items-end gap-2">
           {saveError && (
             <p role="alert" className="text-xs text-red-400">
-              Couldn't save your profile: {saveError}
+              {format(t.saveError, { error: saveError })}
             </p>
           )}
           <Button
@@ -531,17 +555,17 @@ export default function SettingsPage() {
             {saving ? (
               <>
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                Saving...
+                {t.saving}
               </>
             ) : saved ? (
               <>
                 <Shield className="w-4 h-4 mr-2" />
-                Saved!
+                {t.saved}
               </>
             ) : (
               <>
                 <Save className="w-4 h-4 mr-2" />
-                Save Changes
+                {t.saveChanges}
               </>
             )}
           </Button>

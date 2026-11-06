@@ -4,11 +4,13 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { motion } from 'framer-motion'
 import { Eye, EyeOff, Mail, Lock, Loader2 } from 'lucide-react'
 import { HydraMark } from '@/components/brand/hydra-logo'
+import { LanguageSwitcher } from '@/components/i18n/language-switcher'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { useAppStore } from '@/store/app-store'
+import { useI18n } from '@/lib/i18n'
 import { toast } from '@/hooks/use-toast'
 
 /* ------------------------------------------------------------------ */
@@ -27,6 +29,8 @@ const fadeUp = {
 export default function LoginPage() {
   const setView = useAppStore((s) => s.setView)
   const setAuthenticated = useAppStore((s) => s.setAuthenticated)
+  const { m } = useI18n()
+  const t = m.auth.login
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -38,20 +42,20 @@ export default function LoginPage() {
     const code = new URLSearchParams(window.location.search).get('authError')
     if (!code) return
     const messages: Record<string, string> = {
-      cancelled: 'Google sign-in was cancelled.',
-      state: 'That sign-in attempt expired. Please try again.',
-      exchange: 'Google sign-in failed. Please try again.',
-      unverified: 'Google has not verified that email address.',
-      admin: 'This email is reserved. Sign in with your admin password.',
-      unavailable: 'Google sign-in is not configured on this deployment.',
+      cancelled: t.googleErrors.cancelled,
+      state: t.googleErrors.state,
+      exchange: t.googleErrors.exchange,
+      unverified: t.googleErrors.unverified,
+      admin: t.googleErrors.admin,
+      unavailable: t.googleErrors.unavailable,
     }
     toast({
-      title: 'Google Sign-In Failed',
-      description: messages[code] || 'Google sign-in failed. Please try again.',
+      title: t.googleFailTitle,
+      description: messages[code] || t.googleFailDefault,
       variant: 'destructive',
     })
     window.history.replaceState({}, '', window.location.pathname)
-  }, [])
+  }, [t])
 
   function startGoogleSignIn() {
     window.location.assign('/api/auth/google')
@@ -70,7 +74,7 @@ export default function LoginPage() {
 
       if (!res.ok) {
         const data = await res.json().catch(() => ({}))
-        throw new Error(data.error || 'Authentication failed')
+        throw new Error(data.error || t.authFailed)
       }
 
       const data = await res.json()
@@ -82,15 +86,18 @@ export default function LoginPage() {
         isAdmin: Boolean(data.user.isAdmin),
       })
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Something went wrong'
-      toast({ title: 'Access Denied', description: message, variant: 'destructive' })
+      const message = err instanceof Error ? err.message : t.genericError
+      toast({ title: t.errorTitle, description: message, variant: 'destructive' })
     } finally {
       setLoading(false)
     }
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 py-12 scene scene-lights">
+    <div className="relative min-h-screen flex items-center justify-center px-4 py-12 scene scene-lights">
+      <div className="absolute right-4 top-4">
+        <LanguageSwitcher />
+      </div>
       <motion.div
         className="w-full max-w-md"
         initial="hidden"
@@ -104,7 +111,7 @@ export default function LoginPage() {
           </div>
           <h1 className="text-3xl font-bold gradient-text">HydraHunt</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Sign in to your workspace
+            {t.title}
           </p>
         </motion.div>
 
@@ -116,14 +123,14 @@ export default function LoginPage() {
                 {/* Email */}
                 <div className="space-y-2">
                   <Label htmlFor="email" className="text-sm font-medium">
-                    Email Address
+                    {t.email}
                   </Label>
                   <div className="relative">
                     <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
                       id="email"
                       type="email"
-                      placeholder="you@example.com"
+                      placeholder={t.emailPlaceholder}
                       required
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
@@ -135,7 +142,7 @@ export default function LoginPage() {
                 {/* Password */}
                 <div className="space-y-2">
                   <Label htmlFor="password" className="text-sm font-medium">
-                    Password
+                    {t.password}
                   </Label>
                   <div className="relative">
                     <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -152,7 +159,7 @@ export default function LoginPage() {
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
                       className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                      aria-label={showPassword ? 'Hide password' : 'Show password'}
+                      aria-label={showPassword ? t.hidePassword : t.showPassword}
                     >
                       {showPassword ? (
                         <EyeOff className="h-4 w-4" />
@@ -172,14 +179,14 @@ export default function LoginPage() {
                   {loading ? (
                     <Loader2 className="h-4 w-4 animate-spin mr-2" />
                   ) : null}
-                  {loading ? 'Authenticating...' : 'Sign In'}
+                  {loading ? t.authenticating : t.signIn}
                 </Button>
 
                 {/* Divider */}
                 <div className="relative flex items-center my-4">
                   <div className="flex-grow border-t border-hydra-border" />
                   <span className="mx-3 text-xs text-muted-foreground uppercase tracking-wider">
-                    or
+                    {t.or}
                   </span>
                   <div className="flex-grow border-t border-hydra-border" />
                 </div>
@@ -216,18 +223,18 @@ export default function LoginPage() {
                       fill="#EA4335"
                     />
                   </svg>
-                  Sign in with Google
+                  {t.google}
                 </div>
 
                 {/* Sign up link */}
                 <p className="text-center text-sm text-muted-foreground">
-                  Don&apos;t have an account?{' '}
+                  {t.noAccount}{' '}
                   <button
                     type="button"
                     onClick={() => setView('signup')}
                     className="text-hydra-cyan hover:text-hydra-cyan-bright transition-colors font-medium"
                   >
-                    Sign up
+                    {t.signUp}
                   </button>
                 </p>
 
@@ -238,7 +245,7 @@ export default function LoginPage() {
                     onClick={() => setView('landing')}
                     className="text-muted-foreground hover:text-foreground transition-colors"
                   >
-                    ← Back to Home
+                    {t.backHome}
                   </button>
                 </p>
               </form>

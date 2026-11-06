@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
+import { DEFAULT_LOCALE, type Locale } from '@/lib/i18n/locales'
 
 type AppView =
   | 'landing'
@@ -38,6 +39,8 @@ interface AppState {
   selectedInterviewSessionId: string | null
   selectedAnalysisId: string | null
   sidebarOpen: boolean
+  locale: Locale
+  setLocale: (locale: Locale) => void
   setView: (view: AppView) => void
   setAuthenticated: (auth: boolean, user?: AppState['user']) => void
   restoreSession: () => Promise<void>
@@ -59,6 +62,8 @@ export const useAppStore = create<AppState>()(
       selectedInterviewSessionId: null,
       selectedAnalysisId: null,
       sidebarOpen: true,
+      locale: DEFAULT_LOCALE,
+      setLocale: (locale) => set({ locale }),
       setView: (view) => set({ view }),
       setAuthenticated: (auth, user) =>
         set({
@@ -124,6 +129,7 @@ export const useAppStore = create<AppState>()(
         isAuthenticated: state.isAuthenticated,
         user: state.user,
         sidebarOpen: state.sidebarOpen,
+        locale: state.locale,
       }),
     },
   ),

@@ -4,11 +4,13 @@ import { useState, type FormEvent } from 'react'
 import { motion } from 'framer-motion'
 import { Eye, EyeOff, Mail, Lock, User, Loader2 } from 'lucide-react'
 import { HydraMark } from '@/components/brand/hydra-logo'
+import { LanguageSwitcher } from '@/components/i18n/language-switcher'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { useAppStore } from '@/store/app-store'
+import { useI18n } from '@/lib/i18n'
 import { toast } from '@/hooks/use-toast'
 
 /* ------------------------------------------------------------------ */
@@ -27,6 +29,8 @@ const fadeUp = {
 export default function SignupPage() {
   const setView = useAppStore((s) => s.setView)
   const setAuthenticated = useAppStore((s) => s.setAuthenticated)
+  const { m } = useI18n()
+  const t = m.auth.signup
 
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
@@ -40,12 +44,12 @@ export default function SignupPage() {
     e.preventDefault()
 
     if (password !== confirmPassword) {
-      toast({ title: 'Mismatch', description: 'Passwords do not match.', variant: 'destructive' })
+      toast({ title: t.mismatchTitle, description: t.mismatchBody, variant: 'destructive' })
       return
     }
 
     if (password.length < 6) {
-      toast({ title: 'Weak Password', description: 'Password must be at least 6 characters.', variant: 'destructive' })
+      toast({ title: t.weakTitle, description: t.weakBody, variant: 'destructive' })
       return
     }
 
@@ -60,7 +64,7 @@ export default function SignupPage() {
 
       if (!res.ok) {
         const data = await res.json().catch(() => ({}))
-        throw new Error(data.error || 'Registration failed')
+        throw new Error(data.error || t.registerFailed)
       }
 
       const data = await res.json()
@@ -72,15 +76,18 @@ export default function SignupPage() {
         isAdmin: Boolean(data.user.isAdmin),
       })
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Something went wrong'
-      toast({ title: 'Registration Denied', description: message, variant: 'destructive' })
+      const message = err instanceof Error ? err.message : t.genericError
+      toast({ title: t.errorTitle, description: message, variant: 'destructive' })
     } finally {
       setLoading(false)
     }
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 py-12 scene scene-lights">
+    <div className="relative min-h-screen flex items-center justify-center px-4 py-12 scene scene-lights">
+      <div className="absolute right-4 top-4">
+        <LanguageSwitcher />
+      </div>
       <motion.div
         className="w-full max-w-md"
         initial="hidden"
@@ -94,7 +101,7 @@ export default function SignupPage() {
           </div>
           <h1 className="text-3xl font-bold gradient-text">HydraHunt</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Create your profile
+            {t.title}
           </p>
         </motion.div>
 
@@ -106,14 +113,14 @@ export default function SignupPage() {
                 {/* Name */}
                 <div className="space-y-2">
                   <Label htmlFor="name" className="text-sm font-medium">
-                    Name
+                    {t.name}
                   </Label>
                   <div className="relative">
                     <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
                       id="name"
                       type="text"
-                      placeholder="Your name"
+                      placeholder={t.namePlaceholder}
                       required
                       value={name}
                       onChange={(e) => setName(e.target.value)}
@@ -125,14 +132,14 @@ export default function SignupPage() {
                 {/* Email */}
                 <div className="space-y-2">
                   <Label htmlFor="signup-email" className="text-sm font-medium">
-                    Email Address
+                    {t.email}
                   </Label>
                   <div className="relative">
                     <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
                       id="signup-email"
                       type="email"
-                      placeholder="you@example.com"
+                      placeholder={t.emailPlaceholder}
                       required
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
@@ -144,7 +151,7 @@ export default function SignupPage() {
                 {/* Password */}
                 <div className="space-y-2">
                   <Label htmlFor="signup-password" className="text-sm font-medium">
-                    Password
+                    {t.password}
                   </Label>
                   <div className="relative">
                     <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -161,7 +168,7 @@ export default function SignupPage() {
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
                       className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                      aria-label={showPassword ? 'Hide password' : 'Show password'}
+                      aria-label={showPassword ? t.hidePassword : t.showPassword}
                     >
                       {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </button>
@@ -171,7 +178,7 @@ export default function SignupPage() {
                 {/* Confirm Password */}
                 <div className="space-y-2">
                   <Label htmlFor="confirm-password" className="text-sm font-medium">
-                    Confirm Password
+                    {t.confirmPassword}
                   </Label>
                   <div className="relative">
                     <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -188,7 +195,7 @@ export default function SignupPage() {
                       type="button"
                       onClick={() => setShowConfirm(!showConfirm)}
                       className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                      aria-label={showConfirm ? 'Hide password' : 'Show password'}
+                      aria-label={showConfirm ? t.hidePassword : t.showPassword}
                     >
                       {showConfirm ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </button>
@@ -204,18 +211,18 @@ export default function SignupPage() {
                   {loading ? (
                     <Loader2 className="h-4 w-4 animate-spin mr-2" />
                   ) : null}
-                  {loading ? 'Initializing...' : 'Create Account'}
+                  {loading ? t.initiating : t.create}
                 </Button>
 
                 {/* Sign in link */}
                 <p className="text-center text-sm text-muted-foreground">
-                  Already have an account?{' '}
+                  {t.haveAccount}{' '}
                   <button
                     type="button"
                     onClick={() => setView('login')}
                     className="text-hydra-cyan hover:text-hydra-cyan-bright transition-colors font-medium"
                   >
-                    Sign in
+                    {t.signIn}
                   </button>
                 </p>
               </form>
